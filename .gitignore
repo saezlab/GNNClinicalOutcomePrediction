@@ -142,3 +142,8 @@ logs/
 
 # ignore large data folders
 data/
+
+
+# sketches
+sketches/
+sketches/*
