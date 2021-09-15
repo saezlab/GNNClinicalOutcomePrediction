@@ -137,5 +137,8 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# logs created by scrpits
+# logs created by scripts
 logs/
+
+# ignore large data folders
+data/
