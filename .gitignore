@@ -147,3 +147,7 @@ data/
 # sketches
 sketches/
 sketches/*
+
+# .DS_Store
+.DS_Store
+ ../.DS_Store
