@@ -1,0 +1,3 @@
+import data_preparation
+
+print(data_preparation.get_basel_zurich_staining_panel())
