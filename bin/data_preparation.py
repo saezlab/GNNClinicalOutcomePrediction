@@ -3,7 +3,7 @@ import os
 import re
 
 cwd = os. getcwd()
-RAW_DATA_PATH = os.path.join(cwd, "..", "data", "JacksonFischer")
+RAW_DATA_PATH = os.path.join(cwd, "data", "JacksonFischer")
 
 
 def read_basel_patient_meta_data():
@@ -93,25 +93,28 @@ def read_zurich_patient_meta_data():
 
 
 #  "Basel_Zuri_WholeImage file" to map the image number
-def get_img_number_from_whole_image_file():
+def get_imgnumber_pid_flname_mapping_dict():
     """
-    Create a dictionary for mapping file names and img ids
+    Create a dictionary for mapping file names, patient ids and img ids
 
     Parameters:
         None
 
     Returns:
         dict: A dictionary where the keys are "FileName_FullStack" from "Zuri-Basel_PatientMetadata" and values
-        are tuples in the form of (<file name from whole image flt>, <img number>)
+        are tuples in the form of (<file name from whole image flt>, <img number>), <patient_id>
     """
     f_path = os.path.join(RAW_DATA_PATH, "Basel_Zuri_WholeImage.csv")
     whole_image_df = pd.read_csv(f_path, index_col=False)
-    whole_image_cols = whole_image_df.columns
+    # whole_image_cols = whole_image_df.columns
+
+    img_numbers_to_be_ignored =[]
     
     dict_basel_patterns = read_basel_patient_meta_data()
     dict_zurich_patterns = read_zurich_patient_meta_data()
 
-    dict_fl_name_img_number = dict()
+    dict_flname_imgnumber_pid = dict()
+    dict_imgnumber_pid = dict()
     for _, row in whole_image_df.iterrows():
         # print(row)
         fl_name = row["FileName_FullStack"]
@@ -129,14 +132,18 @@ def get_img_number_from_whole_image_file():
                 if pattern_found:
                     print("Something is weird! Pattern found more than once!")
                 pattern_found = True
-                dict_fl_name_img_number[cohort_fl_name] = (fl_name, img_number)
+                dict_flname_imgnumber_pid[cohort_fl_name] = (fl_name, img_number, pid)
+                dict_imgnumber_pid[img_number] = pid
         
+        ignore_warnings = True
         # print warning message if pattern cannot be found at all!    
         if not pattern_found:
-            print("No matching pattern!")
-            print("Whole image fl_name:", fl_name)
+            img_numbers_to_be_ignored.append(img_number)
+            if not ignore_warnings: 
+                print("No matching pattern! \n  Whole image fl_name:", fl_name)
+            
 
-    return dict_fl_name_img_number
+    return dict_flname_imgnumber_pid, dict_imgnumber_pid, img_numbers_to_be_ignored
 
 def get_basel_zurich_staining_panel():
     """
@@ -163,3 +170,61 @@ def get_basel_zurich_staining_panel():
             dict_fullstackid_gene[full_stack] = target
 
     return dict_fullstackid_gene
+
+
+# TODO: read the single cell image file and get the required features and create the final dataset
+def create_preprocessed_sc_feature_fl():
+    """
+    Perform mapping among files, select features, drop rows with NAs, remove the cells from unwanted images and save the compact file
+
+    Parameters:
+        None
+    Returns:
+        None  
+    """
+    f_path = os.path.join(RAW_DATA_PATH, "Basel_Zuri_SingleCell.csv")
+    cols = pd.read_csv(f_path, index_col=False, nrows=0).columns.tolist()
+
+    cols_to_be_selected = ["ImageNumber",  "ObjectNumber", "Location_Center_X", "Location_Center_Y"]
+    
+    # get channel ids to be kept
+    dict_fullstackid_gene = get_basel_zurich_staining_panel()
+    for col in cols:
+         if col.startswith("Intensity_MeanIntensity_FullStack_c"):
+             channel_id = int(col.split("Intensity_MeanIntensity_FullStack_c")[1])
+             if channel_id in dict_fullstackid_gene.keys():
+                 cols_to_be_selected.append(col)
+                 
+
+    # print(cols_to_be_selected)
+
+    dict_flname_imgnumber_pid, dict_imgnumber_pid, img_numbers_to_be_ignored = get_imgnumber_pid_flname_mapping_dict()
+
+    i=1
+    chunks = []
+    ch_size = 100000
+    with  pd.read_csv(f_path, chunksize=ch_size, index_col=False) as reader:   
+        for chunk in reader:
+            print(f"Prossesing chunk #{i}... Chunk size: {ch_size}")
+            chunks.append(chunk[cols_to_be_selected])
+            # remove the rows with cells from unwanted images
+            chunks[-1]  = chunks[-1][~chunks[-1].ImageNumber.isin(img_numbers_to_be_ignored)]
+            pid_lst = []
+            for _, row in chunks[-1].iterrows():
+                pid = dict_imgnumber_pid[int(row["ImageNumber"])]
+                pid_lst.append(pid)
+            
+            chunks[-1]["PID"] = pid_lst
+
+            i += 1
+    
+    # concatenate chunks and remove the rows with NA values
+    new_dataset = pd.concat(chunks)
+    new_dataset.dropna(inplace=True)
+
+
+    # print(new_dataset.count())
+    # print(new_dataset.size)  
+    # print(new_dataset.columns)
+    # print(new_dataset)
+    new_dataset.to_csv(os.path.join(RAW_DATA_PATH,  "basel_zurich_preprocessed_compact_dataset.csv"), index_label=False)
