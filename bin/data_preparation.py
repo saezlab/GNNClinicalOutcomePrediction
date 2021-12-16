@@ -1,3 +1,4 @@
+from numpy import integer
 import pandas as pd
 import os
 import re
@@ -219,12 +220,15 @@ def create_preprocessed_sc_feature_fl():
             i += 1
     
     # concatenate chunks and remove the rows with NA values
-    new_dataset = pd.concat(chunks)
-    new_dataset.dropna(inplace=True)
+    df_new_dataset = pd.concat(chunks)
+    df_new_dataset.dropna(inplace=True)
+    df_new_dataset[['PID', 'ObjectNumber', "ImageNumber"]] = df_new_dataset[['PID', 'ObjectNumber', "ImageNumber"]].astype(integer)
+
+
 
 
     # print(new_dataset.count())
     # print(new_dataset.size)  
     # print(new_dataset.columns)
     # print(new_dataset)
-    new_dataset.to_csv(os.path.join(RAW_DATA_PATH,  "basel_zurich_preprocessed_compact_dataset.csv"), index_label=False)
+    df_new_dataset.to_csv(os.path.join(RAW_DATA_PATH,  "basel_zurich_preprocessed_compact_dataset.csv"), index=False)
