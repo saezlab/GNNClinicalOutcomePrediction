@@ -1,7 +1,17 @@
 import os
+from pandas.core.dtypes.missing import notna
 import torch
+import pickle
+import numpy as np
+import torch_geometric
+from torch_geometric.data import Data
 import pandas as pd
 from torch_geometric.data import InMemoryDataset, download_url
+
+
+RAW_DATA_PATH = os.path.join("../data", "raw")
+OUT_DATA_PATH = os.path.join("../data", "out_data")
+PLOT_PATH = os.path.join("../plots")
 
 
 class TissueDataset(InMemoryDataset):
@@ -24,9 +34,44 @@ class TissueDataset(InMemoryDataset):
     def process(self):
         # Read data into huge `Data` list.
         self.data = pd.read_csv(os.path.join(self.root, "raw", self.raw_file_names[0]))
-        grouped_by_image_num = self.data.groupby("ImageNumber").count()
-        print(grouped_by_image_num)
+
+
+        img_pid_set = set([(item[0], item[1]) for item in self.data[["ImageNumber", "PID"]].values])
         data_list = []
+        count = 0
+        dict_conditions = dict()
+        for img, pid in img_pid_set:
+            try:
+            
+                with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_clinical_info.pickle'), 'rb') as handle:
+                    clinical_info_dict = pickle.load(handle)
+                
+                
+                if (clinical_info_dict["grade"]==3 or  clinical_info_dict["grade"]==2) and pd.notna(clinical_info_dict["OSmonth"]) and clinical_info_dict["diseasestatus"]=="tumor":#  and clinical_info_dict["clinical_type"]=="TripleNeg" :
+                    with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_features.pickle'), 'rb') as handle:
+                        feature_arr = pickle.load(handle)
+                        feature_arr = np.array(feature_arr)
+
+                    with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_edge_index_length.pickle'), 'rb') as handle:
+                        edge_index_arr, edge_length_arr = pickle.load(handle)
+                        edge_index_arr = np.array(edge_index_arr)
+
+                    with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_coordinates.pickle'), 'rb') as handle:
+                        coordinates_arr = pickle.load(handle)
+                        coordinates_arr = np.array(coordinates_arr)
+
+                    data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=clinical_info_dict["OSmonth"])
+                    data_list.append(data)
+                    count+=1
+
+            except:
+                pass
+        
+        print(count)
+
+
+        
+        
 
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
@@ -35,8 +80,27 @@ class TissueDataset(InMemoryDataset):
             data_list = [self.pre_transform(data) for data in data_list]
 
         data, slices = self.collate(data_list)
-        # torch.save((data, slices), self.processed_paths[0])
+        torch.save((data, slices), self.processed_paths[0])
 
 
-a = TissueDataset("../data")
-print(a.raw_file_names)
+
+
+
+"""with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_edge_index_length.pickle'), 'wb') as handle:
+            pickle.dump((edge_index_arr, edge_length_arr), handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
+        nonfeat_cols = []
+        for col in df_image.columns:
+            if "MeanIntensity" not in col:
+                nonfeat_cols.append(col) 
+        # save the feature vector as numpy array, first column is the cell id
+        # "ImageNumber", "ObjectNumber", "Location_Center_X", "Location_Center_Y", "PID", "grade", "tumor_size", "age", "treatment", "DiseaseStage", "diseasestatus", "clinical_type", "DFSmonth", "OSmonth"
+
+        with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_features.pickle'), 'wb') as handle:
+            pickle.dump(np.array(df_image.drop(nonfeat_cols, axis=1)), handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+                # save the feature vector as numpy array, first column is the cell id
+        with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_coordinates.pickle'), 'wb') as handle:
+            pickle.dump(points, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_clinical_info.pickle'), 'wb') as handle:"""

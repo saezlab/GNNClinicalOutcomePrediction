@@ -3,8 +3,7 @@ import pandas as pd
 import os
 import re
 
-cwd = os. getcwd()
-RAW_DATA_PATH = os.path.join(cwd, "data", "JacksonFischer")
+RAW_DATA_PATH = os.path.join("../data", "JacksonFischer")
 
 
 def read_basel_patient_meta_data():
@@ -28,6 +27,16 @@ def read_basel_patient_meta_data():
 
         #get patient id
         p_id = row["PID"]
+        grade = row["grade"]
+        tumor_size = row["tumor_size"]
+        age = row["age"]
+        treatment = row["treatment"]
+        diseasestage = row["DiseaseStage"]
+        diseasestatus = row["diseasestatus"]
+        clinical_type = row["clinical_type"]
+        dfsmonth = row["DFSmonth"]
+        osmonth = row["OSmonth"]
+        # response = row["response"]
 
         # get the required fields from "FileName_FullStack" column
         fl_name = row["FileName_FullStack"]
@@ -41,7 +50,7 @@ def read_basel_patient_meta_data():
         
         # create pattern
         pattern = re.compile(f"^({first_part})_[0-9]+_({second_part})_*")
-        dict_basel_patterns[fl_name] = (pattern, p_id)
+        dict_basel_patterns[fl_name] = (pattern, p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth) # , response)
         
 
     return dict_basel_patterns
@@ -67,6 +76,18 @@ def read_zurich_patient_meta_data():
 
         #get patient id
         p_id = row["PID"]
+        grade = row["grade"]
+        tumor_size = row["tumor_size"]
+        age = row["age"]
+        treatment = row["treatment"]
+        diseasestage = row["DiseaseStage"]
+        diseasestatus = row["diseasestatus"]
+        clinical_type = row["clinical_type"]
+        dfsmonth = row["DFSmonth"]
+        osmonth = row["OSmonth"]
+        
+        # response = row["response"]
+
 
         # get the required fields from "FileName_FullStack" column
         fl_name = row["FileName_FullStack"]
@@ -87,7 +108,7 @@ def read_zurich_patient_meta_data():
         # "B[0-9]{2}\\.[0-9]+_
         # create pattern
         pattern = re.compile(f"^({first_part})_B[0-9][0-9]\.[0-9]+_({second_part})_*")
-        dict_zurich_patterns[fl_name] = (pattern, p_id)
+        dict_zurich_patterns[fl_name] = (pattern, p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type,  dfsmonth, osmonth)# , response)
         
 
     return dict_zurich_patterns
@@ -126,15 +147,15 @@ def get_imgnumber_pid_flname_mapping_dict():
         # if fl_name.startswith("ZTMA"):
         pattern_found = False
         for cohort_fl_name, pattern_pid in pattern_dict.items():
-            pattern, pid = pattern_pid
+            pattern, p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth= pattern_pid
             is_match = pattern.findall(fl_name)
             # print(fl_name, is_match)
             if is_match!=[]:
                 if pattern_found:
                     print("Something is weird! Pattern found more than once!")
                 pattern_found = True
-                dict_flname_imgnumber_pid[cohort_fl_name] = (fl_name, img_number, pid)
-                dict_imgnumber_pid[img_number] = pid
+                dict_flname_imgnumber_pid[cohort_fl_name] = (fl_name, img_number,  p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth)
+                dict_imgnumber_pid[img_number] = (fl_name, img_number,  p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth)
         
         ignore_warnings = True
         # print warning message if pattern cannot be found at all!    
@@ -208,21 +229,45 @@ def create_preprocessed_sc_feature_fl():
         for chunk in reader:
             print(f"Prossesing chunk #{i}... Chunk size: {ch_size}")
             chunks.append(chunk[cols_to_be_selected])
+
+            print(chunks)
             # remove the rows with cells from unwanted images
             chunks[-1]  = chunks[-1][~chunks[-1].ImageNumber.isin(img_numbers_to_be_ignored)]
-            pid_lst = []
-            for _, row in chunks[-1].iterrows():
-                pid = dict_imgnumber_pid[int(row["ImageNumber"])]
-                pid_lst.append(pid)
+            p_id_lst, grade_lst, tumor_size_lst, age_lst, treatment_lst, diseasestage_lst, diseasestatus_lst, clinical_type_lst, dfsmonth_lst, osmonth_lst = [], [], [], [], [], [], [], [], [], [] 
             
-            chunks[-1]["PID"] = pid_lst
+            
+            for _, row in chunks[-1].iterrows():
+                fl_name, img_number,  p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type,  dfsmonth, osmonth = dict_imgnumber_pid[int(row["ImageNumber"])]
+                p_id_lst.append(p_id)
+                grade_lst.append(grade)
+                tumor_size_lst.append(tumor_size)
+                age_lst.append(age)
+                treatment_lst.append(treatment)
+                diseasestage_lst.append(diseasestage)
+                diseasestatus_lst.append(diseasestatus)
+                clinical_type_lst.append(clinical_type)
+                dfsmonth_lst.append(dfsmonth)#  = row["DFSmonth"]
+                osmonth_lst.append(osmonth)# = row["OSmonth"]
 
+            
+            chunks[-1]["PID"] = p_id_lst
+            chunks[-1]["grade"] = grade_lst
+            chunks[-1]["tumor_size"] = tumor_size_lst
+            chunks[-1]["age"] = age_lst
+            chunks[-1]["treatment"] = treatment_lst
+            chunks[-1]["DiseaseStage"] = diseasestage_lst
+            chunks[-1]["diseasestatus"] = diseasestatus_lst
+            chunks[-1]["clinical_type"] = clinical_type_lst
+            chunks[-1]["DFSmonth"] = dfsmonth_lst
+            chunks[-1]["OSmonth"] = osmonth_lst
+            
             i += 1
     
     # concatenate chunks and remove the rows with NA values
     df_new_dataset = pd.concat(chunks)
-    df_new_dataset.dropna(inplace=True)
-    df_new_dataset[['PID', 'ObjectNumber', "ImageNumber"]] = df_new_dataset[['PID', 'ObjectNumber', "ImageNumber"]].astype(integer)
+    # print(df_new_dataset)
+    df_new_dataset.dropna(subset = df_new_dataset.columns[:37], how="any",  inplace=True)
+    df_new_dataset[['PID', 'ObjectNumber', "ImageNumber"]] = df_new_dataset[['PID', 'ObjectNumber', "ImageNumber"]].astype(integer, )
 
 
 

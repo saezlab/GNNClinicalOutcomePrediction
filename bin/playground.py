@@ -17,6 +17,11 @@ with open(os.path.join(RAW_DATA_PATH, '4_18_edge_index_length.pickle'), 'rb') as
 with open(os.path.join(RAW_DATA_PATH, '4_18_coordinates.pickle'), 'rb') as handle:
     coordinates_arr = pickle.load(handle)
 
+with open(os.path.join(RAW_DATA_PATH, '4_18_clinical_info.pickle'), 'rb') as handle:
+    clinical_info_dict = pickle.load(handle)
+
+print(clinical_info_dict)
+
 edge_index = torch.tensor(edge_index_arr, dtype=torch.long)
 
 feature_arr = torch.tensor(feature_arr, dtype=torch.float)
@@ -26,7 +31,7 @@ df_cell_count = get_cell_count_df(700)
 
 print(feature_arr)
 print(edge_index_arr)
-data = Data(x=feature_arr, edge_index=edge_index.t().contiguous())
+data = Data(x=feature_arr, edge_index=edge_index.t().contiguous(), pos=torch.tensor(coordinates_arr, dtype=torch.float))
 
 print(data)
 

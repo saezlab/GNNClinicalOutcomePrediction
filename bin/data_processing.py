@@ -180,18 +180,40 @@ def create_graphs_delauney_triangulation(cell_count_thr, plot=False):
         assert edge_index_arr.shape[0]==edge_length_arr.shape[0]
 
 
+
+
+        clinical_info_dict = dict()
+        clinical_info_dict["grade"] = df_image["grade"].values[0]
+        clinical_info_dict["tumor_size"] = df_image["tumor_size"].values[0]
+        clinical_info_dict["treatment"] = df_image["treatment"].values[0]
+        clinical_info_dict["DiseaseStage"] = df_image["DiseaseStage"].values[0]
+        clinical_info_dict["diseasestatus"] = df_image["diseasestatus"].values[0]
+        clinical_info_dict["clinical_type"] = df_image["clinical_type"].values[0]
+        clinical_info_dict["DFSmonth"] = df_image["DFSmonth"].values[0]
+        clinical_info_dict["OSmonth"] = df_image["OSmonth"].values[0]
+        clinical_info_dict["cell_count"] = len(df_image)
+
         # save the edge indices and as a list 
         with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_edge_index_length.pickle'), 'wb') as handle:
             pickle.dump((edge_index_arr, edge_length_arr), handle, protocol=pickle.HIGHEST_PROTOCOL)
         
+        nonfeat_cols = []
+        for col in df_image.columns:
+            if "MeanIntensity" not in col:
+                nonfeat_cols.append(col) 
         # save the feature vector as numpy array, first column is the cell id
+        # "ImageNumber", "ObjectNumber", "Location_Center_X", "Location_Center_Y", "PID", "grade", "tumor_size", "age", "treatment", "DiseaseStage", "diseasestatus", "clinical_type", "DFSmonth", "OSmonth"
+
         with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_features.pickle'), 'wb') as handle:
-            pickle.dump(np.array(df_image.drop(["ImageNumber", "ObjectNumber", "Location_Center_X", "Location_Center_Y", "PID"], axis=1)), handle, protocol=pickle.HIGHEST_PROTOCOL)
-        
+            pickle.dump(np.array(df_image.drop(nonfeat_cols, axis=1)), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
                 # save the feature vector as numpy array, first column is the cell id
         with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_coordinates.pickle'), 'wb') as handle:
             pickle.dump(points, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_clinical_info.pickle'), 'wb') as handle:
+            pickle.dump(clinical_info_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
 
 def check_cell_ids_sequential():
     df_dataset = get_dataset_from_csv()
@@ -217,8 +239,8 @@ def check_cell_ids_sequential():
 
 
 
-# get_edge_length_dist(700, 0.975)
-# create_graphs_delauney_triangulation(700)
+# get_edge_length_dist(100, 0.975, plot_dist=True)
+# create_graphs_delauney_triangulation(100, plot=True)
 
 # check if all cell ids are available 
 # check_cell_ids_sequential()
