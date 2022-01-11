@@ -46,7 +46,7 @@ class TissueDataset(InMemoryDataset):
                 with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_clinical_info.pickle'), 'rb') as handle:
                     clinical_info_dict = pickle.load(handle)
                 
-                
+                # the criteria to select the 
                 if (clinical_info_dict["grade"]==3 or  clinical_info_dict["grade"]==2) and pd.notna(clinical_info_dict["OSmonth"]) and clinical_info_dict["diseasestatus"]=="tumor":#  and clinical_info_dict["clinical_type"]=="TripleNeg" :
                     with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_features.pickle'), 'rb') as handle:
                         feature_arr = pickle.load(handle)
