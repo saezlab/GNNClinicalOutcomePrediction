@@ -1,11 +1,12 @@
 import os
-from pandas.core.dtypes.missing import notna
+import math
 import torch
 import pickle
 import numpy as np
+import pandas as pd
 import torch_geometric
 from torch_geometric.data import Data
-import pandas as pd
+from pandas.core.dtypes.missing import notna
 from torch_geometric.data import InMemoryDataset, download_url
 
 
@@ -59,8 +60,8 @@ class TissueDataset(InMemoryDataset):
                     with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_coordinates.pickle'), 'rb') as handle:
                         coordinates_arr = pickle.load(handle)
                         coordinates_arr = np.array(coordinates_arr)
-
-                    data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=clinical_info_dict["OSmonth"])
+                    
+                    data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]+0.1))
                     data_list.append(data)
                     count+=1
 
