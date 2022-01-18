@@ -2,8 +2,9 @@ import torch
 from model import GCN
 from dataset import TissueDataset
 from torch_geometric.loader import DataLoader
-from torchsample.modules import ModuleTrainer
+from torch.utils.tensorboard import SummaryWriter
 
+writer = SummaryWriter(log_dir="../logs")
 dataset = TissueDataset("../data")
 print(dataset.raw_file_names)
 print(len(dataset))
@@ -11,9 +12,9 @@ print(len(dataset))
 torch.manual_seed(12345)
 dataset = dataset.shuffle()
 
-train_dataset = dataset[:180]
-validation_dataset = dataset[180:200]
-test_dataset = dataset[200:]
+train_dataset = dataset[:170]
+validation_dataset = dataset[170:205]
+test_dataset = dataset[205:]
 
 print(f'Number of training graphs: {len(train_dataset)}')
 print(f'Number of validation graphs: {len(validation_dataset)}')
@@ -43,7 +44,7 @@ for step, data in enumerate(test_loader):
 
 
 
-model = GCN(dataset.num_node_features, hidden_channels=64)
+model = GCN(dataset.num_node_features, hidden_channels=256)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 criterion = torch.nn.MSELoss()
 
@@ -80,5 +81,7 @@ for epoch in range(1, 171):
 
     train_loss = test(train_loader)
     validation_loss= test(validation_loader)
+    writer.add_scalar("training/loss", train_loss, epoch)
+    writer.add_scalar("validation/loss", validation_loss, epoch)
     test_loss = test(test_loader)
     print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
