@@ -1,8 +1,20 @@
 import torch
-from model import GCN
+from model import GCN, GCN2
 from dataset import TissueDataset
 from torch_geometric.loader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+
+use_gpu = torch.cuda.is_available()
+
+device = "cpu"
+
+if use_gpu:
+    print("GPU is available on this device!")
+    device = "cuda"
+else:
+    print("CPU is available on this device!")
+
+print(device)
 
 writer = SummaryWriter(log_dir="../logs")
 dataset = TissueDataset("../data")
@@ -20,8 +32,6 @@ print(f'Number of training graphs: {len(train_dataset)}')
 print(f'Number of validation graphs: {len(validation_dataset)}')
 print(f'Number of test graphs: {len(test_dataset)}')
 print(f"Number of node features: {dataset.num_node_features}")
-
-
 
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 validation_loader = DataLoader(validation_dataset, batch_size=32, shuffle=True)
@@ -44,7 +54,8 @@ for step, data in enumerate(test_loader):
 
 
 
-model = GCN(dataset.num_node_features, hidden_channels=256)
+# model = GCN(dataset.num_node_features, hidden_channels=256).to(device)
+model =GCN2(dataset.num_node_features, hidden_channels=256, fcl1=128, drop_rate=0.25).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 criterion = torch.nn.MSELoss()
 
@@ -52,8 +63,8 @@ def train():
     model.train()
     total_loss = 0.0
     for data in train_loader:  # Iterate in batches over the training dataset.
-        out = model(data.x, data.edge_index, data.batch).type(torch.DoubleTensor) # Perform a single forward pass.
-        loss = criterion(out.squeeze(), data.y)  # Compute the loss.
+        out = model(data.x.to(device), data.edge_index.to(device), data.batch.to(device)).type(torch.DoubleTensor).to(device) # Perform a single forward pass.
+        loss = criterion(out.squeeze(), data.y.to(device))  # Compute the loss.
         loss.backward()  # Derive gradients.
         
         total_loss += float(loss.item())
@@ -68,8 +79,8 @@ def test(loader):
     total_loss = 0.0
     
     for data in loader:  # Iterate in batches over the training/test dataset.
-        out = model(data.x, data.edge_index, data.batch).type(torch.DoubleTensor) # Perform a single forward pass.
-        loss = criterion(out.squeeze(), data.y)  # Compute the loss.
+        out = model(data.x.to(device), data.edge_index.to(device), data.batch.to(device)).type(torch.DoubleTensor).to(device) # Perform a single forward pass.
+        loss = criterion(out.squeeze(), data.y.to(device))  # Compute the loss.
         total_loss += float(loss.item())
 
     return total_loss
