@@ -2,7 +2,67 @@ import torch
 from model import GCN, GCN2
 from dataset import TissueDataset
 from torch_geometric.loader import DataLoader
+from torch.nn import BatchNorm1d
 from torch.utils.tensorboard import SummaryWriter
+import argparse
+
+parser = argparse.ArgumentParser(description='GNN Arguments')
+
+parser.add_argument(
+    '--lr',
+    type=float,
+    default=0.001,
+    metavar='LR',
+    help='learning rate (default: 0.001)')
+
+parser.add_argument(
+    # '--batch-size',
+    '--bs',
+    type=int,
+    default=32,
+    metavar='BS',
+    help='batch size (default: 32)')
+
+parser.add_argument(
+    '--dropout',
+    type=float,
+    default=0.25,
+    metavar='DO',
+    help='dropout rate (default: 0.25)')
+
+
+parser.add_argument(
+    '--epoch',
+    type=int,
+    default=200,
+    metavar='EPC',
+    help='Number of epochs (default: 200)')
+"""
+
+
+parser.add_argument(
+    '--chln',
+    type=str,
+    default="512_512",
+    metavar='CHLN',
+    help='number of neurons in compound hidden layers (default: 512_512)')
+"""
+parser.add_argument(
+    '--en',
+    type=str,
+    default="my_experiments",
+    metavar='EN',
+    help='the name of the experiment (default: my_experiment)')
+
+parser.add_argument(
+    '--model',
+    type=str,
+    default="CompFCNNTarCNNModuleInception",
+    metavar='mn',
+    help='model name (default: CompFCNNTarCNNModuleInception)')
+
+
+
 
 use_gpu = torch.cuda.is_available()
 
@@ -38,15 +98,6 @@ validation_loader = DataLoader(validation_dataset, batch_size=32, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
 
-# print(next(iter(test_loader)))
-"""for step, data in enumerate(train_loader):
-    print(f'Step {step + 1}:')
-    print('=======')
-    print(f'Number of graphs in the current batch: {data.num_graphs}')
-
-
-    print()"""
-
 for step, data in enumerate(test_loader):
     print(f'Step {step + 1}:')
     print('=======')
@@ -58,6 +109,7 @@ for step, data in enumerate(test_loader):
 model =GCN2(dataset.num_node_features, hidden_channels=256, fcl1=128, drop_rate=0.25).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 criterion = torch.nn.MSELoss()
+
 
 def train():
     model.train()
@@ -86,13 +138,28 @@ def test(loader):
     return total_loss
 
 
-for epoch in range(1, 171):
+best_val_loss = 10000
+best_train_loss = 10000
+best_test_loss = 10000
+
+for epoch in range(1, 30):
     
     train()
 
     train_loss = test(train_loader)
     validation_loss= test(validation_loader)
+    test_loss = test(test_loader)
+    
     writer.add_scalar("training/loss", train_loss, epoch)
     writer.add_scalar("validation/loss", validation_loss, epoch)
-    test_loss = test(test_loader)
+    writer.add_scalar("test/loss", test_loss, epoch)
+
+    if validation_loss < best_val_loss:
+        best_val_loss = validation_loss
+        best_train_loss = train_loss
+        best_test_loss = test_loss
+
     print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
+
+print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
+writer.close()
