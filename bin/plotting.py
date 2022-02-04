@@ -50,4 +50,11 @@ def plot_nom_distribution():
 
 # plot_nom_distribution()
 
-
+def plot_pred_vs_real(df, x_axis, y_axis, color, fl_name):
+    # print(out_list, pred_list)
+    sns_plot = sns.scatterplot(data=df, x=x_axis, y=y_axis, hue=color)
+    plt.ylim(0, None)
+    plt.xlim(0, None)
+    fig = sns_plot.get_figure()
+    fig.savefig(f"{PLOT_PATH}/{fl_name}.png")
+    plt.clf()

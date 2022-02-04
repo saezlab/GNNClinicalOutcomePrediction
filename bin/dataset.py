@@ -48,7 +48,7 @@ class TissueDataset(InMemoryDataset):
                     clinical_info_dict = pickle.load(handle)
                 
                 # the criteria to select the 
-                if (clinical_info_dict["grade"]==3 or  clinical_info_dict["grade"]==2) and pd.notna(clinical_info_dict["OSmonth"]) and clinical_info_dict["diseasestatus"]=="tumor":#  and clinical_info_dict["clinical_type"]=="TripleNeg" :
+                if (clinical_info_dict["grade"]==3 or  clinical_info_dict["grade"]==2) and pd.notna(clinical_info_dict["OSmonth"]) and clinical_info_dict["diseasestatus"]=="tumor" and pd.notna(clinical_info_dict["clinical_type"]):
                     with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_features.pickle'), 'rb') as handle:
                         feature_arr = pickle.load(handle)
                         feature_arr = np.array(feature_arr)
@@ -61,7 +61,7 @@ class TissueDataset(InMemoryDataset):
                         coordinates_arr = pickle.load(handle)
                         coordinates_arr = np.array(coordinates_arr)
                     
-                    data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]+0.1))
+                    data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]+0.1), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"] )
                     data_list.append(data)
                     count+=1
 

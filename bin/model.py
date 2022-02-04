@@ -29,6 +29,7 @@ class GCN(torch.nn.Module):
         # 3. Apply a final classifier
         x = F.dropout(x, p=0.25, training=self.training)
         x = self.lin(x)
+        x = x.relu()
         
         return x
 
@@ -67,6 +68,8 @@ class GCN2(torch.nn.Module):
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         x = self.lin(x)
+        x = x.relu()
+        
         
         return x
 

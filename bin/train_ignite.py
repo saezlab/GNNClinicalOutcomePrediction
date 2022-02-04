@@ -62,7 +62,7 @@ def score_function(engine):
     val_loss = engine.state.metrics['RMSE']
     return -val_loss
     
-handler = EarlyStopping(patience=20, score_function=score_function, trainer=trainer)
+handler = EarlyStopping(patience=10, score_function=score_function, trainer=trainer)
 validation_evaluator.add_event_handler(Events.COMPLETED, handler)
 
 
