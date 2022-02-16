@@ -153,3 +153,5 @@ sketches/*
  ../.DS_Store
 
  plots/
+
+ bin/jobs
