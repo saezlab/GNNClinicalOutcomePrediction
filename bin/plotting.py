@@ -6,9 +6,10 @@ import os
 import torch
 from dataset import TissueDataset
 
-RAW_DATA_PATH = os.path.join("../data", "JacksonFischer")
-PREPROSSED_DATA_PATH = os.path.join("../data", "raw")
-PLOT_PATH = os.path.join( "../plots")
+S_PATH = os.path.dirname(__file__)
+RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
+PREPROSSED_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
+PLOT_PATH = os.path.join(S_PATH, "../plots")
 
 def plot_cell_count_distribution():
 

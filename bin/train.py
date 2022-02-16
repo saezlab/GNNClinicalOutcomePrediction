@@ -1,5 +1,5 @@
 import torch
-from model import GCN, GCN2
+from model import GCN, GCN2, GCN_NEW
 from dataset import TissueDataset
 from torch_geometric.loader import DataLoader
 from torch.nn import BatchNorm1d
@@ -11,15 +11,15 @@ import seaborn as sns
 import numpy as np
 import plotting
 import pandas as pd
+import os
 
 parser = argparse.ArgumentParser(description='GNN Arguments')
-
 parser.add_argument(
     '--model',
     type=str,
-    default="GCN",
+    default="GCN2",
     metavar='mn',
-    help='model name (default: GCN)')
+    help='model name (default: GCN2)')
 
 parser.add_argument(
     '--lr',
@@ -39,17 +39,31 @@ parser.add_argument(
 parser.add_argument(
     '--dropout',
     type=float,
-    default=0.25,
+    default=0.20, # 0.1 0.2 0.3 0.5
     metavar='DO',
-    help='dropout rate (default: 0.25)')
+    help='dropout rate (default: 0.20)')
 
 parser.add_argument(
     '--epoch',
     type=int,
-    default=200,
+    default=50,
     metavar='EPC',
-    help='Number of epochs (default: 200)')
+    help='Number of epochs (default: 50)')
 
+parser.add_argument(
+    '--num_of_gcn_layers',
+    type=int,
+    default=3,
+    metavar='NGCNL',
+    help='Number of GCN layers (default: 2)')
+
+parser.add_argument(
+    '--num_of_ff_layers',
+    type=int,
+    default=3,
+    metavar='NFFL',
+    help='Number of FF layers (default: 2)')
+    
 parser.add_argument(
     '--gcn_h',
     type=int,
@@ -71,9 +85,37 @@ parser.add_argument(
     metavar='EN',
     help='the name of the experiment (default: my_experiment)')
 
+parser.add_argument(
+    '--weight_decay',
+    type=float,
+    default=0.001,
+    metavar='WD',
+    help='weight decay (default: 0.001)')
+
+parser.add_argument(
+    '--factor', # 0.5 0.8, 0.2
+    type=float,
+    default=0.5,
+    metavar='FACTOR',
+    help='learning rate reduce factor (default: 0.5)')
+
+parser.add_argument(
+    '--patience', # 5, 10, 20
+    type=int,
+    default=5,
+    metavar='PA',
+    help='patience for learning rate scheduling (default: 5)')
+
+parser.add_argument(
+    '--min_lr',
+    type=float,
+    default=0.00002,#0.0001
+    metavar='MLR',
+    help='minimum learning rate (default: 0.00002)')
+
+S_PATH = os.path.dirname(__file__)
 
 args = parser.parse_args()
-
 
 use_gpu = torch.cuda.is_available()
 
@@ -87,8 +129,8 @@ else:
 
 print(device)
 
-writer = SummaryWriter(log_dir="../logs")
-dataset = TissueDataset("../data")
+# writer = SummaryWriter(log_dir=os.path.join(S_PATH,"../logs"))
+dataset = TissueDataset(os.path.join(S_PATH,"../data"))
 print(dataset.raw_file_names)
 print(len(dataset))
 
@@ -115,14 +157,27 @@ for step, data in enumerate(test_loader):
     print(f'Number of graphs in the current batch: {data.num_graphs}')
 
 
-model = None
+model = GCN_NEW(dataset.num_node_features, 
+                num_of_gcn_layers=args.num_of_gcn_layers, 
+                num_of_ff_layers=args.num_of_ff_layers, 
+                gcn_hidden_neurons=args.gcn_h, 
+                ff_hidden_neurons=args.fcl, 
+                dropout=args.dropout).to(device)
 
-# model = GCN(dataset.num_node_features, hidden_channels=256).to(device)
-model =GCN2(dataset.num_node_features, hidden_channels=args.gcn_h, fcl1=args.fcl, drop_rate=args.dropout).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+"""if args.model =="GCN":
+    model = GCN(dataset.num_node_features, hidden_channels=256).to(device)
+elif args.model=="GCN2":
+    model =GCN2(dataset.num_node_features, hidden_channels=args.gcn_h, fcl1=args.fcl, drop_rate=args.dropout).to(device)"""
+
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 criterion = torch.nn.MSELoss()
 
-scheduler = ReduceLROnPlateau(optimizer, 'min', patience=10)
+
+args_list = sorted(vars(args).keys())
+args_str = "-".join([f"{arg}:{str(vars(args)[arg])}" for arg in args_list])
+print(args_str)
+scheduler = ReduceLROnPlateau(optimizer, 'min', factor= args.factor, patience=args.patience, min_lr=args.min_lr, verbose=True)
 
 
 def train():
@@ -176,16 +231,17 @@ best_val_loss = np.inf
 best_train_loss = np.inf
 best_test_loss = np.inf
 
+
 for epoch in range(1, args.epoch):
     
     train()
     
     train_loss, validation_loss, test_loss = np.inf, np.inf, np.inf
-    
+    plot_at_last_epoch = False
     if epoch== args.epoch-1:
-        train_loss = test(train_loader, "train", True)
-        validation_loss= test(validation_loader, "validation", True)
-        test_loss = test(test_loader, "test", True)
+        train_loss = test(train_loader, "train", plot_at_last_epoch)
+        validation_loss= test(validation_loader, "validation", plot_at_last_epoch)
+        test_loss = test(test_loader, "test", plot_at_last_epoch)
     else:
         train_loss = test(train_loader)
         validation_loss= test(validation_loader)
@@ -196,9 +252,9 @@ for epoch in range(1, args.epoch):
     
     scheduler.step(validation_loss)
 
-    writer.add_scalar("training/loss", train_loss, epoch)
+    """writer.add_scalar("training/loss", train_loss, epoch)
     writer.add_scalar("validation/loss", validation_loss, epoch)
-    writer.add_scalar("test/loss", test_loss, epoch)
+    writer.add_scalar("test/loss", test_loss, epoch)"""
 
     if validation_loss < best_val_loss:
         best_val_loss = validation_loss
@@ -208,4 +264,4 @@ for epoch in range(1, args.epoch):
     print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
 
 print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
-writer.close()
+# writer.close()
