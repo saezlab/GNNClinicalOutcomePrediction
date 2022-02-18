@@ -127,12 +127,9 @@ if use_gpu:
 else:
     print("CPU is available on this device!")
 
-print(device)
 
 # writer = SummaryWriter(log_dir=os.path.join(S_PATH,"../logs"))
 dataset = TissueDataset(os.path.join(S_PATH,"../data"))
-print(dataset.raw_file_names)
-print(len(dataset))
 
 torch.manual_seed(12345)
 dataset = dataset.shuffle()
@@ -141,21 +138,21 @@ train_dataset = dataset[:170]
 validation_dataset = dataset[170:205]
 test_dataset = dataset[205:]
 
-print(f'Number of training graphs: {len(train_dataset)}')
+"""print(f'Number of training graphs: {len(train_dataset)}')
 print(f'Number of validation graphs: {len(validation_dataset)}')
 print(f'Number of test graphs: {len(test_dataset)}')
 print(f"Number of node features: {dataset.num_node_features}")
-
+"""
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 validation_loader = DataLoader(validation_dataset, batch_size=args.bs, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=args.bs, shuffle=False)
 
 
-for step, data in enumerate(test_loader):
+"""for step, data in enumerate(test_loader):
     print(f'Step {step + 1}:')
     print('=======')
     print(f'Number of graphs in the current batch: {data.num_graphs}')
-
+"""
 
 model = GCN_NEW(dataset.num_node_features, 
                 num_of_gcn_layers=args.num_of_gcn_layers, 
@@ -231,7 +228,7 @@ best_val_loss = np.inf
 best_train_loss = np.inf
 best_test_loss = np.inf
 
-
+print_at_each_epoch = False
 for epoch in range(1, args.epoch):
     
     train()
@@ -247,8 +244,8 @@ for epoch in range(1, args.epoch):
         validation_loss= test(validation_loader)
         test_loss = test(test_loader)
     
-    for param_group in optimizer.param_groups:
-        print(param_group['lr'])
+    """for param_group in optimizer.param_groups:
+        print(param_group['lr'])"""
     
     scheduler.step(validation_loss)
 
@@ -260,8 +257,10 @@ for epoch in range(1, args.epoch):
         best_val_loss = validation_loss
         best_train_loss = train_loss
         best_test_loss = test_loss
+    
+    if print_at_each_epoch:
 
-    print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
+        print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
 
 print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
 # writer.close()
