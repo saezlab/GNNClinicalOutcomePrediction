@@ -1,4 +1,5 @@
 import torch
+from data_processing import OUT_DATA_PATH
 from model import GCN, GCN2, GCN_NEW
 from dataset import TissueDataset
 from torch_geometric.loader import DataLoader
@@ -12,6 +13,7 @@ import numpy as np
 import plotting
 import pandas as pd
 import os
+import os 
 
 parser = argparse.ArgumentParser(description='GNN Arguments')
 parser.add_argument(
@@ -218,6 +220,7 @@ def test(loader, fl_name=None, plot_pred=False):
                columns =['OS Month (log)', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month"])
     if plot_pred:
         plotting.plot_pred_vs_real(df, 'OS Month (log)', 'Predicted', "Clinical Type", fl_name)
+        df.to_csv(f"{OUT_DATA_PATH}/{fl_name}.csv", index=False)
 
 
     
@@ -234,7 +237,7 @@ for epoch in range(1, args.epoch):
     train()
     
     train_loss, validation_loss, test_loss = np.inf, np.inf, np.inf
-    plot_at_last_epoch = False
+    plot_at_last_epoch = True
     if epoch== args.epoch-1:
         train_loss = test(train_loader, "train", plot_at_last_epoch)
         validation_loss= test(validation_loader, "validation", plot_at_last_epoch)
