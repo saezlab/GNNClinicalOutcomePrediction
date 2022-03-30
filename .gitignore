@@ -152,7 +152,7 @@ sketches/*
 .DS_Store
  ../.DS_Store
 
- plots/
+plots/
 
 bin/jobs
 
