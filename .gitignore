@@ -156,3 +156,8 @@ plots/
 
 bin/jobs
 
+bin/checkpoints
+bin/data
+bin/datasets
+data/models
+
