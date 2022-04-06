@@ -7,12 +7,18 @@ import pandas as pd
 import torch_geometric
 from torch_geometric.data import Data
 from pandas.core.dtypes.missing import notna
+from data_processing import get_cell_count_df
+from data_processing import GRAPH_DIV_THR, CELL_COUNT_THR
 from torch_geometric.data import InMemoryDataset, download_url
+import pytorch_lightning as pl
 
+
+pl.seed_everything(42)
 
 RAW_DATA_PATH = os.path.join("../data", "raw")
 OUT_DATA_PATH = os.path.join("../data", "out_data")
 PLOT_PATH = os.path.join("../plots")
+
 
 
 class TissueDataset(InMemoryDataset):
@@ -35,13 +41,49 @@ class TissueDataset(InMemoryDataset):
     def process(self):
         # Read data into huge `Data` list.
         self.data = pd.read_csv(os.path.join(self.root, "raw", self.raw_file_names[0]))
+        
+        # GRAPH_DIV_THR
 
 
         img_pid_set = set([(item[0], item[1]) for item in self.data[["ImageNumber", "PID"]].values])
         data_list = []
         count = 0
-        dict_conditions = dict()
-        for img, pid in img_pid_set:
+
+        for fl in os.listdir(os.path.join(self.root, "raw")):
+            if fl.endswith("features.pickle"):
+                print(fl)
+                img, pid = fl.split("_")[:2]
+                with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_clinical_info.pickle'), 'rb') as handle:
+                    clinical_info_dict = pickle.load(handle)
+                
+                # the criteria to select the 
+                if (clinical_info_dict["grade"]==3 or  clinical_info_dict["grade"]==2) and pd.notna(clinical_info_dict["OSmonth"]) and clinical_info_dict["diseasestatus"]=="tumor" and pd.notna(clinical_info_dict["clinical_type"]):
+                    with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_features.pickle'), 'rb') as handle:
+                        feature_arr = pickle.load(handle)
+                        feature_arr = np.array(feature_arr)
+
+                    with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_edge_index_length.pickle'), 'rb') as handle:
+                        edge_index_arr, edge_length_arr = pickle.load(handle)
+                        edge_index_arr = np.array(edge_index_arr)
+
+                    with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_coordinates.pickle'), 'rb') as handle:
+                        coordinates_arr = pickle.load(handle)
+                        coordinates_arr = np.array(coordinates_arr)
+                    
+                    data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]+0.1), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"], img_id=img, pat_id=pid)
+                    data_list.append(data)
+                    count+=1
+        
+        if self.pre_filter is not None:
+            data_list = [data for data in data_list if self.pre_filter(data)]
+
+        if self.pre_transform is not None:
+            data_list = [self.pre_transform(data) for data in data_list]
+
+        data, slices = self.collate(data_list)
+        torch.save((data, slices), self.processed_paths[0])
+
+        """for img, pid in img_pid_set:
             try:
             
                 with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_clinical_info.pickle'), 'rb') as handle:
@@ -81,7 +123,7 @@ class TissueDataset(InMemoryDataset):
             data_list = [self.pre_transform(data) for data in data_list]
 
         data, slices = self.collate(data_list)
-        torch.save((data, slices), self.processed_paths[0])
+        torch.save((data, slices), self.processed_paths[0])"""
 
 
 
@@ -105,3 +147,7 @@ class TissueDataset(InMemoryDataset):
             pickle.dump(points, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_clinical_info.pickle'), 'wb') as handle:"""
+
+"""S_PATH = os.path.dirname(__file__)
+dataset = TissueDataset(os.path.join(S_PATH, "../data"))
+print(len(dataset))"""

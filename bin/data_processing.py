@@ -11,6 +11,9 @@ import os
 RAW_DATA_PATH = os.path.join("../data", "raw")
 OUT_DATA_PATH = os.path.join("../data", "out_data")
 PLOT_PATH = os.path.join("../plots")
+GRAPH_DIV_THR = 2500
+CELL_COUNT_THR = 100
+
 
 def get_dataset_from_csv():
     return pd.read_csv(os.path.join(RAW_DATA_PATH, "basel_zurich_preprocessed_compact_dataset.csv"))
@@ -223,7 +226,8 @@ def create_graphs_delauney_triangulation(cell_count_thr, plot=False):
         pid = df_image["PID"].values[0]
         new_cell_ids = list(range(len(df_image)))
         
-        if cell_count > 2500:
+        # TODO: make this parametric 
+        if cell_count > GRAPH_DIV_THR:
             x_center, y_center = df_image[["Location_Center_X", "Location_Center_Y"]].describe().loc["mean"]["Location_Center_X"], df_image[["Location_Center_X", "Location_Center_Y"]].describe().loc["mean"]["Location_Center_Y"]
             # ll lower-left  ul upper-left lr lower right points 
             ll_points = df_image[((df_image['Location_Center_X'] <= x_center) & (df_image['Location_Center_Y'] <= y_center))][["Location_Center_X", "Location_Center_Y"]].to_numpy()
@@ -266,10 +270,11 @@ def check_cell_ids_sequential():
 
 
 
+# To generate the dataset run the below functions
+# 1) get_edge_length_dist(CELL_COUNT_THR, 0.975, plot_dist=True)
+# 2) get_cell_count_df(CELL_COUNT_THR)
+# 3) create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True)
 
-# get_edge_length_dist(100, 0.975, plot_dist=True)
-# get_cell_count_df(100)
-create_graphs_delauney_triangulation(100, plot=True)
 
 # check if all cell ids are available 
 # check_cell_ids_sequential()

@@ -13,7 +13,9 @@ import numpy as np
 import plotting
 import pandas as pd
 import os
-import os 
+import pytorch_lightning as pl
+
+
 
 parser = argparse.ArgumentParser(description='GNN Arguments')
 parser.add_argument(
@@ -116,7 +118,7 @@ parser.add_argument(
     help='minimum learning rate (default: 0.00002)')
 
 S_PATH = os.path.dirname(__file__)
-
+pl.seed_everything(42)
 args = parser.parse_args()
 
 use_gpu = torch.cuda.is_available()
@@ -130,15 +132,20 @@ else:
     print("CPU is available on this device!")
 
 
+
 # writer = SummaryWriter(log_dir=os.path.join(S_PATH,"../logs"))
 dataset = TissueDataset(os.path.join(S_PATH,"../data"))
 
-torch.manual_seed(12345)
 dataset = dataset.shuffle()
 
-train_dataset = dataset[:170]
-validation_dataset = dataset[170:205]
-test_dataset = dataset[205:]
+num_of_train = int(len(dataset)*0.80)
+num_of_val = int(len(dataset)*0.10)
+
+
+
+train_dataset = dataset[:num_of_train]
+validation_dataset = dataset[num_of_train:num_of_train+num_of_val]
+test_dataset = dataset[num_of_train+num_of_val:]
 
 """print(f'Number of training graphs: {len(train_dataset)}')
 print(f'Number of validation graphs: {len(validation_dataset)}')
@@ -199,7 +206,7 @@ def train():
     
     return total_loss
 
-def test(loader, fl_name=None, plot_pred=False):
+def test(loader, label=None, fl_name=None, plot_pred=False):
     model.eval()
 
     total_loss = 0.0
@@ -216,15 +223,16 @@ def test(loader, fl_name=None, plot_pred=False):
         clinical_type_list.extend([val for val in data.clinical_type])
         osmonth_list.extend([val for val in data.osmonth])
     
-    df = pd.DataFrame(list(zip(out_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list)),
-               columns =['OS Month (log)', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month"])
     if plot_pred:
-        plotting.plot_pred_vs_real(df, 'OS Month (log)', 'Predicted', "Clinical Type", fl_name)
-        df.to_csv(f"{OUT_DATA_PATH}/{fl_name}.csv", index=False)
-
-
-    
-    return total_loss
+        #plotting.plot_pred_vs_real(df, 'OS Month (log)', 'Predicted', "Clinical Type", fl_name)
+        
+        label_list = [label]*len(clinical_type_list)
+        df = pd.DataFrame(list(zip(out_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, label_list)),
+               columns =['OS Month (log)', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Train Val Test"])
+        
+        return total_loss, df
+    else:
+        return total_loss
 
 
 best_val_loss = np.inf
@@ -239,9 +247,19 @@ for epoch in range(1, args.epoch):
     train_loss, validation_loss, test_loss = np.inf, np.inf, np.inf
     plot_at_last_epoch = True
     if epoch== args.epoch-1:
-        train_loss = test(train_loader, "train", plot_at_last_epoch)
-        validation_loss= test(validation_loader, "validation", plot_at_last_epoch)
-        test_loss = test(test_loader, "test", plot_at_last_epoch)
+
+        train_loss, df_train = test(train_loader, "train", "train", plot_at_last_epoch)
+        validation_loss, df_val= test(validation_loader, "validation", "validation", plot_at_last_epoch)
+        test_loss, df_test = test(test_loader, "test", "test", plot_at_last_epoch)
+        list_ct = list(set(df_train["Clinical Type"]))
+
+        df2 = pd.concat([df_train, df_val, df_test])
+        df2.to_csv(f"{OUT_DATA_PATH}/{args_str}.csv", index=False)
+        # print(list_ct)
+        # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, args_str)
+        plotting.plot_pred_(df2, list_ct, args_str)
+
+
     else:
         train_loss = test(train_loader)
         validation_loss= test(validation_loader)

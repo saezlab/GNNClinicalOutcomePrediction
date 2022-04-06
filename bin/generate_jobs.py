@@ -22,7 +22,7 @@ config = {
 
 
 
-job_id = "GCN_rand_hyp_srch"
+job_id = "GCN_rand_hyp_srch2"
 out_path = f"./jobs/{job_id}"
 result_path = f"{out_path}/results"
 
@@ -46,7 +46,7 @@ random.shuffle(shuffled_experiments)
 number_of_runs = 1000
 count=1
 
-all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p gpu --gres=gpu:1 -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
+all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p gpu --gres=gpu:1 --mem=10g  -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
 job_f = open(f"{out_path}/{count}_{number_of_runs}.sh", "w")
 job_f.writelines("#!/bin/sh\n")
 
@@ -58,7 +58,7 @@ for i in range(1, 100001):
     if i%number_of_runs == 0:
         count+=1
         job_f.close()
-        all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p gpu --gres=gpu:1 -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
+        all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p gpu --gres=gpu:1 --mem=10g -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
         job_f = open(f"{out_path}/{count}_{number_of_runs}.sh", "w")
         job_f.write("#!/bin/sh\n")
         job_f.write(command_line+"\n")

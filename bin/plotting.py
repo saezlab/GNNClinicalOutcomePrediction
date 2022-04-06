@@ -59,3 +59,66 @@ def plot_pred_vs_real(df, x_axis, y_axis, color, fl_name):
     fig = sns_plot.get_figure()
     fig.savefig(f"{PLOT_PATH}/{fl_name}.png")
     plt.clf()
+
+
+def plot_pred_vs_real_lst(df_lst, x_axis_lst, y_axis_lst, color, order, fl_name):
+    # print(out_list, pred_list)
+    n_cols = len(df_lst)
+    fig, axs = plt.subplots(ncols=n_cols, figsize=(18,5))
+
+    for ind in range(n_cols):
+
+        sns_plot = sns.scatterplot(data=df_lst[ind], x=x_axis_lst[ind], y=y_axis_lst[ind], hue=color, hue_order=order, ax = axs[ind])
+        sns_plot.set_xlim(0, 6)
+        sns_plot.set_ylim(0, 6)
+        plt.legend(loc='upper left')    
+        
+        #plt.ylim(0, None)
+        #plt.xlim(0, None)
+    
+    fig = sns_plot.get_figure()
+    fig.savefig(f"{PLOT_PATH}/{fl_name}.png")
+    plt.clf()
+
+import matplotlib.lines as mlines
+
+def plot_pred_(df, color, fl_name):
+    # print(out_list, pred_list)
+    fig, axs = plt.subplots(1,3,figsize=(20,5))
+    colors = {'TripleNeg':'red', 'HR+HER2-':'green', 'HR-HER2+':'blue', 'HR+HER2+':'orange'}
+    labels = ['TripleNeg', 'HR+HER2-', 'HR-HER2+', 'HR+HER2+']
+    colors = ['red', 'green', 'blue', 'orange']
+
+    
+    for idx, val in enumerate(["train", "validation", "test"]):
+
+        
+        for idxlbl, lbl in enumerate(labels):
+            df_temp = df.loc[(df['Train Val Test'] == val) & (df['Clinical Type'] == lbl)]
+            axs[idx].scatter(x=df_temp['OS Month (log)'], y=df_temp['Predicted'], color= colors[idxlbl], label=lbl)
+            axs[idx].set_xlim(0, 6)
+            axs[idx].set_ylim(0, 6)
+            axs[idx].set_xlabel('OS Month (log)')
+            axs[idx].set_ylabel('Predicted')
+    
+        
+    plt.legend(loc='lower right')
+
+    # line = mlines.Line2D([0, 1], [0, 1], color='red')
+
+    # plt.scatter(df['OS Month (log)'], df['Predicted'], c=df['Clinical Type'].map(colors))
+    
+    plt.savefig(f"{PLOT_PATH}/{fl_name}.png")
+    """for ind in range(n_cols):
+
+        sns_plot = sns.scatterplot(data=df_lst[ind], x=x_axis_lst[ind], y=y_axis_lst[ind], hue=color, hue_order=order, ax = axs[ind])
+        sns_plot.set_xlim(0, 6)
+        sns_plot.set_ylim(0, 6)
+        plt.legend(loc='upper left')    
+        
+        #plt.ylim(0, None)
+        #plt.xlim(0, None)
+    
+    fig = sns_plot.get_figure()
+    fig.savefig(f"{PLOT_PATH}/{fl_name}.png")
+    plt.clf()"""
