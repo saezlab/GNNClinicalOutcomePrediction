@@ -217,8 +217,9 @@ def test(loader, label=None, fl_name=None, plot_pred=False):
         loss = criterion(out.squeeze(), data.y.to(device))  # Compute the loss.
         total_loss += float(loss.item())
 
-        out_list.extend([val.item() for val in out.squeeze()])
-        pred_list.extend([val.item() for val in data.y])
+        true_list.extend([val.item() for val in data.y])
+        pred_list.extend([val.item() for val in out.squeeze()])
+        #pred_list.extend([val.item() for val in data.y])
         tumor_grade_list.extend([val for val in data.tumor_grade])
         clinical_type_list.extend([val for val in data.clinical_type])
         osmonth_list.extend([val for val in data.osmonth])
@@ -227,7 +228,7 @@ def test(loader, label=None, fl_name=None, plot_pred=False):
         #plotting.plot_pred_vs_real(df, 'OS Month (log)', 'Predicted', "Clinical Type", fl_name)
         
         label_list = [label]*len(clinical_type_list)
-        df = pd.DataFrame(list(zip(out_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, label_list)),
+        df = pd.DataFrame(list(zip(true_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, label_list)),
                columns =['OS Month (log)', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Train Val Test"])
         
         return total_loss, df
