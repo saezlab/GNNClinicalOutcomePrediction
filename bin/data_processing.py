@@ -235,7 +235,6 @@ def create_graphs_delauney_triangulation(cell_count_thr, plot=False):
             lr_points = df_image[((df_image['Location_Center_X'] >= x_center) & (df_image['Location_Center_Y'] <= y_center))][["Location_Center_X", "Location_Center_Y"]].to_numpy()
             ur_points = df_image[((df_image['Location_Center_X'] >= x_center) & (df_image['Location_Center_Y'] >= y_center))][["Location_Center_X", "Location_Center_Y"]].to_numpy()
             
-            points = df_image[["Location_Center_X", "Location_Center_Y"]].to_numpy()
 
             generate_graphs_using_points(ll_points, imgnum_edge_thr_dict, img_num, df_image, pid, "ll", plot)
             generate_graphs_using_points(ul_points, imgnum_edge_thr_dict, img_num, df_image, pid, "ul", plot)

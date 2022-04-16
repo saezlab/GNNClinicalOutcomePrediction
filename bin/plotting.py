@@ -5,6 +5,8 @@ import numpy as np
 import os
 import torch
 from dataset import TissueDataset
+from sklearn.metrics import r2_score
+from evaluation_metrics import r_squared_error
 
 S_PATH = os.path.dirname(__file__)
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
@@ -92,14 +94,19 @@ def plot_pred_(df, color, fl_name):
     
     for idx, val in enumerate(["train", "validation", "test"]):
 
-        
+        df_tvt = df.loc[(df['Train Val Test'] == val)]
         for idxlbl, lbl in enumerate(labels):
-            df_temp = df.loc[(df['Train Val Test'] == val) & (df['Clinical Type'] == lbl)]
+            # df_temp = df.loc[(df['Train Val Test'] == val) & (df['Clinical Type'] == lbl)]
+            df_temp = df_tvt.loc[(df_tvt['Clinical Type'] == lbl)]
             axs[idx].scatter(x=df_temp['OS Month (log)'], y=df_temp['Predicted'], color= colors[idxlbl], label=lbl)
             axs[idx].set_xlim(0, 6)
             axs[idx].set_ylim(0, 6)
             axs[idx].set_xlabel('OS Month (log)')
             axs[idx].set_ylabel('Predicted')
+            
+        print(r_squared_error(df_tvt['OS Month (log)'], df_tvt['Predicted']))
+        axs[idx].set_title( str(len(df_tvt['OS Month (log)'])) + ' r_squared_error: ' + str(r_squared_error(df_tvt['OS Month (log)'], df_tvt['Predicted'])))
+
     
         
     plt.legend(loc='lower right')

@@ -1,6 +1,6 @@
 import torch
 from data_processing import OUT_DATA_PATH
-from model import GCN, GCN2, GCN_NEW
+from model import GCN, GCN2, GCN_NEW, GCN_EXP
 from dataset import TissueDataset
 from torch_geometric.loader import DataLoader
 from torch.nn import BatchNorm1d
@@ -12,12 +12,17 @@ import seaborn as sns
 import numpy as np
 import plotting
 import pandas as pd
+import pickle
 import os
 import pytorch_lightning as pl
+from torch_geometric import utils
 from evaluation_metrics import r_squared_error
+from explain import saliency_map
+import networkx as nx
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
+RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 
 parser = argparse.ArgumentParser(description='GNN Arguments')
 parser.add_argument(
@@ -165,7 +170,7 @@ test_loader = DataLoader(test_dataset, batch_size=args.bs, shuffle=False)
     print(f'Number of graphs in the current batch: {data.num_graphs}')
 """
 
-model = GCN_NEW(dataset.num_node_features, 
+model = GCN_EXP(dataset.num_node_features, 
                 num_of_gcn_layers=args.num_of_gcn_layers, 
                 num_of_ff_layers=args.num_of_ff_layers, 
                 gcn_hidden_neurons=args.gcn_h, 
@@ -195,9 +200,26 @@ def train():
     out_list = []
     for data in train_loader:  # Iterate in batches over the training dataset.
         out = model(data.x.to(device), data.edge_index.to(device), data.batch.to(device)).type(torch.DoubleTensor).to(device) # Perform a single forward pass.
-
+        print(data[1])
+        # print(data.batch)
         loss = criterion(out.squeeze(), data.y.to(device))  # Compute the loss.
+    
         loss.backward()  # Derive gradients.
+        #print(data.x.shape)
+        # print("BEFORE", model.input.grad.shape)
+        print("========================")
+        node_saliency_map = saliency_map(model.input.grad)
+        
+        with open(os.path.join(RAW_DATA_PATH, f'{data[2].img_id}_{data[2].p_id}_coordinates.pickle'), 'rb') as handle:
+            coordinates_arr = pickle.load(handle)
+        # print(data[1])
+        # print(coordinates_arr.shape)
+        g = utils.to_networkx(data[2], to_undirected=True)
+        nx.draw(g, pos=coordinates_arr)
+        plt.savefig("deneme.png")
+
+        plt.clf()
+        print("++++++++++++++++++++++++")
         out_list.extend([val.item() for val in out.squeeze()])
         
         pred_list.extend([val.item() for val in data.y])
@@ -205,7 +227,8 @@ def train():
         total_loss += float(loss.item())
         optimizer.step()  # Update parameters based on gradients.
         optimizer.zero_grad()  # Clear gradients
-    
+        # print("After", model.input.grad)
+
     return total_loss
 
 def test(loader, label=None, fl_name=None, plot_pred=False):
@@ -273,7 +296,7 @@ for epoch in range(1, args.epoch):
     """for param_group in optimizer.param_groups:
         print(param_group['lr'])"""
     
-    scheduler.step(validation_loss)
+    # scheduler.step(validation_loss)
 
     """writer.add_scalar("training/loss", train_loss, epoch)
     writer.add_scalar("validation/loss", validation_loss, epoch)
@@ -283,8 +306,12 @@ for epoch in range(1, args.epoch):
         best_val_loss = validation_loss
         best_train_loss = train_loss
         best_test_loss = test_loss
+        input_grads = model.input.grad
+        # print("GRADS:", input_grads)
     
     if print_at_each_epoch:
+
+        
 
         print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
 

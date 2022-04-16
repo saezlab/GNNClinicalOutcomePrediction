@@ -8,16 +8,16 @@ import matplotlib.pyplot as plt
 from data_processing import get_dataset_from_csv, get_cell_count_df
 RAW_DATA_PATH = os.path.join("../data", "raw")
 
-with open(os.path.join(RAW_DATA_PATH, '4_18_features.pickle'), 'rb') as handle:
+with open(os.path.join(RAW_DATA_PATH, '277ll_94_features.pickle'), 'rb') as handle:
     feature_arr = pickle.load(handle)
 
-with open(os.path.join(RAW_DATA_PATH, '4_18_edge_index_length.pickle'), 'rb') as handle:
+with open(os.path.join(RAW_DATA_PATH, '277ll_94_edge_index_length.pickle'), 'rb') as handle:
     edge_index_arr, edge_length_arr = pickle.load(handle)
 
-with open(os.path.join(RAW_DATA_PATH, '4_18_coordinates.pickle'), 'rb') as handle:
+with open(os.path.join(RAW_DATA_PATH, '277ll_94_coordinates.pickle'), 'rb') as handle:
     coordinates_arr = pickle.load(handle)
 
-with open(os.path.join(RAW_DATA_PATH, '4_18_clinical_info.pickle'), 'rb') as handle:
+with open(os.path.join(RAW_DATA_PATH, '277ll_94_clinical_info.pickle'), 'rb') as handle:
     clinical_info_dict = pickle.load(handle)
 
 print(clinical_info_dict)

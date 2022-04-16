@@ -15,9 +15,11 @@ import pytorch_lightning as pl
 
 pl.seed_everything(42)
 
-RAW_DATA_PATH = os.path.join("../data", "raw")
-OUT_DATA_PATH = os.path.join("../data", "out_data")
-PLOT_PATH = os.path.join("../plots")
+S_PATH = os.path.dirname(__file__)
+S_PATH = os.path.realpath(__file__)
+RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
+OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
+PLOT_PATH = os.path.join(S_PATH, "../plots")
 
 
 
@@ -51,7 +53,7 @@ class TissueDataset(InMemoryDataset):
 
         for fl in os.listdir(os.path.join(self.root, "raw")):
             if fl.endswith("features.pickle"):
-                print(fl)
+                # print(fl)
                 img, pid = fl.split("_")[:2]
                 with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_clinical_info.pickle'), 'rb') as handle:
                     clinical_info_dict = pickle.load(handle)
@@ -70,7 +72,7 @@ class TissueDataset(InMemoryDataset):
                         coordinates_arr = pickle.load(handle)
                         coordinates_arr = np.array(coordinates_arr)
                     
-                    data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]+0.1), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"], img_id=img, pat_id=pid)
+                    data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]+0.1), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid)
                     data_list.append(data)
                     count+=1
         
