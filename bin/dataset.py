@@ -17,6 +17,10 @@ pl.seed_everything(42)
 
 S_PATH = os.path.dirname(__file__)
 S_PATH = os.path.realpath(__file__)
+
+# Overwriting the S_PATH, it doesnt seem to work
+S_PATH = os.path.abspath(os.path.dirname(__file__))
+
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
 PLOT_PATH = os.path.join(S_PATH, "../plots")

@@ -1,8 +1,9 @@
 from tkinter import Variable
+from turtle import hideturtle
 import torch
 from torch.nn import Linear
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, GATConv, TransformerConv, GINConv, PNAConv
 from torch_geometric.nn import global_mean_pool
 from torch.nn import BatchNorm1d
 from torch.nn import ModuleList
@@ -17,6 +18,58 @@ class GCN(torch.nn.Module):
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
         self.conv3 = GCNConv(hidden_channels, hidden_channels)
         self.lin = Linear(hidden_channels, 1)
+
+    def forward(self, x, edge_index, batch):
+        # 1. Obtain node embeddings 
+        x = self.conv1(x, edge_index)
+        x = x.relu()
+        x = self.conv2(x, edge_index)
+        x = x.relu()
+        x = self.conv3(x, edge_index)
+
+        # 2. Readout layer
+        x = global_mean_pool(x, batch)  # [batch_size, hidden_channels]
+
+        # 3. Apply a final classifier
+        x = F.dropout(x, p=0.25, training=self.training)
+        x = self.lin(x)
+        x = x.relu()
+        
+        return x
+
+class CustomGCN(torch.nn.Module):
+    def __init__(self, type, **kwargs):
+        super(GCN, self).__init__()
+        pl.seed_everything(SEED)
+
+        # Recording the parameters
+        self.pars = kwargs
+
+        # Choosing the type of GCN
+        if type == "GATConv":
+            self.GATConv()
+            return
+        
+
+        # Creating the layers, template
+        self.conv1 = GCNConv(num_node_features, hidden_channels)
+        self.conv2 = GCNConv(hidden_channels, hidden_channels)
+        self.conv3 = GCNConv(hidden_channels, hidden_channels)
+        self.lin = Linear(hidden_channels, 1)
+
+    def GATConv(self):
+        # Parameter Extraction
+        try:
+            num_node_feautures = self.pars["num_node_features"]
+            hidden_channels = self.pars["hidden_channels"]
+        except KeyError:
+            print("Parameters are not proper.")
+
+        # Layer setup
+        self.conv1 = GATConv(num_node_feautures, hidden_channels)
+        self.conv2 = GATConv(hidden_channels, hidden_channels)
+        self.conv3 = GATConv(hidden_channels, hidden_channels)
+        self.lin = Linear(hidden_channels,1)
 
     def forward(self, x, edge_index, batch):
         # 1. Obtain node embeddings 

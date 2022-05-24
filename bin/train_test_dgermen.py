@@ -1,6 +1,6 @@
 import torch
 from data_processing import OUT_DATA_PATH
-from model import GCN, GCN2, GCN_NEW, GCN_EXP
+from model_dgermen import CustomGCN
 from dataset import TissueDataset
 from torch_geometric.loader import DataLoader
 from torch.nn import BatchNorm1d
@@ -22,13 +22,14 @@ import networkx as nx
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
+#OUT_DATA_PATH = os.path.join(S_PATH, "../../data", "out_data")
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 
 parser = argparse.ArgumentParser(description='GNN Arguments')
 parser.add_argument(
     '--model',
     type=str,
-    default="GCN2",
+    default="PNAConv",
     metavar='mn',
     help='model name (default: GCN2)')
 
@@ -124,6 +125,39 @@ parser.add_argument(
     metavar='MLR',
     help='minimum learning rate (default: 0.00002)')
 
+parser.add_argument(
+    '--aggregators',
+    # WARN This use of "+" doesn't go well with positional arguments
+    nargs='+',
+    # PROBLEM How to feed a list in CLI? Need to edit generator?
+    # Take string split
+    type = [],
+    # ARBTR Change to something meaningful
+    default= ["sum","mean"], # "sum", "mean", "min", "max", "var" and "std".
+    metavar='AGR',
+    help= "aggregator list for PNAConv"
+)
+
+parser.add_argument(
+    '--scalers',
+    # WARN This use of "+" doesn't go well with positional arguments
+    nargs='+',
+    # PROBLEM How to feed a list in CLI? Need to edit generator?
+    type= [],
+    default= ["amplification","identity"], # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
+    metavar='SCL',
+    help='Set of scaling function identifiers,')
+
+parser.add_argument(
+    '--deg',
+    # PROBLEM TENSOR?
+    type= int,
+    default= 9999999999,
+    metavar='DEG',
+    help='Histogram of in-degrees of nodes in the training set, used by scalers to normalize.')
+
+
+
 S_PATH = os.path.dirname(__file__)
 pl.seed_everything(42)
 args = parser.parse_args()
@@ -154,34 +188,20 @@ train_dataset = dataset[:num_of_train]
 validation_dataset = dataset[num_of_train:num_of_train+num_of_val]
 test_dataset = dataset[num_of_train+num_of_val:]
 
-"""print(f'Number of training graphs: {len(train_dataset)}')
-print(f'Number of validation graphs: {len(validation_dataset)}')
-print(f'Number of test graphs: {len(test_dataset)}')
-print(f"Number of node features: {dataset.num_node_features}")
-"""
+
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 validation_loader = DataLoader(validation_dataset, batch_size=args.bs, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=args.bs, shuffle=False)
 
-
-"""for step, data in enumerate(test_loader):
-    print(f'Step {step + 1}:')
-    print('=======')
-    print(f'Number of graphs in the current batch: {data.num_graphs}')
-"""
-
-model = GCN_EXP(dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
-                num_of_gcn_layers=args.num_of_gcn_layers, 
-                num_of_ff_layers=args.num_of_ff_layers, 
+model = CustomGCN(
+                type = args.model,
+                num_node_features = dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
+                num_gcn_layers=args.num_of_gcn_layers, 
+                num_ff_layers=args.num_of_ff_layers, 
                 gcn_hidden_neurons=args.gcn_h, 
                 ff_hidden_neurons=args.fcl, 
-                dropout=args.dropout).to(device)
-
-
-"""if args.model =="GCN":
-    model = GCN(dataset.num_node_features, hidden_channels=256).to(device)
-elif args.model=="GCN2":
-    model =GCN2(dataset.num_node_features, hidden_channels=args.gcn_h, fcl1=args.fcl, drop_rate=args.dropout).to(device)"""
+                dropout=args.dropout
+                    ).to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 criterion = torch.nn.MSELoss()
