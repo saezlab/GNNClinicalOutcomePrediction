@@ -40,12 +40,11 @@ class CustomGCN(torch.nn.Module):
 
             # Currently not working, problem with model, nn = (int)
             # Need to feed a NN
-            # PROBLEM
+            # PROBLEM Not working RN
             elif type == "GINConv":
                 self.GCN_type_1 = GINConv
 
-            # PROBLEM in parameter feeding (deg)
-            # https://github.com/pyg-team/pytorch_geometric/blob/master/examples/pna.py
+            # WORKS
             elif type == "PNAConv":
                 self.GCN_type_1 = PNAConv
 

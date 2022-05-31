@@ -5,7 +5,7 @@ import random
 import os
 
 config = {
-    "model": ["GCN"],
+    "model": ["GCN", "GATConv", "TransformerConv", "PNAConv"],
     "lr": [0.1, 0.01, 0.001, 0.0001],
     "bs": [16, 32, 64],
     "dropout": [0.0, 0.1, 0.2, 0.3],
@@ -17,7 +17,9 @@ config = {
     "weight_decay": [0.1, 0.001, 0.0001, 3e-6, 1e-5],
     "factor": [0.5, 0.8, 0.2],
     "patience": [5, 10, 20],
-    "min_lr": [0.00002, 0.0001]
+    "min_lr": [0.00002, 0.0001],
+    "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
+    "scalers": ["identity","amplification"] # ARBTR Find references
 }
 
 
@@ -53,7 +55,7 @@ job_f.writelines("#!/bin/sh\n")
 # #!/bin/sh
 for i in range(1, 100001):
     hyper_param_ind = shuffled_experiments[i]
-    command_line = "python ../../train.py "+ " ".join([f"--{param} "+ str(combinations[hyper_param_ind][allNames.index(param)]) for param in allNames]) # JUST DO THIS
+    command_line = "python ../../train_test_dgermen.py "+ " ".join([f"--{param} "+ str(combinations[hyper_param_ind][allNames.index(param)]) for param in allNames]) # JUST DO THIS
     
     if i%number_of_runs == 0:
         count+=1

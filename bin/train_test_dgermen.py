@@ -19,6 +19,7 @@ from torch_geometric import utils
 from evaluation_metrics import r_squared_error
 from explain import saliency_map
 import networkx as nx
+from torch_geometric.utils import degree
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
@@ -58,7 +59,7 @@ parser.add_argument(
 parser.add_argument(
     '--epoch',
     type=int,
-    default=50,
+    default=2,
     metavar='EPC',
     help='Number of epochs (default: 50)')
 
@@ -131,7 +132,7 @@ parser.add_argument(
     nargs='+',
     # PROBLEM How to feed a list in CLI? Need to edit generator?
     # Take string split
-    type = [],
+    type = str,
     # ARBTR Change to something meaningful
     default= ["sum","mean"], # "sum", "mean", "min", "max", "var" and "std".
     metavar='AGR',
@@ -143,19 +144,10 @@ parser.add_argument(
     # WARN This use of "+" doesn't go well with positional arguments
     nargs='+',
     # PROBLEM How to feed a list in CLI? Need to edit generator?
-    type= [],
+    type= str,
     default= ["amplification","identity"], # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
     metavar='SCL',
     help='Set of scaling function identifiers,')
-
-parser.add_argument(
-    '--deg',
-    # PROBLEM TENSOR?
-    type= int,
-    default= 9999999999,
-    metavar='DEG',
-    help='Histogram of in-degrees of nodes in the training set, used by scalers to normalize.')
-
 
 
 S_PATH = os.path.dirname(__file__)
@@ -193,6 +185,29 @@ train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 validation_loader = DataLoader(validation_dataset, batch_size=args.bs, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=args.bs, shuffle=False)
 
+# Handling string inputs
+if type(args.aggregators) != list:
+    args.aggregators = args.aggregators.split()
+
+if type(args.scalers) != list:
+    args.scalers = args.scalers.split()
+
+deg = 1
+
+# Calculating degree
+if args.model == "PNAConv":
+    max_degree = -1
+    for data in train_dataset:
+        d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+        max_degree = max(max_degree, int(d.max()))
+
+    # Compute the in-degree histogram tensor
+    deg = torch.zeros(max_degree + 1, dtype=torch.long)
+    for data in train_dataset:
+        d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+        deg += torch.bincount(d, minlength=deg.numel())
+
+
 model = CustomGCN(
                 type = args.model,
                 num_node_features = dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
@@ -200,7 +215,10 @@ model = CustomGCN(
                 num_ff_layers=args.num_of_ff_layers, 
                 gcn_hidden_neurons=args.gcn_h, 
                 ff_hidden_neurons=args.fcl, 
-                dropout=args.dropout
+                dropout=args.dropout,
+                aggregators=args.aggregators,
+                scalers=args.scalers,
+                deg = deg # Comes from data not hyperparameter
                     ).to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
