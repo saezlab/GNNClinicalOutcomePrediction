@@ -27,8 +27,9 @@ def get_cell_count_df(cell_count_thr):
     df_cell_count = df_cell_count.loc[(df_cell_count['Cell Counts'] >= cell_count_thr)]#  & (df_cell_count['Cell Counts'] <= 2000)]
     return df_cell_count
 
-def generate_graphs_using_points(points, imgnum_edge_thr_dict, img_num, df_image, pid,  pos=None, plot=False):
+def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid,  pos=None, plot=False):
     
+    points = df_image[["Location_Center_X", "Location_Center_Y"]].to_numpy()
     # point_labels = list(df_image["ObjectNumber"].values)
     
     # divide the graph based on the mean x and mean y values if # of cells is greater than 75 percentile
@@ -228,22 +229,29 @@ def create_graphs_delauney_triangulation(cell_count_thr, plot=False):
         
         # TODO: make this parametric 
         if cell_count > GRAPH_DIV_THR:
+            # find the center of the cells
             x_center, y_center = df_image[["Location_Center_X", "Location_Center_Y"]].describe().loc["mean"]["Location_Center_X"], df_image[["Location_Center_X", "Location_Center_Y"]].describe().loc["mean"]["Location_Center_Y"]
             # ll lower-left  ul upper-left lr lower right points 
-            ll_points = df_image[((df_image['Location_Center_X'] <= x_center) & (df_image['Location_Center_Y'] <= y_center))][["Location_Center_X", "Location_Center_Y"]].to_numpy()
+            """ll_points = df_image[((df_image['Location_Center_X'] <= x_center) & (df_image['Location_Center_Y'] <= y_center))][["Location_Center_X", "Location_Center_Y"]].to_numpy()
             ul_points = df_image[((df_image['Location_Center_X'] <= x_center) & (df_image['Location_Center_Y'] >= y_center))][["Location_Center_X", "Location_Center_Y"]].to_numpy()
             lr_points = df_image[((df_image['Location_Center_X'] >= x_center) & (df_image['Location_Center_Y'] <= y_center))][["Location_Center_X", "Location_Center_Y"]].to_numpy()
-            ur_points = df_image[((df_image['Location_Center_X'] >= x_center) & (df_image['Location_Center_Y'] >= y_center))][["Location_Center_X", "Location_Center_Y"]].to_numpy()
+            ur_points = df_image[((df_image['Location_Center_X'] >= x_center) & (df_image['Location_Center_Y'] >= y_center))][["Location_Center_X", "Location_Center_Y"]].to_numpy()"""
+
+            ll_df_image = df_image[((df_image['Location_Center_X'] <= x_center) & (df_image['Location_Center_Y'] <= y_center))]
+            ul_df_image = df_image[((df_image['Location_Center_X'] <= x_center) & (df_image['Location_Center_Y'] >= y_center))]
+            lr_df_image = df_image[((df_image['Location_Center_X'] >= x_center) & (df_image['Location_Center_Y'] <= y_center))]
+            ur_df_image = df_image[((df_image['Location_Center_X'] >= x_center) & (df_image['Location_Center_Y'] >= y_center))]
+
             
 
-            generate_graphs_using_points(ll_points, imgnum_edge_thr_dict, img_num, df_image, pid, "ll", plot)
-            generate_graphs_using_points(ul_points, imgnum_edge_thr_dict, img_num, df_image, pid, "ul", plot)
-            generate_graphs_using_points(lr_points, imgnum_edge_thr_dict, img_num, df_image, pid, "lr", plot)
-            generate_graphs_using_points(ur_points, imgnum_edge_thr_dict, img_num, df_image, pid, "ur", plot)
+            generate_graphs_using_points(ll_df_image, imgnum_edge_thr_dict, img_num, pid, "ll", plot)
+            generate_graphs_using_points(ul_df_image, imgnum_edge_thr_dict, img_num, pid, "ul", plot)
+            generate_graphs_using_points(lr_df_image, imgnum_edge_thr_dict, img_num, pid, "lr", plot)
+            generate_graphs_using_points(ur_df_image, imgnum_edge_thr_dict, img_num, pid, "ur", plot)
 
         else:
-            points = df_image[["Location_Center_X", "Location_Center_Y"]].to_numpy()
-            generate_graphs_using_points(points, imgnum_edge_thr_dict, img_num, df_image, pid, pos=None, plot = plot)
+            # points = df_image[["Location_Center_X", "Location_Center_Y"]].to_numpy()
+            generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num, pid, pos=None, plot = plot)
 
        
 def check_cell_ids_sequential():
@@ -274,6 +282,7 @@ def check_cell_ids_sequential():
 # 2) get_cell_count_df(CELL_COUNT_THR)
 # 3) create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True)
 
+# create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True)
 
 # check if all cell ids are available 
 # check_cell_ids_sequential()
