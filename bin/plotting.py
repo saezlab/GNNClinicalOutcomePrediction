@@ -6,7 +6,7 @@ import os
 import torch
 from dataset import TissueDataset
 from sklearn.metrics import r2_score
-from evaluation_metrics import r_squared_error
+from evaluation_metrics import r_squared_score, mse, rmse
 
 S_PATH = os.path.dirname(__file__)
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
@@ -104,8 +104,11 @@ def plot_pred_(df, color, fl_name):
             axs[idx].set_xlabel('OS Month (log)')
             axs[idx].set_ylabel('Predicted')
             
-        print(r_squared_error(df_tvt['OS Month (log)'], df_tvt['Predicted']))
-        axs[idx].set_title( str(len(df_tvt['OS Month (log)'])) + ' r_squared_error: ' + str(r_squared_error(df_tvt['OS Month (log)'], df_tvt['Predicted'])))
+        r2_score = r_squared_score(df_tvt['OS Month (log)'], df_tvt['Predicted'])
+        mser = mse(df_tvt['OS Month (log)'], df_tvt['Predicted'])
+        axs[idx].set_title(f"MSE: {mser:.3f}   R2 Score: {r2_score:.3f}")
+        axs[idx].legend(loc='lower right')
+        # plt.legend(loc='lower right')
 
     
         

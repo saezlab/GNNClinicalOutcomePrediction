@@ -18,12 +18,11 @@ class CustomGCN(torch.nn.Module):
         super(CustomGCN, self).__init__()
         pl.seed_everything(SEED)
 
-        # Explainability
-        self.input = None
 
         # Recording the parameters
         self.pars = kwargs
-
+        
+        self.dropout = self.pars["dropout"]
         # Extracting generic parameters
         self.num_node_features = self.pars["num_node_features"]
         self.gcn_hidden_neurons = self.pars["gcn_hidden_neurons"]
@@ -67,6 +66,7 @@ class CustomGCN(torch.nn.Module):
 
         # Module lists
         self.convs = ModuleList()
+        self.batch_norms = ModuleList()
         self.ff_layers = ModuleList()
         self.ff_batch_norms = ModuleList()
 
@@ -77,6 +77,7 @@ class CustomGCN(torch.nn.Module):
             aggregators = self.aggregators,
             scalers = self.scalers,
             deg = self.deg))
+        self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
 
         # Other GCN Layers
         for _ in range(self.num_gcn_layers-1):
@@ -86,13 +87,17 @@ class CustomGCN(torch.nn.Module):
                 aggregators = self.aggregators,
                 scalers = self.scalers,
                 deg = self.deg))
+            self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
+
         
         if self.num_ff_layers != 0:
             # Initial ff layer ----
             self.ff_layers.append(Linear(self.gcn_hidden_neurons, self.ff_hidden_neurons))
+            self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
             # Other ff layers
             for _ in range(self.num_ff_layers-2):
                 self.ff_layers.append(Linear(self.ff_hidden_neurons, self.ff_hidden_neurons))
+                self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
             
             self.ff_layers.append(Linear(self.ff_hidden_neurons, 1))
 
@@ -114,13 +119,10 @@ class CustomGCN(torch.nn.Module):
 
     def forward(self, x, edge_index, batch):
 
-        x.requires_grad = True
-        self.input = x.requires_grad_()
-
         # Conv layers
         for conv in self.convs:
             x = F.relu(conv(x, edge_index))
-            #x = F.dropout(x, self.dropout, training=self.training)
+            x = F.dropout(x, self.dropout, training=self.training)
 
         # Convulution Result Aggregation
         x = global_mean_pool(x, batch)  # [batch_size, gcn_hidden_neurons]
@@ -129,7 +131,7 @@ class CustomGCN(torch.nn.Module):
         for ff_l in self.ff_layers:
             x = F.relu(ff_l(x))
             # x = h + x  # residual#
-            #x = F.dropout(x, self.dropout, training=self.training)
+            x = F.dropout(x, self.dropout, training=self.training)
 
         return x
 

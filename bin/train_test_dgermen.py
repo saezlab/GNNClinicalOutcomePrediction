@@ -16,7 +16,6 @@ import pickle
 import os
 import pytorch_lightning as pl
 from torch_geometric import utils
-from evaluation_metrics import r_squared_error
 from explain import saliency_map
 import networkx as nx
 from torch_geometric.utils import degree
@@ -32,7 +31,7 @@ parser.add_argument(
     type=str,
     default="PNAConv",
     metavar='mn',
-    help='model name (default: GCN2)')
+    help='model name (default: PNAConv)')
 
 parser.add_argument(
     '--lr',
@@ -221,6 +220,7 @@ model = CustomGCN(
                 deg = deg # Comes from data not hyperparameter
                     ).to(device)
 
+print(model)
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 criterion = torch.nn.MSELoss()
 
@@ -238,26 +238,11 @@ def train():
     out_list = []
     for data in train_loader:  # Iterate in batches over the training dataset.
         out = model(data.x.to(device), data.edge_index.to(device), data.batch.to(device)).type(torch.DoubleTensor).to(device) # Perform a single forward pass.
-        print(data[1])
+        # print(data[1])
         # print(data.batch)
         loss = criterion(out.squeeze(), data.y.to(device))  # Compute the loss.
     
         loss.backward()  # Derive gradients.
-        #print(data.x.shape)
-        # print("BEFORE", model.input.grad.shape)
-        print("========================")
-        node_saliency_map = saliency_map(model.input.grad)
-        
-        with open(os.path.join(RAW_DATA_PATH, f'{data[2].img_id}_{data[2].p_id}_coordinates.pickle'), 'rb') as handle:
-            coordinates_arr = pickle.load(handle)
-        # print(data[1])
-        # print(coordinates_arr.shape)
-        g = utils.to_networkx(data[2], to_undirected=True)
-        # nx.draw(g, pos=coordinates_arr)
-        plt.savefig("deneme.png")
-
-        plt.clf()
-        print("++++++++++++++++++++++++")
         out_list.extend([val.item() for val in out.squeeze()])
         
         pred_list.extend([val.item() for val in data.y])
@@ -305,9 +290,9 @@ best_val_loss = np.inf
 best_train_loss = np.inf
 best_test_loss = np.inf
 
-print_at_each_epoch = False
+print_at_each_epoch = True
 for epoch in range(1, args.epoch):
-    print(epoch)
+
     train()
     
     train_loss, validation_loss, test_loss = np.inf, np.inf, np.inf
@@ -330,6 +315,8 @@ for epoch in range(1, args.epoch):
         train_loss = test(train_loader)
         validation_loss= test(validation_loader)
         test_loss = test(test_loader)
+
+        print(train_loss, validation_loss, test_loss)
     
     """for param_group in optimizer.param_groups:
         print(param_group['lr'])"""
@@ -344,13 +331,8 @@ for epoch in range(1, args.epoch):
         best_val_loss = validation_loss
         best_train_loss = train_loss
         best_test_loss = test_loss
-        input_grads = model.input.grad
-        # print("GRADS:", input_grads)
     
     if print_at_each_epoch:
-
-        
-
         print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
 
 print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
