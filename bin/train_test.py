@@ -16,9 +16,13 @@ import pickle
 import os
 import pytorch_lightning as pl
 from torch_geometric import utils
-from evaluation_metrics import r_squared_error
-from explain import saliency_map
+from evaluation_metrics import r_squared_score, mse, rmse
+from explain import saliency_map, grad_cam
 import networkx as nx
+from sklearn.preprocessing import MinMaxScaler
+from scipy.spatial import Voronoi, voronoi_plot_2d
+import matplotlib as mpl
+import matplotlib.cm as cm
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
@@ -160,7 +164,7 @@ print(f'Number of test graphs: {len(test_dataset)}')
 print(f"Number of node features: {dataset.num_node_features}")
 """
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
-validation_loader = DataLoader(validation_dataset, batch_size=args.bs, shuffle=True)
+validation_loader = DataLoader(validation_dataset, batch_size=args.bs, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=args.bs, shuffle=False)
 
 
@@ -170,7 +174,7 @@ test_loader = DataLoader(test_dataset, batch_size=args.bs, shuffle=False)
     print(f'Number of graphs in the current batch: {data.num_graphs}')
 """
 
-model = GCN_EXP(dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
+model = GCN_EXP(dataset.num_node_features, 
                 num_of_gcn_layers=args.num_of_gcn_layers, 
                 num_of_ff_layers=args.num_of_ff_layers, 
                 gcn_hidden_neurons=args.gcn_h, 
@@ -200,26 +204,43 @@ def train():
     out_list = []
     for data in train_loader:  # Iterate in batches over the training dataset.
         out = model(data.x.to(device), data.edge_index.to(device), data.batch.to(device)).type(torch.DoubleTensor).to(device) # Perform a single forward pass.
-        print(data[1])
+        # print(data[1])
         # print(data.batch)
         loss = criterion(out.squeeze(), data.y.to(device))  # Compute the loss.
     
         loss.backward()  # Derive gradients.
         #print(data.x.shape)
         # print("BEFORE", model.input.grad.shape)
-        print("========================")
+        """print("========================SALIENCY MAP========================")
         node_saliency_map = saliency_map(model.input.grad)
+        scaled_saliency_map_weights = MinMaxScaler(feature_range=(0,1)).fit_transform(np.array(node_saliency_map).reshape(-1, 1)).reshape(-1, )
+        # print(data.batch)
+        # print("data", data)
+        # print("scaled ", scaled_saliency_map_weights.shape)
+        idx = (data.batch == 2).nonzero().flatten()
+        # print(idx)
         
         with open(os.path.join(RAW_DATA_PATH, f'{data[2].img_id}_{data[2].p_id}_coordinates.pickle'), 'rb') as handle:
             coordinates_arr = pickle.load(handle)
         # print(data[1])
         # print(coordinates_arr.shape)
         g = utils.to_networkx(data[2], to_undirected=True)
-        # nx.draw(g, pos=coordinates_arr)
+        nx.draw(g, pos=coordinates_arr, node_color=scaled_saliency_map_weights[idx[0]:idx[-1]+1], node_size=80, cmap=plt.cm.afmhot)
         plt.savefig("deneme.png")
-
-        plt.clf()
-        print("++++++++++++++++++++++++")
+        plt.clf()    
+        print("++++++++++++++++++++++++GRAD CAM++++++++++++++++++++++++")
+        # print(model.final_conv_acts.shape)
+        final_conv_acts = model.final_conv_acts[idx[0]:idx[-1]+1]#.view(40, 512)
+        final_conv_grads = model.final_conv_grads[idx[0]:idx[-1]+1]#.view(40, 512)
+        grad_cam_weights = grad_cam(final_conv_acts, final_conv_grads)# [:mol.GetNumAtoms()]
+        
+        scaled_grad_cam_weights = MinMaxScaler(feature_range=(0,1)).fit_transform(np.array(grad_cam_weights).reshape(-1, 1)).reshape(-1, )
+        # print("GRAD CAM WEIG", scaled_grad_cam_weights.shape)
+        g = utils.to_networkx(data[2], to_undirected=True)
+        nx.draw(g, pos=coordinates_arr, node_color=scaled_grad_cam_weights, node_size=80, cmap=plt.cm.afmhot)
+        plt.savefig("deneme2.png")
+        plt.clf()   
+        print("++++++++++++++++++++++++")"""
         out_list.extend([val.item() for val in out.squeeze()])
         
         pred_list.extend([val.item() for val in data.y])
@@ -267,9 +288,9 @@ best_val_loss = np.inf
 best_train_loss = np.inf
 best_test_loss = np.inf
 
-print_at_each_epoch = False
+print_at_each_epoch = True
 for epoch in range(1, args.epoch):
-    print(epoch)
+    
     train()
     
     train_loss, validation_loss, test_loss = np.inf, np.inf, np.inf

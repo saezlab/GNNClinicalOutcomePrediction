@@ -5,11 +5,11 @@ import random
 import os
 
 
-job_id = "GCN_PNA_Training"
+job_id = "GAT_Training"
 
 config = {
     # "model": ["GCN", "GATConv", "TransformerConv", "PNAConv"],
-    "model": ["PNAConv"],
+    "model": ["GATConv"],
     "lr": [0.1, 0.01, 0.001, 0.0001],
     "bs": [16, 32, 64],
     "dropout": [0.0, 0.1, 0.2],
@@ -22,9 +22,12 @@ config = {
     "factor": [0.5, 0.8, 0.2],
     "patience": [5, 10, 20],
     "min_lr": [0.00002, 0.0001],
-    "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
-    "scalers": ["identity","amplification"] # ARBTR Find references
+    
 }
+if  config["model"][0]=="PNAConv":
+    config["aggregators"] =  ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
+    config["scalers"] = ["identity","amplification"] # ARBTR Find references
+
 
 
 
@@ -52,7 +55,7 @@ random.shuffle(shuffled_experiments)
 number_of_runs = 1000
 count=1
 
-all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p gpu --gres=gpu:1 --mem=10g  -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
+all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p gpu --gres=gpu:1 --mem=2g  -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
 job_f = open(f"{out_path}/{count}_{number_of_runs}.sh", "w")
 job_f.writelines("#!/bin/sh\n")
 

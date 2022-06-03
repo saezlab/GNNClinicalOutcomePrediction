@@ -19,6 +19,7 @@ from torch_geometric import utils
 from explain import saliency_map
 import networkx as nx
 from torch_geometric.utils import degree
+from evaluation_metrics import r_squared_score
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
@@ -220,7 +221,7 @@ model = CustomGCN(
                 deg = deg # Comes from data not hyperparameter
                     ).to(device)
 
-print(model)
+# print(model)
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 criterion = torch.nn.MSELoss()
 
@@ -303,20 +304,21 @@ for epoch in range(1, args.epoch):
         validation_loss, df_val= test(validation_loader, "validation", "validation", plot_at_last_epoch)
         test_loss, df_test = test(test_loader, "test", "test", plot_at_last_epoch)
         list_ct = list(set(df_train["Clinical Type"]))
+        r2_score = r_squared_score(df_val['OS Month (log)'], df_val['Predicted'])
 
-        df2 = pd.concat([df_train, df_val, df_test])
-        df2.to_csv(f"{OUT_DATA_PATH}/{args_str}.csv", index=False)
-        # print(list_ct)
-        # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, args_str)
-        plotting.plot_pred_(df2, list_ct, args_str)
+        if r2_score>0.7:
+
+            df2 = pd.concat([df_train, df_val, df_test])
+            df2.to_csv(f"{OUT_DATA_PATH}/{args_str}.csv", index=False)
+            # print(list_ct)
+            # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, args_str)
+            plotting.plot_pred_(df2, list_ct, args_str)
 
 
     else:
         train_loss = test(train_loader)
         validation_loss= test(validation_loader)
         test_loss = test(test_loader)
-
-        print(train_loss, validation_loss, test_loss)
     
     """for param_group in optimizer.param_groups:
         print(param_group['lr'])"""
