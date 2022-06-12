@@ -21,7 +21,8 @@ config = {
     "weight_decay": [0.1, 0.001, 0.0001, 3e-6, 1e-5],
     "factor": [0.5, 0.8, 0.2],
     "patience": [5, 10, 20],
-    "min_lr": [0.00002, 0.0001],
+    "min_lr": [0.00002, 0.0001]
+    
     
 }
 if  config["model"][0]=="PNAConv":
@@ -46,6 +47,20 @@ allNames = sorted(config)
 print(allNames)
 combinations = list(it.product(*(config[Name] for Name in allNames))) # Creating Combinations
 # print(list(combinations)[0])
+
+combinations_ided = []
+# Adding id to all combinations
+for id,comb in enumerate(combinations):
+    comb_list = list(comb)
+    comb_list.insert(0,id)
+    comb = tuple(comb_list)
+
+
+combinations = combinations_ided
+
+# Adding id to allnames
+allNames.insert(0,"id")
+
 num_of_combs = len(combinations)
 print(num_of_combs)
 shuffled_experiments = list(range(num_of_combs)) # SHUFFLE THE COMBINATIONS
