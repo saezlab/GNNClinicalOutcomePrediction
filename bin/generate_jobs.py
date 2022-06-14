@@ -3,7 +3,7 @@ from pathlib import Path
 from sklearn.utils import shuffle
 import random
 import os
-
+import csv
 
 job_id = "GAT_Training"
 
@@ -53,10 +53,11 @@ combinations_ided = []
 for id,comb in enumerate(combinations):
     comb_list = list(comb)
     comb_list.insert(0,id)
-    comb = tuple(comb_list)
+    combinations[id] = tuple(comb_list)
+    
 
 
-combinations = combinations_ided
+
 
 # Adding id to allnames
 allNames.insert(0,"id")
@@ -74,11 +75,15 @@ all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p gpu --gres=gpu:1 --mem=
 job_f = open(f"{out_path}/{count}_{number_of_runs}.sh", "w")
 job_f.writelines("#!/bin/sh\n")
 
+
+hyperparameters = []
 # #!/bin/sh
-for i in range(1, 100001):
+for i in range(1, 100):
     hyper_param_ind = shuffled_experiments[i]
     command_line = "python ../../train_test_dgermen.py "+ " ".join([f"--{param} "+ str(combinations[hyper_param_ind][allNames.index(param)]) for param in allNames]) # JUST DO THIS
-    
+
+    hyperparameters.append([str(combinations[hyper_param_ind][allNames.index(param)]) for param in allNames])
+
     if i%number_of_runs == 0:
         count+=1
         job_f.close()
@@ -93,3 +98,9 @@ for i in range(1, 100001):
 job_f.close()
 all_jobs_f.close()
 
+with open('results/identification.csv', 'w', encoding="UTF8", newline='') as f:
+    writer = csv.writer(f)
+
+    writer.writerow(allNames)
+
+    writer.writerows(hyperparameters)

@@ -27,6 +27,25 @@ class CustomGCN(torch.nn.Module):
         self.num_node_features = self.pars["num_node_features"]
         self.gcn_hidden_neurons = self.pars["gcn_hidden_neurons"]
 
+        # Extracting layer related parameters
+        self.num_gcn_layers = self.pars["num_gcn_layers"]
+        self.num_ff_layers = self.check_Key("num_ff_layers")
+        self.ff_hidden_neurons = self.check_Key("ff_hidden_neurons")
+        self.aggregators = self.check_Key("aggregators","list")
+        self.scalers = self.check_Key("scalers","list")
+        self.deg = self.check_Key("deg")
+
+        # Setting generic model parameters
+        model_pars_head = {
+            "in_channels" : self.num_node_features,
+            "out_channels"  : self.gcn_hidden_neurons
+        }
+        model_pars_rest = {
+            "in_channels" : self.gcn_hidden_neurons,
+            "out_channels"  : self.gcn_hidden_neurons
+        }
+        
+
         # Choosing the type of GCN
         try: 
             # WORKS
@@ -46,6 +65,13 @@ class CustomGCN(torch.nn.Module):
             # WORKS
             elif type == "PNAConv":
                 self.GCN_type_1 = PNAConv
+                model_pars_head["aggregators"] = self.aggregators
+                model_pars_head["scalers"] = self.scalers
+                model_pars_head["deg"] = self.deg
+                
+                model_pars_rest["aggregators"] = self.aggregators
+                model_pars_rest["scalers"] = self.scalers
+                model_pars_rest["deg"] = self.deg
 
             # No type name match case
             else:
@@ -56,13 +82,7 @@ class CustomGCN(torch.nn.Module):
 
         # Creating the layers
 
-        # Extracting layer related parameters
-        self.num_gcn_layers = self.pars["num_gcn_layers"]
-        self.num_ff_layers = self.check_Key("num_ff_layers")
-        self.ff_hidden_neurons = self.check_Key("ff_hidden_neurons")
-        self.aggregators = self.check_Key("aggregators","list")
-        self.scalers = self.check_Key("scalers","list")
-        self.deg = self.check_Key("deg")
+        
 
         # Module lists
         self.convs = ModuleList()
@@ -72,21 +92,15 @@ class CustomGCN(torch.nn.Module):
 
         # Initial GCN Layer -----
         self.convs.append(self.GCN_type_1(
-            in_channels = self.num_node_features,
-            out_channels  = self.gcn_hidden_neurons,
-            aggregators = self.aggregators,
-            scalers = self.scalers,
-            deg = self.deg))
+            **model_pars_head,
+        ))
         self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
 
         # Other GCN Layers
         for _ in range(self.num_gcn_layers-1):
             self.convs.append(self.GCN_type_1(
-                in_channels = self.gcn_hidden_neurons,
-                out_channels = self.gcn_hidden_neurons,
-                aggregators = self.aggregators,
-                scalers = self.scalers,
-                deg = self.deg))
+                **model_pars_rest,
+                ))
             self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
 
         

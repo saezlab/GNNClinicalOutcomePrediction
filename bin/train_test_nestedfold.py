@@ -55,7 +55,7 @@ parser.add_argument(
 parser.add_argument(
     '--model',
     type=str,
-    default="PNAConv",
+    default="TransformerConv",
     metavar='mn',
     help='model name (default: PNAConv)')
 
