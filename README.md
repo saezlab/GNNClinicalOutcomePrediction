@@ -27,4 +27,4 @@ Discovery of functional motifs by association to clinical features using Graph N
 * [Reliable Graph Neural Network Explanations Through Adversarial Training](https://arxiv.org/abs/2106.13427)
 * [Explainable AI Video Series](https://www.youtube.com/watch?v=OZJ1IgSgP9E&list=PLV8yxwGOxvvovp-j6ztxhF3QcKXT6vORU)
 * [awesome-machine-learning-interpretability](https://github.com/jphall663/awesome-machine-learning-interpretability)
-
+* [PGM-Explainer: Probabilistic Graphical Model Explanations for Graph Neural Networks](https://par.nsf.gov/servlets/purl/10200285)
