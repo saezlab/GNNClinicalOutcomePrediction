@@ -17,3 +17,14 @@ Discovery of functional motifs by association to clinical features using Graph N
 * [Distributed Computation of Attributions using Captum](https://github.com/pytorch/captum/blob/master/tutorials/Distributed_Attribution.ipynb)
 * [Workshop on GNNExplainer with Graph Classification (MUTAG)](https://colab.research.google.com/github/VisiumCH/AMLD-2021-Graphs/blob/master/notebooks/workshop_notebook.ipynb#scrollTo=aSnkQfG4gnsc)
 * [Extending Gnnexplainer for graph classification - PyG](https://github.com/pyg-team/pytorch_geometric/pull/2597)
+----------
+* [GraphSVX: Shapley Value Explanations for Graph Neural Networks](https://arxiv.org/abs/2104.10482)
+* [The Shapley Value in Machine Learning](https://arxiv.org/abs/2202.05594)
+* [GRAPHSHAP: Motif-based Explanations for Black-box Graph Classifiers](https://arxiv.org/abs/2202.08815)
+* [GraphLIME: Local Interpretable Model Explanations for Graph Neural Networks](https://ieeexplore.ieee.org/abstract/document/9811416?casa_token=LKVeyUFi1BEAAAAA:JXLkxY4qYRKiF-06Uh4tFz-Bsj_w_Do17CJLTq1afciKtHkq42Snkg-ttkaySm5LkAQmrI61rx1R)
+* [CF-GNNExplainer: Counterfactual Explanations for Graph Neural Networks](https://proceedings.mlr.press/v151/lucic22a.html)
+* [Explaining Graph Neural Networks with Structure-Aware Cooperative Games](https://arxiv.org/abs/2201.12380)
+* [Reliable Graph Neural Network Explanations Through Adversarial Training](https://arxiv.org/abs/2106.13427)
+* [Explainable AI Video Series](https://www.youtube.com/watch?v=OZJ1IgSgP9E&list=PLV8yxwGOxvvovp-j6ztxhF3QcKXT6vORU)
+* [awesome-machine-learning-interpretability](https://github.com/jphall663/awesome-machine-learning-interpretability)
+
