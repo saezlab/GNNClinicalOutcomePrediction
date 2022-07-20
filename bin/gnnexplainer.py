@@ -1,4 +1,5 @@
 from tabnanny import check
+from turtle import color
 import torch
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -15,6 +16,10 @@ import torch_geometric as pyg
 from torch_geometric.loader import DataLoader
 from model_dgermen import CustomGCN
 from torch_geometric.utils import degree
+
+
+import matplotlib.colors as mcolors
+
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
@@ -66,7 +71,7 @@ parser.add_argument(
 parser.add_argument(
     '--relevant_edges',
     type=float,
-    default=0.001,
+    default=0.5,
     metavar='RE',
     help='Get the highest values inside the edge mask (relevant edges) (default: 0.001)')
 
@@ -137,7 +142,6 @@ use_gpu = torch.cuda.is_available()
 device = "cpu"
 
 if use_gpu:
-    print("GPU is available on this device!")
     device = "cuda"
 else:
     print("CPU is available on this device!")
@@ -207,43 +211,81 @@ def plot_original_graph():
 
     return plt.savefig(f'../plots/original_graphs/original_graph_{args.idx}_{args.exp_epoch}_{args.exp_lr}_{args.retun_type}_{args.feat_mask_type}.png', dpi=1000)
 
+
+
+
 def GNNExplainer():
 
     explainer = pyg.nn.GNNExplainer(model, epochs = args.exp_epoch, lr = args.exp_lr, 
                                     return_type = args.retun_type, feat_mask_type = args.feat_mask_type).to(device)
     
     result = explainer.explain_graph(test_graph.x.to(device), test_graph.edge_index.to(device))
+    
     (feature_mask, edge_mask) = result
     edges_idx = edge_mask > args.relevant_edges
     explanation = pyg.data.Data(test_graph.x, test_graph.edge_index[:, edges_idx])
 
     explanation = pyg.transforms.RemoveIsolatedNodes()(pyg.transforms.ToUndirected()(explanation))
+    
     return explanation
 
 explanation = GNNExplainer()
 
+
 def plot_subgraph():
-    options = ['r','b']
-    colors = []
+
+    options = ['r','b','y','g']
+    colors_edge = []
+    colors_node = []
+    colors_edge1 = []
+    G = nx.Graph()
 
     graph_exp = utils.to_networkx(explanation, to_undirected=True)
 
     g = utils.to_networkx(test_graph, to_undirected=True)
 
     gexp_edges = graph_exp.edges
+    gexp_nodes = graph_exp.nodes
 
+    G.add_nodes_from(g)
+    #G.add_nodes_from(gexp_nodes)
+    #G.add_edges_from(g.edges)
+    G.add_edges_from(gexp_edges)
+
+
+    for i in g.nodes:
+        if any(i == j for j in list(gexp_nodes)):
+            colors_node.append(options[3])
+        else:
+            colors_node.append(options[2])    
+    
+    """
+    for i in g.edges:
+        if any(i == j for j in list(gexp_nodes)):
+            colors_edge.append(options[0])
+        else:
+            colors_edge.append(options[1])
+    """
+    #for g_exp in gexp_edges:
     for e_idx in g.edges:
         for g_exp in gexp_edges:
-            if g_exp==e_idx:
-                colors.append(options[0])
+        #for e_idx in g.edges:
+            if g_exp:
+                colors_edge.append(options[0])
             else:
-                colors.append(options[1])    
-            
-        
+                colors_edge.append(options[1])   
+                #print("yes") 
+
+    
+    
+    print("g.edges:", len(g.edges))
+    print("gexp_edges:", len(gexp_edges))
+    print("colors_edge:", len(colors_edge))
+    print("colors_edge1:", len(colors_edge1))
     pos_1 = coordinates_arr
 
-    nx.draw_networkx_nodes(g,pos=pos_1, node_size=1)
-    nx.draw_networkx_edges(g,edge_color=colors, pos=pos_1)
+    nx.draw_networkx_nodes(G, node_color=colors_node, pos=pos_1, node_size=1)
+    nx.draw_networkx_edges(G, edge_color=colors_edge, pos=pos_1)
 
     return plt.savefig(f'../plots/subgraphs/subgraph_{args.idx}_{args.exp_epoch}_{args.exp_lr}_{args.retun_type}_{args.feat_mask_type}.png', dpi=1000)
 
