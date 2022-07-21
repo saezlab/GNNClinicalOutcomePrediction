@@ -5,7 +5,9 @@ import numpy as np
 import os
 import torch
 from dataset import TissueDataset
-from evaluation_metrics import r_squared_score, mse, rmse
+
+from sklearn.metrics import r2_score
+
 
 S_PATH = os.path.dirname(__file__)
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
