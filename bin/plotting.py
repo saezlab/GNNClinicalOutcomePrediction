@@ -5,8 +5,9 @@ import numpy as np
 import os
 import torch
 from dataset import TissueDataset
+
 from sklearn.metrics import r2_score
-from evaluation_metrics import r_squared_score, mse, rmse
+
 
 S_PATH = os.path.dirname(__file__)
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
@@ -112,7 +113,7 @@ def plot_pred_(df, color, fl_name):
 
     
         
-    plt.legend(loc='lower right')
+    
 
     # line = mlines.Line2D([0, 1], [0, 1], color='red')
 

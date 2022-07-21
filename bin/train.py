@@ -14,10 +14,11 @@ import plotting
 import pandas as pd
 import os
 import pytorch_lightning as pl
-from evaluation_metrics import r_squared_error
+from evaluation_metrics import r_squared_score, mse, rmse
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
+MODEL_PATH = os.path.join(S_PATH, "../data", "models")
 
 parser = argparse.ArgumentParser(description='GNN Arguments')
 parser.add_argument(
@@ -208,7 +209,7 @@ def train():
     
     return total_loss
 
-def test(loader, label=None, fl_name=None, plot_pred=False):
+def test(loader, label=None):
     model.eval()
 
     total_loss = 0.0
@@ -228,21 +229,23 @@ def test(loader, label=None, fl_name=None, plot_pred=False):
         pid_list.extend([val for val in data.p_id])
         img_list.extend([val for val in data.img_id])
     
-    if plot_pred:
+    #if plot_pred:
         #plotting.plot_pred_vs_real(df, 'OS Month (log)', 'Predicted', "Clinical Type", fl_name)
         
-        label_list = [label]*len(clinical_type_list)
-        df = pd.DataFrame(list(zip(pid_list, img_list, true_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, label_list)),
-               columns =["Patient ID","Image Number", 'OS Month (log)', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Train Val Test"])
-        
-        return total_loss, df
-    else:
-        return total_loss
+    label_list = [label]*len(clinical_type_list)
+    df = pd.DataFrame(list(zip(pid_list, img_list, true_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, label_list)),
+            columns =["Patient ID","Image Number", 'OS Month (log)', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Train Val Test"])
+    
+    return total_loss, df
+    #else:
+    #    return total_loss
 
 
 best_val_loss = np.inf
 best_train_loss = np.inf
 best_test_loss = np.inf
+best_val_r2_score = -1.0
+best_val_tvt_df = None
 
 print_at_each_epoch = False
 for epoch in range(1, args.epoch):
@@ -250,26 +253,16 @@ for epoch in range(1, args.epoch):
     train()
     
     train_loss, validation_loss, test_loss = np.inf, np.inf, np.inf
-    plot_at_last_epoch = True
-    if epoch== args.epoch-1:
-
-        train_loss, df_train = test(train_loader, "train", "train", plot_at_last_epoch)
-        validation_loss, df_val= test(validation_loader, "validation", "validation", plot_at_last_epoch)
-        test_loss, df_test = test(test_loader, "test", "test", plot_at_last_epoch)
-        list_ct = list(set(df_train["Clinical Type"]))
-
-        df2 = pd.concat([df_train, df_val, df_test])
-        df2.to_csv(f"{OUT_DATA_PATH}/{args_str}.csv", index=False)
-        # print(list_ct)
-        # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, args_str)
-        plotting.plot_pred_(df2, list_ct, args_str)
-
-
-    else:
-        train_loss = test(train_loader)
-        validation_loss= test(validation_loader)
-        test_loss = test(test_loader)
     
+    plot_at_last_epoch = True
+    # if epoch== args.epoch-1:
+
+    train_loss, df_train = test(train_loader, "train")
+    validation_loss, df_val= test(validation_loader, "validation")
+    test_loss, df_test = test(test_loader, "test")
+    list_ct = list(set(df_train["Clinical Type"]))
+    
+        
     """for param_group in optimizer.param_groups:
         print(param_group['lr'])"""
     
@@ -280,13 +273,28 @@ for epoch in range(1, args.epoch):
     writer.add_scalar("test/loss", test_loss, epoch)"""
 
     if validation_loss < best_val_loss:
+        best_val_tvt_df = pd.concat([df_train, df_val, df_test])
         best_val_loss = validation_loss
         best_train_loss = train_loss
         best_test_loss = test_loss
-    
+        best_val_val_r2_score  = r_squared_score(df_val['OS Month (log)'], df_val['Predicted'])
+        best_val_test_r2_score  = r_squared_score(df_test['OS Month (log)'], df_test['Predicted'])
+
+    if epoch== args.epoch-1:
+        df_best_val = best_val_tvt_df.loc[(best_val_tvt_df['Train Val Test'] == "validation")]
+        r2_score = r_squared_score(df_best_val['OS Month (log)'], df_best_val['Predicted'])
+        
+        if r2_score>0.7:
+            best_val_tvt_df.to_csv(f"{OUT_DATA_PATH}/{args_str}.csv", index=False)
+            plotting.plot_pred_(best_val_tvt_df, list_ct, args_str)
+            torch.save(model.state_dict(),
+              f"{MODEL_PATH}/{args_str}_state_dict.pth")
+
+
     if print_at_each_epoch:
 
         print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
 
-print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
+print(f"Arguments:\t{args_str}")
+print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}, Best Val R2 Score: {best_val_val_r2_score}, Test R2 Score: {best_val_test_r2_score}")
 # writer.close()

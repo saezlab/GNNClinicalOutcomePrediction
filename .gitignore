@@ -161,10 +161,8 @@ bin/data
 bin/datasets
 data/models
 
-bin/processed/pre_filter.pt
-bin/processed/pre_transform.pt
-bin/processed/test_data.pt
-bin/processed/train_data.pt
-bin/raw/MNISTSuperpixels.pt
-models/bs:64-dropout:0.0-en:my_experiment-epoch:2-factor:0.8-fcl:128-gcn_h:128-lr:0.001-min_lr:2e-05-model:GCN-num_of_ff_layers:1-num_of_gcn_layers:3-patience:10-weight_decay:3e-06.pth
-models/bs:64-dropout:0.0-en:my_experiment-epoch:200-factor:0.8-fcl:128-gcn_h:128-lr:0.001-min_lr:2e-05-model:GCN-num_of_ff_layers:1-num_of_gcn_layers:3-patience:10-weight_decay:3e-06.pth
+
+models/
+bin/processed/
+raw/
+logs
