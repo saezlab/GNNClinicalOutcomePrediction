@@ -2,6 +2,18 @@
 
 Discovery of functional motifs by association to clinical features using Graph Neural Networks. 
 
+## Running
+
+```bash
+python gnnexplainer.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn_h 64 --model PNAConv --num_of_ff_layers 1 --num_of_gcn_layers 2 --scalers 'identity' --idx 10
+```
+## Explainable cells and cell interactions
+
+
+| Original Graph                                                                                              | SubGraph with GNNExplainer                                                                                                |
+|------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| ![Original Graph](https://github.com/saezlab/GNNClinicalOutcomePrediction/blob/main/plots/original_graphs/original_graph_28_50_0.001_regression_individual_feature.png) | ![QualitativeResults](https://github.com/saezlab/GNNClinicalOutcomePrediction/blob/main/plots/subgraphs/subgraph_28_50_0.001_regression_individual_feature.png) |
+
 
 ## Resources
 
@@ -29,3 +41,17 @@ Discovery of functional motifs by association to clinical features using Graph N
 * [Explainable AI Video Series](https://www.youtube.com/watch?v=OZJ1IgSgP9E&list=PLV8yxwGOxvvovp-j6ztxhF3QcKXT6vORU)
 * [awesome-machine-learning-interpretability](https://github.com/jphall663/awesome-machine-learning-interpretability)
 * [PGM-Explainer: Probabilistic Graphical Model Explanations for Graph Neural Networks](https://par.nsf.gov/servlets/purl/10200285)
+
+Biological/Biomedicine Papers & Repos That used/cited GNNExplainer Paper
+----------
+* [histocartography](https://github.com/histocartography/histocartography)
+* [Towards Explainable Graph Representations in Digital Pathology](https://arxiv.org/pdf/2007.00311.pdf)
+* [An Causal XAI Diagnostic Model for Breast Cancer Based on Mammography Reports](https://ieeexplore.ieee.org/abstract/document/9669648?casa_token=n5V-TdpnRC4AAAAA:ykLyVwcFQ1EtF0A4ihXMxcisKndreyb7xdlXtiu5UMPA_RYUlFmBtMDEz03n98r_2Lf6hFV01dK2)
+* [Predicting Cell Type and Extracting Key Genes using Single Cell Multi-Omics Data and Graph Neural Networks](https://cs.brown.edu/research/pubs/theses/ugrad/2022/zaki.hossam.pdf)
+* [Graph Representation Learning in Biomedicine](https://arxiv.org/pdf/2104.04883.pdf)
+* [Predicting the Survival of Cancer Patients With Multimodal Graph Neural Network](https://ieeexplore.ieee.org/abstract/document/9440752?casa_token=xZ71hc0rjT0AAAAA:wl7e1yWd3G7N3SQv6rNji2b6z1jy86yCjbdjLMiSDL2TuOyXZE6GezHz-z94RCBVWxgfhOJRjY4F)
+* [scDeepSort: a pre-trained cell-type annotation method for single-cell transcriptomics using deep learning with a weighted graph neural network](https://academic.oup.com/nar/article/49/21/e122/6368052?login=true) [[Code](https://github.com/ZJUFanLab/scDeepSort)]
+* [A survey on graph-based deep learning for computational histopathology](https://www.sciencedirect.com/science/article/pii/S0895611121001762)
+* [Explaining decisions of graph convolutional neural networks: patient-specific molecular subnetworks responsible for metastasis prediction in breast cancer](https://link.springer.com/article/10.1186/s13073-021-00845-7)
+
+
