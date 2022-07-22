@@ -1,5 +1,4 @@
-from tabnanny import check
-from turtle import color
+from turtle import pos
 import torch
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -17,8 +16,6 @@ from torch_geometric.loader import DataLoader
 from model_dgermen import CustomGCN
 from torch_geometric.utils import degree
 
-
-import matplotlib.colors as mcolors
 
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
@@ -205,7 +202,7 @@ def plot_original_graph():
 
     pos_1 = coordinates_arr
     g = utils.to_networkx(test_graph, to_undirected=True)
-    
+    print('g_original:', g)
     nx.draw_networkx_nodes(g,pos=pos_1, node_size=1)
     nx.draw_networkx_edges(g,edge_color='b', pos=pos_1)
 
@@ -214,78 +211,99 @@ def plot_original_graph():
 
 
 
-def GNNExplainer():
+def GNNExplain():
+    '''
+    Learns and returns a node feature mask and an edge mask that play a crucial role to explain the prediction made by the GNN for a graph.
+    test_graph.x (torch.Tensor): The node feature matrix
+    test_graph.edge_index (torch.Tensor): The edge indices.
+
+    
+    Additional hyper-parameters to override default settings in coeffs.
+    coeffs = {'edge_ent': 1.0, 'edge_reduction': 'sum', 'edge_size': 0.005, 'node_feat_ent': 0.1, 'node_feat_reduction': 'mean', 'node_feat_size': 1.0}
+    '''
 
     explainer = pyg.nn.GNNExplainer(model, epochs = args.exp_epoch, lr = args.exp_lr, 
                                     return_type = args.retun_type, feat_mask_type = args.feat_mask_type).to(device)
     
     result = explainer.explain_graph(test_graph.x.to(device), test_graph.edge_index.to(device))
     
-    (feature_mask, edge_mask) = result
+    (feature_mask, edge_mask) = result 
+    print('edge_mask:', type(edge_mask))
+    print('edge_mask:', edge_mask)
     edges_idx = edge_mask > args.relevant_edges
-    explanation = pyg.data.Data(test_graph.x, test_graph.edge_index[:, edges_idx])
+    pos_1 = coordinates_arr
+    
+    explanation = pyg.data.Data(test_graph.x, test_graph.edge_index[:, edges_idx], pos= pos_1)
+    
+    example = pyg.data.Data(feature_mask, edges_idx)
+
+    print('edges_idx:', type(edges_idx))
+    print('edges_idx:', edges_idx)
+    print('test_graph.x:', type(test_graph.x))
+    print('edges_idx:', type(edges_idx))
 
     explanation = pyg.transforms.RemoveIsolatedNodes()(pyg.transforms.ToUndirected()(explanation))
+    print('explanation:', explanation)
+    print('example:', type(example))
+    print('example:', example)
+    print('test_graph:', test_graph)
     
-    return explanation
+    return explanation, edges_idx
 
-explanation = GNNExplainer()
+explanation, edges_idx = GNNExplain()
 
 
 def plot_subgraph():
 
     options = ['r','b','y','g']
     colors_edge = []
-    colors_node = []
-    colors_edge1 = []
+    
     G = nx.Graph()
 
+
     graph_exp = utils.to_networkx(explanation, to_undirected=True)
-
+    print('graph_exp:', graph_exp)
     g = utils.to_networkx(test_graph, to_undirected=True)
-
+    
     gexp_edges = graph_exp.edges
     gexp_nodes = graph_exp.nodes
+    colors_node = ['y']*len(g.nodes)
 
     G.add_nodes_from(g)
     #G.add_nodes_from(gexp_nodes)
     #G.add_edges_from(g.edges)
     G.add_edges_from(gexp_edges)
 
-
+    """
     for i in g.nodes:
         if any(i == j for j in list(gexp_nodes)):
             colors_node.append(options[3])
         else:
             colors_node.append(options[2])    
     
-    """
+    
     for i in g.edges:
         if any(i == j for j in list(gexp_nodes)):
             colors_edge.append(options[0])
         else:
             colors_edge.append(options[1])
     """
-    #for g_exp in gexp_edges:
-    for e_idx in g.edges:
-        for g_exp in gexp_edges:
-        #for e_idx in g.edges:
-            if g_exp:
+
+    for id,e_idx in enumerate(g.edges):
+        #for g_exp in gexp_edges:
+            if edges_idx[id]:
                 colors_edge.append(options[0])
+                n1, n2 = e_idx
+                colors_node[n1]=options[3]
+                colors_node[n2]=options[3]
             else:
                 colors_edge.append(options[1])   
-                #print("yes") 
+                
 
-    
-    
-    print("g.edges:", len(g.edges))
-    print("gexp_edges:", len(gexp_edges))
-    print("colors_edge:", len(colors_edge))
-    print("colors_edge1:", len(colors_edge1))
     pos_1 = coordinates_arr
 
-    nx.draw_networkx_nodes(G, node_color=colors_node, pos=pos_1, node_size=1)
-    nx.draw_networkx_edges(G, edge_color=colors_edge, pos=pos_1)
+    nx.draw_networkx_nodes(g, node_color=colors_node, pos=pos_1, node_size=1)
+    nx.draw_networkx_edges(g, edge_color=colors_edge, pos=pos_1)
 
     return plt.savefig(f'../plots/subgraphs/subgraph_{args.idx}_{args.exp_epoch}_{args.exp_lr}_{args.retun_type}_{args.feat_mask_type}.png', dpi=1000)
 
