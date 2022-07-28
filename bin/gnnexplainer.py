@@ -1,22 +1,20 @@
-from turtle import pos
-import torch
-import networkx as nx
-import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
-from captum.attr import IntegratedGradients
-from torch_sparse import coalesce
-from torch_geometric import utils
-import pickle5 as pickle
-import os
 import argparse
+import os
+
+import matplotlib.pyplot as plt
+import networkx as nx
+import pickle5 as pickle
 import pytorch_lightning as pl
-from dataset import TissueDataset
+import torch
 import torch_geometric as pyg
+from torch_geometric import utils
 from torch_geometric.loader import DataLoader
-from model_dgermen import CustomGCN
 from torch_geometric.utils import degree
+from explainer import GNNExplainer
 
 
+from dataset import TissueDataset
+from model_dgermen import CustomGCN
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
@@ -50,6 +48,13 @@ parser.add_argument(
     default=0.001,
     metavar='ELR',
     help='Explainer learning rate (default: 0.001)')
+
+parser.add_argument(
+    '--weight_decay',
+    type=float,
+    default=0.001,
+    metavar='WD',
+    help='Explainer weight decay (default: 0.001)')
 
 parser.add_argument(
     '--retun_type',
@@ -130,6 +135,55 @@ parser.add_argument(
     metavar='SCL',
     help='Set of scaling function identifiers,')
 
+parser.add_argument(
+    '--factor', # 0.5 0.8, 0.2
+    type=float,
+    default=0.5,
+    metavar='FACTOR',
+    help='learning rate reduce factor (default: 0.5)')
+
+parser.add_argument(
+    '--patience', # 5, 10, 20
+    type=int,
+    default=5,
+    metavar='PA',
+    help='patience for learning rate scheduling (default: 5)')
+
+parser.add_argument(
+    '--min_lr',
+    type=float,
+    default=0.00002,#0.0001
+    metavar='MLR',
+    help='minimum learning rate (default: 0.00002)')
+
+parser.add_argument(
+    '--edge_size',
+    type=float,
+    default=0.005,#0.005
+    metavar='ES',
+    help='Edge Size (default: 0.005)')
+
+parser.add_argument(
+    '--node_feat_size',
+    type=float,
+    default=1.0,
+    metavar='NFS',
+    help='Node Feature size (default: 1.0)')
+
+parser.add_argument(
+    '--edge_ent',
+    type=float,
+    default=1.0,
+    metavar='ENT',
+    help='Edge Entropy (default: 1.0)')
+
+parser.add_argument(
+    '--node_feat_ent',
+    type=float,
+    default=0.1,
+    metavar='NFE',
+    help='Node Feature Entropy (default: 0.1)')
+
 S_PATH = os.path.dirname(__file__)
 pl.seed_everything(42)
 args = parser.parse_args()
@@ -202,7 +256,6 @@ def plot_original_graph():
 
     pos_1 = coordinates_arr
     g = utils.to_networkx(test_graph, to_undirected=True)
-    print('g_original:', g)
     nx.draw_networkx_nodes(g,pos=pos_1, node_size=1)
     nx.draw_networkx_edges(g,edge_color='b', pos=pos_1)
 
@@ -222,31 +275,21 @@ def GNNExplain():
     coeffs = {'edge_ent': 1.0, 'edge_reduction': 'sum', 'edge_size': 0.005, 'node_feat_ent': 0.1, 'node_feat_reduction': 'mean', 'node_feat_size': 1.0}
     '''
 
-    explainer = pyg.nn.GNNExplainer(model, epochs = args.exp_epoch, lr = args.exp_lr, 
+    explainer = GNNExplainer(model, epochs = args.exp_epoch, lr = args.exp_lr, weight_decay=args.weight_decay,
+                                    factor = args.factor, patience = args.patience, min_lr = args.min_lr,
+                                    edge_size = args.edge_size, node_feat_size= args.node_feat_size, edge_ent = args.edge_ent, node_feat_ent = args.node_feat_ent,
                                     return_type = args.retun_type, feat_mask_type = args.feat_mask_type).to(device)
     
     result = explainer.explain_graph(test_graph.x.to(device), test_graph.edge_index.to(device))
-    
+
     (feature_mask, edge_mask) = result 
-    print('edge_mask:', type(edge_mask))
-    print('edge_mask:', edge_mask)
+
     edges_idx = edge_mask > args.relevant_edges
     pos_1 = coordinates_arr
     
     explanation = pyg.data.Data(test_graph.x, test_graph.edge_index[:, edges_idx], pos= pos_1)
     
-    example = pyg.data.Data(feature_mask, edges_idx)
-
-    print('edges_idx:', type(edges_idx))
-    print('edges_idx:', edges_idx)
-    print('test_graph.x:', type(test_graph.x))
-    print('edges_idx:', type(edges_idx))
-
     explanation = pyg.transforms.RemoveIsolatedNodes()(pyg.transforms.ToUndirected()(explanation))
-    print('explanation:', explanation)
-    print('example:', type(example))
-    print('example:', example)
-    print('test_graph:', test_graph)
     
     return explanation, edges_idx
 
@@ -258,44 +301,19 @@ def plot_subgraph():
     options = ['r','b','y','g']
     colors_edge = []
     
-    G = nx.Graph()
 
-
-    graph_exp = utils.to_networkx(explanation, to_undirected=True)
-    print('graph_exp:', graph_exp)
     g = utils.to_networkx(test_graph, to_undirected=True)
     
-    gexp_edges = graph_exp.edges
-    gexp_nodes = graph_exp.nodes
-    colors_node = ['y']*len(g.nodes)
 
-    G.add_nodes_from(g)
-    #G.add_nodes_from(gexp_nodes)
-    #G.add_edges_from(g.edges)
-    G.add_edges_from(gexp_edges)
-
-    """
-    for i in g.nodes:
-        if any(i == j for j in list(gexp_nodes)):
-            colors_node.append(options[3])
-        else:
-            colors_node.append(options[2])    
-    
-    
-    for i in g.edges:
-        if any(i == j for j in list(gexp_nodes)):
-            colors_edge.append(options[0])
-        else:
-            colors_edge.append(options[1])
-    """
+    colors_node = ['b']*len(g.nodes)
 
     for id,e_idx in enumerate(g.edges):
         #for g_exp in gexp_edges:
             if edges_idx[id]:
                 colors_edge.append(options[0])
                 n1, n2 = e_idx
-                colors_node[n1]=options[3]
-                colors_node[n2]=options[3]
+                colors_node[n1]=options[0]
+                colors_node[n2]=options[0]
             else:
                 colors_edge.append(options[1])   
                 
@@ -305,7 +323,7 @@ def plot_subgraph():
     nx.draw_networkx_nodes(g, node_color=colors_node, pos=pos_1, node_size=1)
     nx.draw_networkx_edges(g, edge_color=colors_edge, pos=pos_1)
 
-    return plt.savefig(f'../plots/subgraphs/subgraph_{args.idx}_{args.exp_epoch}_{args.exp_lr}_{args.retun_type}_{args.feat_mask_type}.png', dpi=1000)
+    return plt.savefig(f'../plots/subgraphs/subgraph_{args.idx}_{args.exp_epoch}_{args.exp_lr}_{args.weight_decay}_{args.factor}_{args.patience}_{args.min_lr}_{args.edge_size}_{args.node_feat_size}_{args.edge_ent}_{args.node_feat_ent}_{args.retun_type}_{args.feat_mask_type}_{args.relevant_edges}.png', dpi=1000)
 
 
 plot_original_graph()
