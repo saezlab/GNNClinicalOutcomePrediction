@@ -2,18 +2,28 @@
 
 Discovery of functional motifs by association to clinical features using Graph Neural Networks. 
 
-## Running
+## Running 
 
+### Training PNA For Regression
+
+```bash
+python train_test_dgermen.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn_h 64 --model PNAConv --num_of_ff_layers 1 --num_of_gcn_layers 2 --scalers 'identity' 
+```
+
+### GNNExplainer For PNA Regressor
 ```bash
 python gnnexplainer.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn_h 64 --model PNAConv --num_of_ff_layers 1 --num_of_gcn_layers 2 --scalers 'identity' --idx 10
 ```
 ## Explainable cells and cell interactions
 
 
-| Original Graph                                                                                              | SubGraph with GNNExplainer                                                                                                |
+| Original Graph                                                                                              | SubGraph                                                                                               |
 |------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
 | ![Original Graph](https://github.com/saezlab/GNNClinicalOutcomePrediction/blob/main/plots/original_graphs/original_graph_28_50_0.001_regression_individual_feature.png) | ![QualitativeResults](https://github.com/saezlab/GNNClinicalOutcomePrediction/blob/main/plots/subgraphs/subgraph_28_50_0.001_regression_individual_feature.png) |
 
+### First Results of Hyperparameter Tuning
+
+![Explainer Results](https://github.com/saezlab/GNNClinicalOutcomePrediction/blob/main/plots/subgraphs/futon_explainer.gif)
 
 ## Resources
 
@@ -41,6 +51,8 @@ python gnnexplainer.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn
 * [Explainable AI Video Series](https://www.youtube.com/watch?v=OZJ1IgSgP9E&list=PLV8yxwGOxvvovp-j6ztxhF3QcKXT6vORU)
 * [awesome-machine-learning-interpretability](https://github.com/jphall663/awesome-machine-learning-interpretability)
 * [PGM-Explainer: Probabilistic Graphical Model Explanations for Graph Neural Networks](https://par.nsf.gov/servlets/purl/10200285)
+* [An Explainable AI Library for Benchmarking Graph Explainers-GXAI](https://graph-learning-benchmarks.github.io/assets/papers/glb2022/An_Explainable_AI_Library_for_Benchmarking_Graph_Explainers.pdf) [[Code](https://github.com/mims-harvard/GXAI-Bench)]
+* [On Explainability of Graph Neural Networks via Subgraph Explorations](https://arxiv.org/abs/2102.05152) [[Code](https://github.com/divelab/DIG/tree/main/dig/xgraph/SubgraphX)]
 
 Biological/Biomedicine Papers & Repos That used/cited GNNExplainer Paper
 ----------
