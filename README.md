@@ -41,6 +41,7 @@ python gnnexplainer.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn
 * [Workshop on GNNExplainer with Graph Classification (MUTAG)](https://colab.research.google.com/github/VisiumCH/AMLD-2021-Graphs/blob/master/notebooks/workshop_notebook.ipynb#scrollTo=aSnkQfG4gnsc)
 * [Extending Gnnexplainer for graph classification - PyG](https://github.com/pyg-team/pytorch_geometric/pull/2597)
 ----------
+* [SHAP-Library](https://github.com/slundberg/shap)
 * [GraphSVX: Shapley Value Explanations for Graph Neural Networks](https://arxiv.org/abs/2104.10482)
 * [The Shapley Value in Machine Learning](https://arxiv.org/abs/2202.05594)
 * [GRAPHSHAP: Motif-based Explanations for Black-box Graph Classifiers](https://arxiv.org/abs/2202.08815)
