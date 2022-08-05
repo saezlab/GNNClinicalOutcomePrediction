@@ -54,6 +54,15 @@ python gnnexplainer.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn
 * [PGM-Explainer: Probabilistic Graphical Model Explanations for Graph Neural Networks](https://par.nsf.gov/servlets/purl/10200285)
 * [An Explainable AI Library for Benchmarking Graph Explainers-GXAI](https://graph-learning-benchmarks.github.io/assets/papers/glb2022/An_Explainable_AI_Library_for_Benchmarking_Graph_Explainers.pdf) [[Code](https://github.com/mims-harvard/GXAI-Bench)]
 * [On Explainability of Graph Neural Networks via Subgraph Explorations](https://arxiv.org/abs/2102.05152) [[Code](https://github.com/divelab/DIG/tree/main/dig/xgraph/SubgraphX)]
+* [Data Representing Ground-Truth Explanations to Evaluate XAI Methods](https://arxiv.org/pdf/2011.09892.pdf)
+* [Towards Ground Truth Explainability on Tabular Data](https://arxiv.org/pdf/2007.10532.pdf)
+* [Interpretable Machine Learning](https://christophm.github.io/interpretable-ml-book/index.html)
+* [“Why Should I Trust You?” Explaining the Predictions of Any Classifier](https://arxiv.org/pdf/1602.04938.pdf)
+* [Quantus](https://github.com/understandable-machine-intelligence-lab/Quantus)
+* [Papers and code of Explainable AI esp. w.r.t. Image classificiation](https://github.com/samzabdiel/XAI)
+* [OpenXAI](https://github.com/AI4LIFE-GROUP/OpenXAI)
+* [How can I choose an explainer? An Application-grounded Evaluation of Post-hoc Explanations](https://arxiv.org/abs/2101.08758)
+
 
 Biological/Biomedicine Papers & Repos That used/cited GNNExplainer Paper
 ----------
