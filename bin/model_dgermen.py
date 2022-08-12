@@ -18,6 +18,7 @@ class CustomGCN(torch.nn.Module):
         super(CustomGCN, self).__init__()
         pl.seed_everything(SEED)
 
+        self.model_type = type
 
         # Recording the parameters
         self.pars = kwargs
