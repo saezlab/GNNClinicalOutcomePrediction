@@ -1,6 +1,10 @@
+from distutils.log import error
 from random import random
 from sklearn.model_selection import KFold
 import torch
+import os
+import pickle
+from model_dgermen import CustomGCN 
 
 # K-Fold cross validation index creator function
 # Dataset idices and ratios must be supplied
@@ -40,3 +44,144 @@ def k_fold_TTV(dataset,T2VT_ratio,V2T_ratio):
                 (torch.utils.data.SubsetRandomSampler(valid_idx))))
 
     return samplers
+
+
+
+def save_model(model: CustomGCN,fileName ,mode: str, path =  os.curdir):
+    """
+    Saves the pytoch model, has 3 modes.
+    Models have extension ".mdl", 
+    Mode SD: Just save the state dict., user needs to hold hyperparameters
+    Mode SDH: State dict and hyperparameters are saved, in DIFFERENT files
+    Mode EM: Entire model is saved
+    For now only works with "model_dgermen", NOT generic
+
+    Args:
+        model (CustomGCN): Model to be saved
+        fileName (str): Model's saved file name.
+        mode (str): Mode to save the model
+        path (_type_, optional): path that model will be saved to. Defaults to os.curdir().
+    """
+    path_model = path + fileName + "_" + mode + ".mdl"
+    path_hyp = path + fileName + "_" + mode  + ".hyp"
+
+    if mode == "SD":
+        torch.save(model.state_dict(), path_model)
+
+    elif mode == "SDH":
+        torch.save(model.state_dict(), path_model)
+        
+        try: 
+            model_hyp = {
+                "type" : model.model_type,
+                "args" : model.pars
+            }
+
+        except KeyError:
+            raise KeyError("Model doesn't have type attribute, add manually or use updated 'model_dgermen'.")
+
+        pickle_out = open(path_hyp,"wb")
+        pickle.dump(model_hyp, pickle_out)
+        pickle_out.close()
+
+    elif mode == "EM":
+        torch.save(model, path_model)
+
+    print("Model saved!")
+
+def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args: dict = {}):
+    """Models the specified model and returns it
+
+    Args:
+        fileName (str): Name of the file without the extension
+        path (str, optional): Path to the directory of the saved model. Defaults to os.curdir.
+        model_type (str, optional): If saved with SD mode, need to supply model type. Defaults to "NONE".
+        args (dict, optional): If saved with SD mode, need to supply model creation hyperparameter. Defaults to {}.
+
+    Raises:
+        ValueError: 
+        ValueError: 
+
+    Returns:
+        CustomGCN: Ready model
+    """
+
+    path_model = path + fileName + ".mdl"
+    path_hyp = path + fileName + ".hyp"
+
+    mode = fileName.rsplit("_",1)[-1]
+
+    if mode == "SD":
+        if model_type == "NONE":
+            raise ValueError("For SD mode, model_type must be properly defined!")
+        if args == {}:
+            raise ValueError("For SD mode, args must be supplied properly!")
+
+        model = CustomGCN(
+                    type = model_type,
+                    num_node_features = args.num_node_features, 
+                    num_gcn_layers=args.num_gcn_layers, 
+                    num_ff_layers=args.num_ff_layers, 
+                    gcn_hidden_neurons=args.gcn_hidden_neurons, 
+                    ff_hidden_neurons=args.ff_hidden_neurons, 
+                    dropout=args.dropout,
+                    aggregators=args.aggregators,
+                    scalers=args.scalers,
+                    deg = args.deg 
+                        )
+        
+        model.load_state_dict(torch.load(path_model))
+        model.eval()
+
+        return model
+
+    elif mode == "SDH":
+
+        pickle_in = open(path_hyp,"rb")
+        hyp = pickle.load(pickle_in)
+        pickle_in.close()
+
+        model_type = hyp["type"]
+        args = hyp["args"]
+
+        model = CustomGCN(
+                    type = model_type,
+                    num_node_features = args["num_node_features"], 
+                    num_gcn_layers=args["num_gcn_layers"], 
+                    num_ff_layers=args["num_ff_layers"], 
+                    gcn_hidden_neurons=args["gcn_hidden_neurons"], 
+                    ff_hidden_neurons=args["ff_hidden_neurons"], 
+                    dropout=args["dropout"],
+                    aggregators=args["aggregators"],
+                    scalers=args["scalers"],
+                    deg = args["deg"] 
+                        )
+
+        model.load_state_dict(torch.load(path_model))
+        model.eval()
+
+        return model
+
+    
+    elif mode == "EM":
+
+        model = torch.load(path_model)
+        model.eval()
+
+        return model
+
+
+
+def get_device():
+
+    use_gpu = torch.cuda.is_available()
+
+    device = "cpu"
+
+    if use_gpu:
+        device = "cuda"
+        print("GPU is available on this device!")
+    else:
+        print("CPU is available on this device!")
+
+    return device
