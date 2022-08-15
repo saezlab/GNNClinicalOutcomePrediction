@@ -14,6 +14,16 @@ python train_test_dgermen.py --aggregators 'max' --bs 16 --dropout 0.0 --en my_e
 ```bash
 python gnnexplainer.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn_h 64 --model PNAConv --num_of_ff_layers 1 --num_of_gcn_layers 2 --scalers 'identity' --idx 10
 ```
+### LIME Explainer for PNA Regressor
+```bash
+python lime.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn_h 64 --model PNAConv --num_of_ff_layers 1 --num_of_gcn_layers 2 --scalers 'identity' --idx 10
+```
+
+### SHAP Explainer for PNA Regressor
+```bash
+python shap.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn_h 64 --model PNAConv --num_of_ff_layers 1 --num_of_gcn_layers 2 --scalers 'identity' --idx 10
+```
+
 ## Explainable cells and cell interactions
 
 
