@@ -55,6 +55,7 @@ python shap.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn_h 64 --
 * [Distributed Computation of Attributions using Captum](https://github.com/pytorch/captum/blob/master/tutorials/Distributed_Attribution.ipynb)
 * [Workshop on GNNExplainer with Graph Classification (MUTAG)](https://colab.research.google.com/github/VisiumCH/AMLD-2021-Graphs/blob/master/notebooks/workshop_notebook.ipynb#scrollTo=aSnkQfG4gnsc)
 * [Extending Gnnexplainer for graph classification - PyG](https://github.com/pyg-team/pytorch_geometric/pull/2597)
+* [Explainability Techniques for Graph Convolutional Networks](https://arxiv.org/abs/1905.13686) [[Code](https://github.com/baldassarreFe/graph-network-explainability)]
 ----------
 * [SHAP-Library](https://github.com/slundberg/shap)
 * [GraphSVX: Shapley Value Explanations for Graph Neural Networks](https://arxiv.org/abs/2104.10482)
