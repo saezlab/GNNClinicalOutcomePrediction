@@ -462,7 +462,13 @@ class SHAP():
 
         # WLS to estimate parameters
         try:
-            tmp = np.linalg.inv(np.dot(np.dot(z_.T, np.diag(weights)), z_))
+            '''
+            numpy.linalg.LinAlgError: Singular matrix
+            Use SVD or QR-decomposition to calculate exact solution in real or complex number fields:
+            numpy.linalg.svd numpy.linalg.qr
+            '''
+            tmp = np.linalg.qr(np.dot(np.dot(z_.T, np.diag(weights)), z_))
+            #tmp = np.linalg.inv(np.dot(np.dot(z_.T, np.diag(weights)), z_))
         except np.linalg.LinAlgError:  # matrix not invertible
             tmp = np.dot(np.dot(z_.T, np.diag(weights)), z_)
             tmp = np.linalg.inv(
