@@ -134,8 +134,9 @@ parser.add_argument(
     # Take string split
     type = str,
     # ARBTR Change to something meaningful
-    default= ["sum","mean"], # "sum", "mean", "min", "max", "var" and "std".
+    # default= ["sum","mean"], # "sum", "mean", "min", "max", "var" and "std".
     metavar='AGR',
+    required=False,
     help= "aggregator list for PNAConv"
 )
 
@@ -145,8 +146,9 @@ parser.add_argument(
     nargs='+',
     # PROBLEM How to feed a list in CLI? Need to edit generator?
     type= str,
-    default= ["amplification","identity"], # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
+    # default= ["amplification","identity"], # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
     metavar='SCL',
+    required=False,
     help='Set of scaling function identifiers,')
 
 
@@ -185,17 +187,21 @@ train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 validation_loader = DataLoader(validation_dataset, batch_size=args.bs, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=args.bs, shuffle=False)
 
-# Handling string inputs
-if type(args.aggregators) != list:
-    args.aggregators = args.aggregators.split()
 
-if type(args.scalers) != list:
-    args.scalers = args.scalers.split()
 
-deg = 1
+model = None
+
 
 # Calculating degree
 if args.model == "PNAConv":
+    deg = 1
+    # Handling string inputs
+    if type(args.aggregators) != list:
+        args.aggregators = args.aggregators.split()
+
+    if type(args.scalers) != list:
+        args.scalers = args.scalers.split()
+
     max_degree = -1
     for data in train_dataset:
         d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
@@ -208,20 +214,30 @@ if args.model == "PNAConv":
         deg += torch.bincount(d, minlength=deg.numel())
 
 
-model = CustomGCN(
-                type = args.model,
-                num_node_features = dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
-                num_gcn_layers=args.num_of_gcn_layers, 
-                num_ff_layers=args.num_of_ff_layers, 
-                gcn_hidden_neurons=args.gcn_h, 
-                ff_hidden_neurons=args.fcl, 
-                dropout=args.dropout,
-                aggregators=args.aggregators,
-                scalers=args.scalers,
-                deg = deg # Comes from data not hyperparameter
-                    ).to(device)
+    model = CustomGCN(
+                    type = args.model,
+                    num_node_features = dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
+                    num_gcn_layers=args.num_of_gcn_layers, 
+                    num_ff_layers=args.num_of_ff_layers, 
+                    gcn_hidden_neurons=args.gcn_h, 
+                    ff_hidden_neurons=args.fcl, 
+                    dropout=args.dropout,
+                    aggregators=args.aggregators,
+                    scalers=args.scalers,
+                    deg = deg # Comes from data not hyperparameter
+                        ).to(device)
+else:
+    model = CustomGCN(
+                    type = args.model,
+                    num_node_features = dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
+                    num_gcn_layers=args.num_of_gcn_layers, 
+                    num_ff_layers=args.num_of_ff_layers, 
+                    gcn_hidden_neurons=args.gcn_h, 
+                    ff_hidden_neurons=args.fcl, 
+                    dropout=args.dropout
+                        ).to(device)
 
-# print(model)
+# print(model)
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 criterion = torch.nn.MSELoss()
 
