@@ -18,7 +18,6 @@ class CustomGCN(torch.nn.Module):
         super(CustomGCN, self).__init__()
         pl.seed_everything(SEED)
 
-        self.model_type = type
 
         # Recording the parameters
         self.pars = kwargs
@@ -45,7 +44,7 @@ class CustomGCN(torch.nn.Module):
             "in_channels" : self.gcn_hidden_neurons,
             "out_channels"  : self.gcn_hidden_neurons
         }
-        
+        self.type = type
 
         # Choosing the type of GCN
         try: 
@@ -91,30 +90,55 @@ class CustomGCN(torch.nn.Module):
         self.ff_layers = ModuleList()
         self.ff_batch_norms = ModuleList()
 
-        # Initial GCN Layer -----
-        self.convs.append(self.GCN_type_1(
-            **model_pars_head,
-        ))
-        self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
+        if type == 'GATConv':
+            self.convs_in = GATConv(
+                **model_pars_head,
+                )
+            self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
+            
+            for _ in range(self.num_gcn_layers-1):
+                self.convs.append(self.GCN_type_1(
+                    **model_pars_rest,
+                    ))
+                self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
 
-        # Other GCN Layers
-        for _ in range(self.num_gcn_layers-1):
+            if self.num_ff_layers != 0:
+                # Initial ff layer ----
+                self.ff_layers.append(Linear(self.gcn_hidden_neurons, self.ff_hidden_neurons))
+                self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
+                # Other ff layers
+                for _ in range(self.num_ff_layers-2):
+                    self.ff_layers.append(Linear(self.ff_hidden_neurons, self.ff_hidden_neurons))
+                    self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
+                
+                self.ff_layers.append(Linear(self.ff_hidden_neurons, 1))
+
+        else:
+
+            # Initial GCN Layer -----
             self.convs.append(self.GCN_type_1(
-                **model_pars_rest,
-                ))
+                **model_pars_head,
+            ))
             self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
 
-        
-        if self.num_ff_layers != 0:
-            # Initial ff layer ----
-            self.ff_layers.append(Linear(self.gcn_hidden_neurons, self.ff_hidden_neurons))
-            self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
-            # Other ff layers
-            for _ in range(self.num_ff_layers-2):
-                self.ff_layers.append(Linear(self.ff_hidden_neurons, self.ff_hidden_neurons))
-                self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
+            # Other GCN Layers
+            for _ in range(self.num_gcn_layers-1):
+                self.convs.append(self.GCN_type_1(
+                    **model_pars_rest,
+                    ))
+                self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
+
             
-            self.ff_layers.append(Linear(self.ff_hidden_neurons, 1))
+            if self.num_ff_layers != 0:
+                # Initial ff layer ----
+                self.ff_layers.append(Linear(self.gcn_hidden_neurons, self.ff_hidden_neurons))
+                self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
+                # Other ff layers
+                for _ in range(self.num_ff_layers-2):
+                    self.ff_layers.append(Linear(self.ff_hidden_neurons, self.ff_hidden_neurons))
+                    self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
+                
+                self.ff_layers.append(Linear(self.ff_hidden_neurons, 1))
 
     
     # Helper function to avoid getting keyError
@@ -132,24 +156,44 @@ class CustomGCN(torch.nn.Module):
         return value
 
 
-    def forward(self, x, edge_index, batch):
+    def forward(self, x, edge_index, batch, att):
+        
+        if self.type == 'GATConv':
+            if att is True:
+                '''
+                In this implementation just first GAT layers' attention weights have been looked at.
+                '''
+                x, alpha = self.convs_in(x, edge_index, return_attention_weights=att)
+                x = F.relu(x)
+                x = F.dropout(x, self.dropout, training=self.training)
 
-        # Conv layers
-        for conv in self.convs:
-            x = F.relu(conv(x, edge_index))
-            x = F.dropout(x, self.dropout, training=self.training)
+                for conv in self.convs:
+                    x = F.relu(conv(x, edge_index))
+                    x = F.dropout(x, self.dropout, training=self.training)
 
-        # Convulution Result Aggregation
-        x = global_mean_pool(x, batch)  # [batch_size, gcn_hidden_neurons]
+                x = global_mean_pool(x, batch)  # [batch_size, gcn_hidden_neurons]
+                for ff_l in self.ff_layers:
+                    x = F.relu(ff_l(x))
+                    # x = h + x  # residual#
+                    x = F.dropout(x, self.dropout, training=self.training)
 
-        # Classification according to ppoling
-        for ff_l in self.ff_layers:
-            x = F.relu(ff_l(x))
-            # x = h + x  # residual#
-            x = F.dropout(x, self.dropout, training=self.training)
+                return x, alpha
 
-        return x
+        else:
+            # Conv layers
+            for conv in self.convs:
+                x = F.relu(conv(x, edge_index))
+                x = F.dropout(x, self.dropout, training=self.training)
 
+            # Convulution Result Aggregation
+            x = global_mean_pool(x, batch)  # [batch_size, gcn_hidden_neurons]
 
+            # Classification according to ppoling
+            for ff_l in self.ff_layers:
+                x = F.relu(ff_l(x))
+                # x = h + x  # residual#
+                x = F.dropout(x, self.dropout, training=self.training)
+
+            return x
 
 
