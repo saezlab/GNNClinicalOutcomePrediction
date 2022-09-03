@@ -79,6 +79,10 @@ python shap.py --aggregators 'max' --bs 16 --dropout 0.0 --fcl 256 --gcn_h 64 --
 * [OpenXAI](https://github.com/AI4LIFE-GROUP/OpenXAI)
 * [How can I choose an explainer? An Application-grounded Evaluation of Post-hoc Explanations](https://arxiv.org/abs/2101.08758)
 
+Evaluating the Explainers
+----------
+* [Evaluating Attribution for Graph Neural Networks](https://proceedings.neurips.cc/paper/2020/file/417fbbf2e9d5a28a855a11894b2e795a-Paper.pdf)
+
 
 Biological/Biomedicine Papers & Repos That used/cited GNNExplainer Paper
 ----------
