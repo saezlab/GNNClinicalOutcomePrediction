@@ -1,3 +1,4 @@
+from types import TracebackType
 import torch
 from data_processing import OUT_DATA_PATH
 from model_dgermen import CustomGCN
@@ -13,6 +14,7 @@ import numpy as np
 import plotting
 import pandas as pd
 import pickle
+import json
 import os
 import pytorch_lightning as pl
 from torch_geometric import utils
@@ -20,6 +22,7 @@ from explain import saliency_map
 import networkx as nx
 from torch_geometric.utils import degree
 from evaluation_metrics import r_squared_score
+import customTools
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
@@ -154,17 +157,8 @@ S_PATH = os.path.dirname(__file__)
 pl.seed_everything(42)
 args = parser.parse_args()
 
-use_gpu = torch.cuda.is_available()
-
-device = "cpu"
-
-if use_gpu:
-    print("GPU is available on this device!")
-    device = "cuda"
-else:
-    print("CPU is available on this device!")
-
-
+device = customTools.get_device()
+session_id = customTools.generate_session_id()
 
 # writer = SummaryWriter(log_dir=os.path.join(S_PATH,"../logs"))
 dataset = TissueDataset(os.path.join(S_PATH,"../data"))
@@ -173,8 +167,6 @@ dataset = dataset.shuffle()
 
 num_of_train = int(len(dataset)*0.80)
 num_of_val = int(len(dataset)*0.10)
-
-
 
 train_dataset = dataset[:num_of_train]
 validation_dataset = dataset[num_of_train:num_of_train+num_of_val]
@@ -306,13 +298,16 @@ for epoch in range(1, args.epoch):
         list_ct = list(set(df_train["Clinical Type"]))
         r2_score = r_squared_score(df_val['OS Month (log)'], df_val['Predicted'])
 
-        if r2_score>0.7:
+        if r2_score>0.7 or True:
 
             df2 = pd.concat([df_train, df_val, df_test])
             df2.to_csv(f"{OUT_DATA_PATH}/{args_str}.csv", index=False)
             # print(list_ct)
             # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, args_str)
-            plotting.plot_pred_(df2, list_ct, args_str)
+            plotting.plot_pred_(df2, list_ct, session_id)
+            customTools.save_model(model=model, fileName=session_id, mode="SD")
+            customTools.save_dict_as_json(vars(args), session_id, "../models")
+
 
 
     else:

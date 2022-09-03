@@ -1,10 +1,13 @@
-from distutils.log import error
-from random import random
-from sklearn.model_selection import KFold
-import torch
 import os
+import torch
+import json
 import pickle
-from model_dgermen import CustomGCN 
+import secrets
+from random import random
+from distutils.log import error
+from model_dgermen import CustomGCN
+from sklearn.model_selection import KFold
+
 
 # K-Fold cross validation index creator function
 # Dataset idices and ratios must be supplied
@@ -47,7 +50,7 @@ def k_fold_TTV(dataset,T2VT_ratio,V2T_ratio):
 
 
 
-def save_model(model: CustomGCN,fileName ,mode: str, path =  os.curdir):
+def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curdir, "..", "models")):
     """
     Saves the pytoch model, has 3 modes.
     Models have extension ".mdl", 
@@ -62,8 +65,8 @@ def save_model(model: CustomGCN,fileName ,mode: str, path =  os.curdir):
         mode (str): Mode to save the model
         path (_type_, optional): path that model will be saved to. Defaults to os.curdir().
     """
-    path_model = path + fileName + "_" + mode + ".mdl"
-    path_hyp = path + fileName + "_" + mode  + ".hyp"
+    path_model = os.path.join(path, fileName + "_" + mode + ".mdl")
+    path_hyp = os.path.join(path + fileName + "_" + mode  + ".hyp")
 
     if mode == "SD":
         torch.save(model.state_dict(), path_model)
@@ -87,7 +90,7 @@ def save_model(model: CustomGCN,fileName ,mode: str, path =  os.curdir):
     elif mode == "EM":
         torch.save(model, path_model)
 
-    print("Model saved!")
+    print(f"Model saved with session id: {fileName}!")
 
 def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args: dict = {}):
     """Models the specified model and returns it
@@ -185,3 +188,26 @@ def get_device():
         print("CPU is available on this device!")
 
     return device
+
+def save_dict_as_json(s_dict, file_name, path):
+    """
+    Save dictionary as a json file
+    """
+
+    with open(os.path.join(path,file_name+".json"), "w") as write_file:
+        json.dump(s_dict, write_file, indent=4)
+
+def load_json(file_path):
+    
+    with open(file_path, 'r') as fp:
+        l_dict = json.load(fp)
+    return l_dict
+
+
+
+
+def generate_session_id():
+    """
+    Creates a cryptographically-secure, URL-safe string
+    """
+    return secrets.token_urlsafe(16)  

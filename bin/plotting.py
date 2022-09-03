@@ -6,7 +6,7 @@ import os
 import torch
 from dataset import TissueDataset
 
-from sklearn.metrics import r2_score
+from evaluation_metrics import r_squared_score, mse, rmse
 
 
 S_PATH = os.path.dirname(__file__)
