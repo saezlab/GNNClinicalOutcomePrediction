@@ -12,7 +12,7 @@ from sklearn.model_selection import KFold
 # K-Fold cross validation index creator function
 # Dataset idices and ratios must be supplied
 # Return triplet of samplers for amount of wanted fold
-def k_fold_TTV(dataset,T2VT_ratio,V2T_ratio):
+def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio):
     """Splits dataset into Train, Validation and Test sets
 
     Args:

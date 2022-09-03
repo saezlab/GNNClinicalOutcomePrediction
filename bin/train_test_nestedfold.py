@@ -25,7 +25,7 @@ from explain import saliency_map
 import networkx as nx
 from torch_geometric.utils import degree
 from evaluation_metrics import r_squared_score
-import customTools
+import bin.custom_tools as custom_tools
 import csv
 import statistics
 
@@ -256,7 +256,7 @@ dataset = TissueDataset(os.path.join(S_PATH,"../data"))
 
 dataset = dataset.shuffle()
 
-samplers = customTools.k_fold_TTV(dataset, T2VT_ratio=4, V2T_ratio=1)
+samplers = custom_tools.k_fold_TTV(dataset, T2VT_ratio=4, V2T_ratio=1)
 
 results = []
 

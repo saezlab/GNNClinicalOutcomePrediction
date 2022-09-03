@@ -22,7 +22,7 @@ from explain import saliency_map
 import networkx as nx
 from torch_geometric.utils import degree
 from evaluation_metrics import r_squared_score
-import customTools
+import bin.custom_tools as custom_tools
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
@@ -157,8 +157,8 @@ S_PATH = os.path.dirname(__file__)
 pl.seed_everything(42)
 args = parser.parse_args()
 
-device = customTools.get_device()
-session_id = customTools.generate_session_id()
+device = custom_tools.get_device()
+session_id = custom_tools.generate_session_id()
 
 # writer = SummaryWriter(log_dir=os.path.join(S_PATH,"../logs"))
 dataset = TissueDataset(os.path.join(S_PATH,"../data"))
@@ -305,8 +305,8 @@ for epoch in range(1, args.epoch):
             # print(list_ct)
             # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, args_str)
             plotting.plot_pred_(df2, list_ct, session_id)
-            customTools.save_model(model=model, fileName=session_id, mode="SD")
-            customTools.save_dict_as_json(vars(args), session_id, "../models")
+            custom_tools.save_model(model=model, fileName=session_id, mode="SD")
+            custom_tools.save_dict_as_json(vars(args), session_id, "../models")
 
 
 

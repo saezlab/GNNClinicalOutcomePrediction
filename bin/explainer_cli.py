@@ -1,14 +1,14 @@
 import os
 import torch
 import numpy as np
-import customTools
+import bin.custom_tools as custom_tools
 import pickle
 import torch_geometric as pyg
 from explainer import GNNExplainer
 from explainer_base import GNNExplainer
 from data_processing import OUT_DATA_PATH
 
-device = customTools.get_device()
+device = custom_tools.get_device()
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")

@@ -1,14 +1,14 @@
 # import captum
 import os
 from dataset import TissueDataset
-import customTools
+import bin.custom_tools as custom_tools
 from captum.attr import *
 import torch
 import numpy as np
 from collections import defaultdict
 import matplotlib.pyplot as plt
 
-device = customTools.get_device()
+device = custom_tools.get_device()
 
 # Index of the to be inspected graph
 idx = 10
@@ -21,7 +21,7 @@ inspected_graph = dataset[idx]
 
 # Loading the trained model
 
-model = customTools.load_model(fileName="TheModel_EM", path = (os.getcwd() + "/data/models/"))
+model = custom_tools.load_model(fileName="TheModel_EM", path = (os.getcwd() + "/data/models/"))
 
 # Loading model to saliency
 
