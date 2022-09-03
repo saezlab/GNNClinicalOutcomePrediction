@@ -22,7 +22,7 @@ from explain import saliency_map
 import networkx as nx
 from torch_geometric.utils import degree
 from evaluation_metrics import r_squared_score
-import bin.custom_tools as custom_tools
+import custom_tools as custom_tools
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
@@ -290,7 +290,7 @@ for epoch in range(1, args.epoch):
     
     train_loss, validation_loss, test_loss = np.inf, np.inf, np.inf
     plot_at_last_epoch = True
-    if epoch== args.epoch-1:
+    if epoch== args.epoch:
 
         train_loss, df_train = test(train_loader, "train", "train", plot_at_last_epoch)
         validation_loss, df_val= test(validation_loader, "validation", "validation", plot_at_last_epoch)

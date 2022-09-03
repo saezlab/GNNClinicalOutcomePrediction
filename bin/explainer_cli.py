@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-import bin.custom_tools as custom_tools
+import custom_tools as custom_tools
 import pickle
 import torch_geometric as pyg
 from explainer import GNNExplainer

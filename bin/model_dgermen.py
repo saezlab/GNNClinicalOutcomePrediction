@@ -156,7 +156,7 @@ class CustomGCN(torch.nn.Module):
         return value
 
 
-    def forward(self, x, edge_index, batch, att):
+    def forward(self, x, edge_index, batch, att=False):
         
         if self.type == 'GATConv':
             if att is True:
