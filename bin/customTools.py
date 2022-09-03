@@ -65,7 +65,7 @@ def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curd
         mode (str): Mode to save the model
         path (_type_, optional): path that model will be saved to. Defaults to os.curdir().
     """
-    path_model = os.path.join(path, fileName + "_" + mode + ".mdl")
+    path_model = os.path.join(path, fileName + "_" + mode + ".mdl") 
     path_hyp = os.path.join(path + fileName + "_" + mode  + ".hyp")
 
     if mode == "SD":
