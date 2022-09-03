@@ -284,13 +284,13 @@ best_train_loss = np.inf
 best_test_loss = np.inf
 
 print_at_each_epoch = True
-for epoch in range(1, args.epoch):
+for epoch in range(1, args.epoch+1):
 
     train()
     
     train_loss, validation_loss, test_loss = np.inf, np.inf, np.inf
     plot_at_last_epoch = True
-    if epoch== args.epoch:
+    if epoch == args.epoch:
 
         train_loss, df_train = test(train_loader, "train", "train", plot_at_last_epoch)
         validation_loss, df_val= test(validation_loader, "validation", "validation", plot_at_last_epoch)
