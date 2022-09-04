@@ -4,6 +4,8 @@ import seaborn as sns
 import numpy as np
 import os
 import torch
+from torch_geometric import utils
+import networkx as nx
 from dataset import TissueDataset
 
 from evaluation_metrics import r_squared_score, mse, rmse
@@ -133,3 +135,32 @@ def plot_pred_(df, color, fl_name):
     fig = sns_plot.get_figure()
     fig.savefig(f"{PLOT_PATH}/{fl_name}.png")
     plt.clf()"""
+
+def plot_subgraph(test_graph, path, file_name, coordinates_arr, edges_idx):
+
+    options = ['r','b','y','g']
+    colors_edge = []
+    
+
+    g = utils.to_networkx(test_graph, to_undirected=True)
+    
+
+    colors_node = ['b']*len(g.nodes)
+
+    for id,e_idx in enumerate(g.edges):
+        #for g_exp in gexp_edges:
+            if edges_idx[id]:
+                colors_edge.append(options[0])
+                n1, n2 = e_idx
+                colors_node[n1]=options[0]
+                colors_node[n2]=options[0]
+            else:
+                colors_edge.append(options[1])   
+                
+
+    pos_1 = coordinates_arr
+
+    nx.draw_networkx_nodes(g, node_color=colors_node, pos=pos_1, node_size=1)
+    nx.draw_networkx_edges(g, edge_color=colors_edge, pos=pos_1)
+
+    plt.savefig(os.path.join(path, file_name), dpi=100)
