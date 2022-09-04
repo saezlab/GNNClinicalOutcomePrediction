@@ -92,7 +92,7 @@ def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curd
 
     print(f"Model saved with session id: {fileName}!")
 
-def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args: dict = {}):
+def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args: dict = {}, deg = None):
     """Models the specified model and returns it
 
     Args:
@@ -109,8 +109,8 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
         CustomGCN: Ready model
     """
 
-    path_model = path + fileName + ".mdl"
-    path_hyp = path + fileName + ".hyp"
+    path_model = os.path.join(path, fileName + ".mdl")
+    path_hyp = os.path.join(path, fileName + ".hyp")
 
     mode = fileName.rsplit("_",1)[-1]
 
@@ -121,16 +121,16 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
             raise ValueError("For SD mode, args must be supplied properly!")
 
         model = CustomGCN(
-                    type = model_type,
-                    num_node_features = args.num_node_features, 
-                    num_gcn_layers=args.num_gcn_layers, 
-                    num_ff_layers=args.num_ff_layers, 
-                    gcn_hidden_neurons=args.gcn_hidden_neurons, 
-                    ff_hidden_neurons=args.ff_hidden_neurons, 
-                    dropout=args.dropout,
-                    aggregators=args.aggregators,
-                    scalers=args.scalers,
-                    deg = args.deg 
+                    type = args["model"],
+                    num_node_features = args["num_node_features"], 
+                    num_gcn_layers=args["num_of_gcn_layers"], 
+                    num_ff_layers=args["num_of_ff_layers"], 
+                    gcn_hidden_neurons=args["gcn_h"], 
+                    ff_hidden_neurons=args["fcl"], 
+                    dropout=args["dropout"],
+                    aggregators=args["aggregators"],
+                    scalers=args["scalers"],
+                    deg = deg
                         )
         
         model.load_state_dict(torch.load(path_model))
@@ -203,7 +203,17 @@ def load_json(file_path):
         l_dict = json.load(fp)
     return l_dict
 
+def save_pickle(obj, file_name: str, path =  os.curdir):
+    """"""
+    pickle_out = open(os.path.join(path, file_name),"wb")
+    pickle.dump(obj, pickle_out)
+    pickle_out.close()
 
+def load_pickle(path_obj):
+    pickle_in = open(path_obj,"rb")
+    obj = pickle.load(pickle_in)
+    pickle_in.close()
+    return obj
 
 
 def generate_session_id():

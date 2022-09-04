@@ -156,12 +156,15 @@ parser.add_argument(
 S_PATH = os.path.dirname(__file__)
 pl.seed_everything(42)
 args = parser.parse_args()
+args_dict = vars(args)
+
 
 device = custom_tools.get_device()
 session_id = custom_tools.generate_session_id()
 
 # writer = SummaryWriter(log_dir=os.path.join(S_PATH,"../logs"))
 dataset = TissueDataset(os.path.join(S_PATH,"../data"))
+args_dict["num_node_features"] = dataset.num_node_features
 
 dataset = dataset.shuffle()
 
@@ -301,12 +304,18 @@ for epoch in range(1, args.epoch+1):
         if r2_score>0.7 or True:
 
             df2 = pd.concat([df_train, df_val, df_test])
-            df2.to_csv(f"{OUT_DATA_PATH}/{args_str}.csv", index=False)
+            df2.to_csv(f"{OUT_DATA_PATH}/{session_id}.csv", index=False)
             # print(list_ct)
             # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, args_str)
             plotting.plot_pred_(df2, list_ct, session_id)
             custom_tools.save_model(model=model, fileName=session_id, mode="SD")
-            custom_tools.save_dict_as_json(vars(args), session_id, "../models")
+            custom_tools.save_dict_as_json(args_dict, session_id, "../models")
+
+            if args.model == "PNAConv":
+                custom_tools.save_pickle(deg, f"{session_id}_deg.pckl", "../models")
+
+
+
 
 
 
