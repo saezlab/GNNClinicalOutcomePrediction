@@ -104,7 +104,6 @@ class GNNExplainer(torch.nn.Module):
         self.factor = factor
         self.patience = patience
         self.min_lr = min_lr
-
         self.__num_hops__ = num_hops
         self.return_type = return_type
         self.log = log
@@ -200,15 +199,15 @@ class GNNExplainer(torch.nn.Module):
 
         m = self.edge_mask.sigmoid()
         edge_reduce = getattr(torch, self.coeffs['edge_reduction'])
-        loss = loss + self.edge_size * edge_reduce(m)
+        loss = loss + self.coeffs["edge_size"] * edge_reduce(m)
         ent = -m * torch.log(m + EPS) - (1 - m) * torch.log(1 - m + EPS)
-        loss = loss + self.edge_ent * ent.mean()
+        loss = loss + self.coeffs["edge_ent"] * ent.mean()
 
         m = self.node_feat_mask.sigmoid()
         node_feat_reduce = getattr(torch, self.coeffs['node_feat_reduction'])
-        loss = loss + self.node_feat_size * node_feat_reduce(m)
+        loss = loss + self.coeffs["node_feat_size"] * node_feat_reduce(m)
         ent = -m * torch.log(m + EPS) - (1 - m) * torch.log(1 - m + EPS)
-        loss = loss + self.node_feat_ent * ent.mean()
+        loss = loss + self.coeffs["node_feat_ent"] * ent.mean()
 
         return loss
 

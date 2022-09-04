@@ -3,6 +3,8 @@ import torch
 import numpy as np
 import custom_tools as custom_tools
 import pickle
+import plotting
+from tqdm import tqdm   
 import torch_geometric as pyg
 from explainer import GNNExplainer
 from explainer_base import GNNExplainer
@@ -38,8 +40,8 @@ class Explainer:
         explainer = GNNExplainer(self.model, epochs = epoch, lr = lr,
                                     return_type = return_type, feat_mask_type = feat_mask_type).to(device)
         
-        for test_graph in self.dataset:
-            coordinates_arr = None
+        for test_graph in tqdm(self.dataset):
+
             with open(os.path.join(RAW_DATA_PATH, f'{test_graph.img_id}_{test_graph.p_id}_coordinates.pickle'), 'rb') as handle:
                 coordinates_arr = pickle.load(handle)
             result = explainer.explain_graph(test_graph.x.to(device), test_graph.edge_index.to(device))
@@ -49,8 +51,10 @@ class Explainer:
 
             explanation = pyg.data.Data(test_graph.x, test_graph.edge_index[:, edges_idx], pos= coordinates_arr)
             explanation = pyg.transforms.RemoveIsolatedNodes()(pyg.transforms.ToUndirected()(explanation))
+
+            plotting.plot_subgraph(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr, edges_idx )
         
-            return explanation, edges_idx
+            
 
     
     def explain_by_lime(self, epoch, return_type, feat_mask_type):
