@@ -1,4 +1,5 @@
 # import captum
+from email.mime import base
 import os
 from dataset import TissueDataset
 import bin.custom_tools as custom_tools
@@ -7,6 +8,8 @@ import torch
 import numpy as np
 from collections import defaultdict
 import matplotlib.pyplot as plt
+import networkx as nx
+from torch_geometric.utils import to_networkx
 
 device = custom_tools.get_device()
 
@@ -21,7 +24,7 @@ inspected_graph = dataset[idx]
 
 # Loading the trained model
 
-model = custom_tools.load_model(fileName="TheModel_EM", path = (os.getcwd() + "/data/models/"))
+model = customTools.load_model(fileName="TheModel_EM", path = (os.getcwd() + "/data/models/"))
 
 # Loading model to saliency
 
@@ -41,6 +44,7 @@ def model_forward(edge_mask, data):
 
 def explain(method, data):
     input_mask = torch.ones(data.edge_index.shape[1]).requires_grad_(True).to(device)
+    input_mask = input_mask[:,None] # This is done so that PNA's linear layer can work correctly!
     if method == 'ig':
         ig = IntegratedGradients(model_forward)
         mask = ig.attribute(input_mask,
@@ -50,6 +54,12 @@ def explain(method, data):
         saliency = Saliency(model_forward)
         mask = saliency.attribute(input_mask,
                                   additional_forward_args=(data,))
+
+    elif method == "dls":
+        dls = DeepLiftShap(model_forward, multiply_by_inputs=True)
+        mask = dls.attribute(input_mask,
+                                  additional_forward_args=(data,),
+                                  baselines=data)
     else:
         raise Exception('Unknown explanation method')
 
@@ -67,12 +77,38 @@ def aggregate_edge_directions(edge_mask, data):
         edge_mask_dict[(u, v)] += val
     return edge_mask_dict
     
+def draw_graph(g, edge_mask=None, draw_edge_labels=False):
+    g = to_networkx(g)
+    g = g.copy().to_undirected()
+    # node_labels = {}
+    pos = nx.planar_layout(g)
+    # pos = nx.spring_layout(g, pos=pos)
+    if edge_mask is None:
+        edge_color = 'black'
+        widths = None
+    else:
+        edge_color = [edge_mask[(u, v)] for u, v in g.edges()]
+        widths = [x * 10 for x in edge_color]
+
+    edge_color = np.vstack(edge_color)
+    widths = np.vstack(widths)
+    
+    nx.draw(g, pos=pos, width=widths,
+            edge_color='black', edge_cmap=plt.cm.Blues,
+            node_color='azure')
+    
+    if draw_edge_labels and edge_mask is not None:
+        edge_labels = {k: ('%.2f' % v) for k, v in edge_mask.items()}    
+        nx.draw_networkx_edge_labels(g, pos, edge_labels=edge_labels,
+                                    font_color='red')
+    plt.show()
 
 
-
-for title, method in [('Integrated Gradients', 'ig'), ('Saliency', 'saliency')]:
+for title, method in [('Deep Lift Shap','dls'),('Saliency', 'saliency'), ('Integrated Gradients', 'ig')]:
     edge_mask = explain(method, inspected_graph)
     edge_mask_dict = aggregate_edge_directions(edge_mask, inspected_graph)
+    draw_graph(inspected_graph, edge_mask_dict)
+    pass
     
 
 # Integrating the attribution to input

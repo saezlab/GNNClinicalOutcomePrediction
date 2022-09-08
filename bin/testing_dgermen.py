@@ -218,3 +218,6 @@ print("nooo")
 
 
 
+model = customTools.model_fast()
+
+pass

@@ -173,9 +173,8 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
 
         return model
 
-
-
 def get_device():
+
 
     use_gpu = torch.cuda.is_available()
 
@@ -189,35 +188,188 @@ def get_device():
 
     return device
 
-def save_dict_as_json(s_dict, file_name, path):
-    """
-    Save dictionary as a json file
-    """
-
-    with open(os.path.join(path,file_name+".json"), "w") as write_file:
-        json.dump(s_dict, write_file, indent=4)
-
-def load_json(file_path):
-    
-    with open(file_path, 'r') as fp:
-        l_dict = json.load(fp)
-    return l_dict
-
-def save_pickle(obj, file_name: str, path =  os.curdir):
-    """"""
-    pickle_out = open(os.path.join(path, file_name),"wb")
-    pickle.dump(obj, pickle_out)
-    pickle_out.close()
-
-def load_pickle(path_obj):
-    pickle_in = open(path_obj,"rb")
-    obj = pickle.load(pickle_in)
-    pickle_in.close()
-    return obj
+import argparse
+from dataset import TissueDataset
+from torch_geometric.utils import degree
 
 
-def generate_session_id():
-    """
-    Creates a cryptographically-secure, URL-safe string
-    """
-    return secrets.token_urlsafe(16)  
+def model_fast():
+    parser = argparse.ArgumentParser(description='GNN Arguments')
+    parser.add_argument(
+        '--model',
+        type=str,
+        default="PNAConv",
+        metavar='mn',
+        help='model name (default: PNAConv)')
+
+    parser.add_argument(
+        '--lr',
+        type=float,
+        default=0.01,
+        metavar='LR',
+        help='learning rate (default: 0.001)')
+
+    parser.add_argument(
+        # '--batch-size',
+        '--bs',
+        type=int,
+        default=32,
+        metavar='BS',
+        help='batch size (default: 32)')
+
+    parser.add_argument(
+        '--dropout',
+        type=float,
+        default=0.20, # 0.1 0.2 0.3 0.5
+        metavar='DO',
+        help='dropout rate (default: 0.20)')
+
+    parser.add_argument(
+        '--epoch',
+        type=int,
+        default=2,
+        metavar='EPC',
+        help='Number of epochs (default: 50)')
+
+    parser.add_argument(
+        '--num_of_gcn_layers',
+        type=int,
+        default=3,
+        metavar='NGCNL',
+        help='Number of GCN layers (default: 2)')
+
+    parser.add_argument(
+        '--num_of_ff_layers',
+        type=int,
+        default=3,
+        metavar='NFFL',
+        help='Number of FF layers (default: 2)')
+        
+    parser.add_argument(
+        '--gcn_h',
+        type=int,
+        default=128,
+        metavar='GCNH',
+        help='GCN hidden channel (default: 128)')
+
+    parser.add_argument(
+        '--fcl',
+        type=int,
+        default=128,
+        metavar='FCL',
+        help='Number of neurons in fully-connected layer (default: 128)')
+
+    parser.add_argument(
+        '--en',
+        type=str,
+        default="my_experiment",
+        metavar='EN',
+        help='the name of the experiment (default: my_experiment)')
+
+    parser.add_argument(
+        '--weight_decay',
+        type=float,
+        default=0.001,
+        metavar='WD',
+        help='weight decay (default: 0.001)')
+
+    parser.add_argument(
+        '--factor', # 0.5 0.8, 0.2
+        type=float,
+        default=0.5,
+        metavar='FACTOR',
+        help='learning rate reduce factor (default: 0.5)')
+
+    parser.add_argument(
+        '--patience', # 5, 10, 20
+        type=int,
+        default=5,
+        metavar='PA',
+        help='patience for learning rate scheduling (default: 5)')
+
+    parser.add_argument(
+        '--min_lr',
+        type=float,
+        default=0.00002,#0.0001
+        metavar='MLR',
+        help='minimum learning rate (default: 0.00002)')
+
+    parser.add_argument(
+        '--aggregators',
+        # WARN This use of "+" doesn't go well with positional arguments
+        nargs='+',
+        # PROBLEM How to feed a list in CLI? Need to edit generator?
+        # Take string split
+        type = str,
+        # ARBTR Change to something meaningful
+        default= ["sum","mean"], # "sum", "mean", "min", "max", "var" and "std".
+        metavar='AGR',
+        help= "aggregator list for PNAConv"
+    )
+
+    parser.add_argument(
+        '--scalers',
+        # WARN This use of "+" doesn't go well with positional arguments
+        nargs='+',
+        # PROBLEM How to feed a list in CLI? Need to edit generator?
+        type= str,
+        default= ["amplification","identity"], # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
+        metavar='SCL',
+        help='Set of scaling function identifiers,')
+
+    device = get_device()
+
+    args = parser.parse_args()
+
+    S_PATH = os.path.dirname(__file__)
+    args = parser.parse_args()
+
+    # writer = SummaryWriter(log_dir=os.path.join(S_PATH,"../logs"))
+    dataset = TissueDataset(os.path.join(S_PATH,"../data"))
+
+    dataset = dataset.shuffle()
+
+    num_of_train = int(len(dataset)*0.80)
+    num_of_val = int(len(dataset)*0.10)
+
+
+
+    train_dataset = dataset[:num_of_train]
+
+    # Handling string inputs
+    if type(args.aggregators) != list:
+        args.aggregators = args.aggregators.split()
+
+    if type(args.scalers) != list:
+        args.scalers = args.scalers.split()
+
+    deg = 1
+
+    # Calculating degree
+    if args.model == "PNAConv":
+        max_degree = -1
+        for data in train_dataset:
+            d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+            max_degree = max(max_degree, int(d.max()))
+
+        # Compute the in-degree histogram tensor
+        deg = torch.zeros(max_degree + 1, dtype=torch.long)
+        for data in train_dataset:
+            d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+            deg += torch.bincount(d, minlength=deg.numel())
+
+
+    model = CustomGCN(
+                    type = args.model,
+                    num_node_features = dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
+                    num_gcn_layers=args.num_of_gcn_layers, 
+                    num_ff_layers=args.num_of_ff_layers, 
+                    gcn_hidden_neurons=args.gcn_h, 
+                    ff_hidden_neurons=args.fcl, 
+                    dropout=args.dropout,
+                    aggregators=args.aggregators,
+                    scalers=args.scalers,
+                    deg = deg # Comes from data not hyperparameter
+                        ).to(device)
+
+    return model
