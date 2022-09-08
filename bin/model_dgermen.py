@@ -68,10 +68,12 @@ class CustomGCN(torch.nn.Module):
                 model_pars_head["aggregators"] = self.aggregators
                 model_pars_head["scalers"] = self.scalers
                 model_pars_head["deg"] = self.deg
+                model_pars_head["edge_dim"] = 1 # HARDCODE
                 
                 model_pars_rest["aggregators"] = self.aggregators
                 model_pars_rest["scalers"] = self.scalers
                 model_pars_rest["deg"] = self.deg
+                model_pars_rest["edge_dim"] = 1 # HARDCODE
 
             # No type name match case
             else:
@@ -197,3 +199,4 @@ class CustomGCN(torch.nn.Module):
             return x
 
 
+>>>>>>> b3fc3e6 (Captum Update)
