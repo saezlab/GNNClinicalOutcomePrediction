@@ -161,7 +161,7 @@ def plot_subgraph(test_graph, path, file_name, coordinates_arr, edges_idx):
     pos_1 = coordinates_arr
 
     nx.draw_networkx_nodes(g, node_color=colors_node, pos=pos_1, node_size=1)
-    # nx.draw_networkx_edges(g, edge_color=colors_edge, pos=pos_1)
+    nx.draw_networkx_edges(g, edge_color=colors_edge, pos=pos_1)
     
     plt.savefig(os.path.join(path, file_name), dpi=100)
     plt.clf()

@@ -25,4 +25,4 @@ test_dataset = dataset[num_of_train+num_of_val:]
 
 explainer = Explainer(model, test_dataset)
 
-explainer.explain_by_gnnexplainer()
+explainer.explain_by_gnnexplainer(epoch=100, lr=0.001)   

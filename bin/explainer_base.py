@@ -114,7 +114,7 @@ class GNNExplainer(torch.nn.Module):
         self.coefs = None
         self.M = None
         self.F = self.M
-
+        
     def __set_masks__(self, x, edge_index, init="normal"):
         (N, F), E = x.size(), edge_index.size(1)
 
@@ -270,6 +270,7 @@ class GNNExplainer(torch.nn.Module):
             else:
                 log_logits = self.__to_log_prob__(out)
                 loss = self.__loss__(-1, log_logits, pred_label)
+            
             loss.backward()
             optimizer.step()
             # scheduler.step(loss)
