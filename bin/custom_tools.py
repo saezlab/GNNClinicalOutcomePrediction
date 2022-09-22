@@ -5,7 +5,7 @@ import pickle
 import secrets
 from random import random
 from distutils.log import error
-from model_dgermen import CustomGCN
+from model import CustomGCN
 from sklearn.model_selection import KFold
 
 
@@ -176,6 +176,11 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
 
 
 def get_device():
+    """Returns the available device, default priority is "cuda"
+
+    Returns:
+        string: cuda or cpu
+    """
 
     use_gpu = torch.cuda.is_available()
 
@@ -198,13 +203,21 @@ def save_dict_as_json(s_dict, file_name, path):
         json.dump(s_dict, write_file, indent=4)
 
 def load_json(file_path):
+    """Loads the json file for given path
+
+    Args:
+        file_path (string): file path
+
+    Returns:
+        dict: dict of the json
+    """
     
     with open(file_path, 'r') as fp:
         l_dict = json.load(fp)
     return l_dict
 
 def save_pickle(obj, file_name: str, path =  os.curdir):
-    """"""
+
     pickle_out = open(os.path.join(path, file_name),"wb")
     pickle.dump(obj, pickle_out)
     pickle_out.close()
@@ -221,3 +234,140 @@ def generate_session_id():
     Creates a cryptographically-secure, URL-safe string
     """
     return secrets.token_urlsafe(16)  
+
+import argparse
+
+def general_parser() -> argparse.Namespace:
+    """Used inside a file, makes the file able to parse CLI arguments.
+
+    Returns:
+        argparse.Namespace: argparse namespace that includes supplied argument values
+    """
+
+    parser = argparse.ArgumentParser(description='GNN Arguments')
+    parser.add_argument(
+        '--model',
+        type=str,
+        default="PNAConv",
+        metavar='mn',
+        help='model name (default: PNAConv)')
+
+    parser.add_argument(
+        '--lr',
+        type=float,
+        default=0.01,
+        metavar='LR',
+        help='learning rate (default: 0.001)')
+
+    parser.add_argument(
+        # '--batch-size',
+        '--bs',
+        type=int,
+        default=32,
+        metavar='BS',
+        help='batch size (default: 32)')
+
+    parser.add_argument(
+        '--dropout',
+        type=float,
+        default=0.20, # 0.1 0.2 0.3 0.5
+        metavar='DO',
+        help='dropout rate (default: 0.20)')
+
+    parser.add_argument(
+        '--epoch',
+        type=int,
+        default=2,
+        metavar='EPC',
+        help='Number of epochs (default: 50)')
+
+    parser.add_argument(
+        '--num_of_gcn_layers',
+        type=int,
+        default=3,
+        metavar='NGCNL',
+        help='Number of GCN layers (default: 2)')
+
+    parser.add_argument(
+        '--num_of_ff_layers',
+        type=int,
+        default=3,
+        metavar='NFFL',
+        help='Number of FF layers (default: 2)')
+        
+    parser.add_argument(
+        '--gcn_h',
+        type=int,
+        default=128,
+        metavar='GCNH',
+        help='GCN hidden channel (default: 128)')
+
+    parser.add_argument(
+        '--fcl',
+        type=int,
+        default=128,
+        metavar='FCL',
+        help='Number of neurons in fully-connected layer (default: 128)')
+
+    parser.add_argument(
+        '--en',
+        type=str,
+        default="my_experiment",
+        metavar='EN',
+        help='the name of the experiment (default: my_experiment)')
+
+    parser.add_argument(
+        '--weight_decay',
+        type=float,
+        default=0.001,
+        metavar='WD',
+        help='weight decay (default: 0.001)')
+
+    parser.add_argument(
+        '--factor', # 0.5 0.8, 0.2
+        type=float,
+        default=0.5,
+        metavar='FACTOR',
+        help='learning rate reduce factor (default: 0.5)')
+
+    parser.add_argument(
+        '--patience', # 5, 10, 20
+        type=int,
+        default=5,
+        metavar='PA',
+        help='patience for learning rate scheduling (default: 5)')
+
+    parser.add_argument(
+        '--min_lr',
+        type=float,
+        default=0.00002,#0.0001
+        metavar='MLR',
+        help='minimum learning rate (default: 0.00002)')
+
+    parser.add_argument(
+        '--aggregators',
+        # WARN This use of "+" doesn't go well with positional arguments
+        nargs='+',
+        # PROBLEM How to feed a list in CLI? Need to edit generator?
+        # Take string split
+        type = str,
+        # ARBTR Change to something meaningful
+        default= ["sum","mean"], # "sum", "mean", "min", "max", "var" and "std".
+        metavar='AGR',
+        help= "aggregator list for PNAConv"
+    )
+
+    parser.add_argument(
+        '--scalers',
+        # WARN This use of "+" doesn't go well with positional arguments
+        nargs='+',
+        # PROBLEM How to feed a list in CLI? Need to edit generator?
+        type= str,
+        default= ["amplification","identity"], # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
+        metavar='SCL',
+        help='Set of scaling function identifiers,')
+
+
+    args = parser.parse_args()
+
+    return args

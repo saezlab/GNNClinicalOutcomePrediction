@@ -204,15 +204,20 @@
 
 # customTools.save_model(model = model, fileName="TheModel", mode = "SDH",path = (os.getcwd() + "/data/models/"))
 
-import bin.custom_tools as custom_tools
-import os
+# import bin.custom_tools as custom_tools
+# import os
 
-aa = custom_tools.load_model(fileName="TheModel_EM", path = (os.getcwd() + "/data/models/"))
+# aa = custom_tools.load_model(fileName="TheModel_EM", path = (os.getcwd() + "/data/models/"))
 
 
 
-print("nooo")
+# print("nooo")
 
+import custom_tools
+
+args  = custom_tools.general_parser()
+
+print(args.lr)
 
 
 
