@@ -1,5 +1,6 @@
 import argparse
 from platform import node
+from turtle import color
 import numpy as np
 import random
 import time
@@ -23,7 +24,7 @@ from torch_geometric.data import Data
 import pandas as pd
 import plotting
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-
+from collections import Counter
 
 from dataset import TissueDataset
 from model_dgermen import CustomGCN
@@ -300,17 +301,19 @@ parser.add_argument("--regu",
 
 parser.add_argument("--node_explainers", type=list, default=['GraphSVX', 'Greedy', 'GNNExplainer'],
                         help="Name of the benchmarked explainers among Greedy, GNNExplainer and GraphSVX")
-parser.add_argument("--test_samples", type=int, default=40,
+parser.add_argument("--test_samples", type=int, default=20,
                         help='number of test samples for evaluation')
 parser.add_argument("--K", type=float,
                         help='proportion of most important features considered, among non zero ones')
-parser.add_argument("--prop_noise_nodes", type=float, default=0.20,
+parser.add_argument("--prop_noise_nodes", type=float, default=0.020,
                         help='proportion of noisy nodes')
 parser.add_argument("--prop_noise_feat", type=float, default=0.20,
                         help='proportion of noisy features')
 parser.add_argument("--connectedness", type=str,
                         help='how connected are the noisy nodes we define: low, high or medium')
 parser.add_argument("--noise", type=str, default='Node',
+                        help='how connected are the noisy nodes we define: low, high or medium')
+parser.add_argument("--noisy_data", type=bool, default=True,
                         help='how connected are the noisy nodes we define: low, high or medium')
 parser.add_argument("--evalshap", type=bool,
                         help='True if want to compare GraphSVX with SHAP for features explanations')
@@ -348,6 +351,7 @@ dataset = dataset.shuffle()
 num_of_train = int(len(dataset)*0.80)
 num_of_val = int(len(dataset)*0.10)
 
+original_test_dataset = dataset[num_of_train+num_of_val:]
 
 # Handling string inputs
 if type(args.aggregators) != list:
@@ -378,7 +382,7 @@ def extract_test_nodes(args_prop_noise_nodes, seed):
 
     for i in test_dataset:
         #num_samples = int(args_prop_noise_nodes * i.x.size(0))
-        num_samples = 40
+        num_samples = 20
         nodes = []
         np.random.seed(seed)
         dat = i.edge_index.t()
@@ -508,14 +512,26 @@ def add_noise_neighbours(data, num_noise, node_indices, binary=False, p=0.5, con
     test_mask = torch.full_like(test_mask, False).bool()
     
     # Define some random positios, in addition to existing ones
-    m = torch.distributions.bernoulli.Bernoulli(torch.tensor([p]))
+    data_pos_t = data.pos.T
+
+    max_pos_value_x = torch.max(data_pos_t[0])
+    max_pos_value_y = torch.max(data_pos_t[1])
+    min_pos_value_x = torch.min(data_pos_t[0])
+    min_pos_value_y = torch.min(data_pos_t[1])
+
+    noise_pos_x = (max_pos_value_x-min_pos_value_x)*torch.rand((num_noise,1)) + min_pos_value_x
+    
+    noise_pos_y = (max_pos_value_y-min_pos_value_y)*torch.rand((num_noise,1)) + min_pos_value_y
+    noise_pos = torch.cat([noise_pos_x, noise_pos_y], dim=1)
+    
+    '''m = torch.distributions.bernoulli.Bernoulli(torch.tensor([p]))
     noise_pos = m.sample((2, num_noise)).T[0]
 
     if not binary:
         noise_pos_bis = torch.rand((num_noise, 2))
         noise_pos = torch.min(noise_pos_bis, noise_pos)
 
-    noise_pos = noise_pos * 1000
+    noise_pos = noise_pos * 1000'''
 
     data.pos = torch.cat([data.pos, noise_pos], dim=0)
     #print("new data:", data)
@@ -711,6 +727,19 @@ def study_attention_weights(data, model, args_test_samples, batch):
     #        torch.mean(torch.stack(att2[0::2])))
 
     return torch.mean(alpha[1], axis=0)
+
+def plot_original_graph(or_test_graph):
+    clinical_type = or_test_graph.clinical_type
+    img_id = or_test_graph.img_id
+    p_id = or_test_graph.p_id
+    pos_1 = or_test_graph.pos.numpy()
+    g = utils.to_networkx(or_test_graph, to_undirected=True)
+    nx.draw_networkx_nodes(g,pos=pos_1, node_size=1)
+    nx.draw_networkx_edges(g, edge_color='b', pos=pos_1)
+
+    plt.savefig(f'../plots/original_graphs_2/original_graph_{clinical_type}_{img_id}_{p_id}.png', dpi=1000)
+
+    return plt.close()
 
 
 def filter_useless_features(args_hops=args.hops,
@@ -1053,59 +1082,143 @@ def filter_useless_features(args_hops=args.hops,
 
 
 
-def plot_random_graph(dataset, test_dataset, idx):
+def plot_subgraph(test_graph, original_test_graph, edges_idx, pred_class_num_noise_neis, total_num_noisy_nei, total_neigbours, args_test_samples, K, args_num_noise_nodes):
 
     
-    num_of_train = int(len(dataset)*0.80)
-    num_of_val = int(len(dataset)*0.10)
-
-    origina_train_dataset = dataset[:num_of_train]
-    original_validation_dataset = dataset[num_of_train:num_of_train+num_of_val]
-    original_test_dataset = dataset[num_of_train+num_of_val:]
-    original_test_graph = original_test_dataset[idx]
-
-    print(original_test_graph)
-
-
-    test_graph = test_dataset[idx]
-    coordinates_arr = None
-    with open(os.path.join(RAW_DATA_PATH, f'{test_graph.img_id}_{test_graph.p_id}_coordinates.pickle'), 'rb') as handle:
-        coordinates_arr = pickle.load(handle)
 
     options = ['r','b','y','g']
-    colors_edge = []
     
-    print(test_graph)
-    g = utils.to_networkx(test_graph, to_undirected=True)
-    g2 = utils.to_networkx(original_test_graph, to_undirected=True)
 
-    colors_node = ['b']*len(g2.nodes)
+    G = nx.Graph() 
 
-    noisy_graph = list(g.edges)
-    #original_graph = list(g2.edges)
+    noisy = utils.to_networkx(test_graph, to_undirected=True)
 
-    for id,e_idx in enumerate(g2.edges):
-        #for g_exp in gexp_edges:
-            if noisy_graph[id] in e_idx:#==g.edges[id]:
-                colors_edge.append(options[0])
+    original = utils.to_networkx(original_test_graph, to_undirected=True)
+
+    G.add_nodes_from(original.nodes, color='b')
+    G.add_edges_from(original.edges, color='b')
+
+    colors_node = ['b']*len(noisy.nodes)
+    colors_edge = []#['b']*len(original.edges)
+
+    noisy_nodes = list(set(list(noisy.nodes))-set(list(original.nodes)))
+    noisy_edges = list(set(list(noisy.edges))-set(list(original.edges)))
+
+    G.add_nodes_from(noisy_nodes, color='y')
+    G.add_edges_from(noisy_edges, color='y')
+    
+    for edge in list(G.edges.data('color')):
+        n1, n2, color = edge
+        colors_edge.append(color)
+        colors_node[n1]=color
+        colors_node[n2]=color
+
+    for id,e_idx in enumerate(G.edges):
+        if edges_idx[id]:
+            colors_edge[id] = options[0]
+            n1, n2 = e_idx
+            colors_node[n1]=options[0]
+            colors_node[n2]=options[0]
+
+            if e_idx in noisy_edges:
+                colors_edge[id] = options[3]
                 n1, n2 = e_idx
-                colors_node[n1]=options[0]
-                colors_node[n2]=options[0]
-            else:
-                colors_edge.append(options[1])   
-                
+                colors_node[n1]=options[3]
+                colors_node[n2]=options[3]
 
-    pos_1 = coordinates_arr
-    print('coordinates_arr:',coordinates_arr.shape)
+    pos_1 = test_graph.pos.numpy()
 
-    nx.draw_networkx_nodes(g, node_color=colors_node, pos=pos_1, node_size=1)
-    nx.draw_networkx_edges(g, edge_color=colors_edge, pos=pos_1)
+    nx.draw_networkx_nodes(G, node_color=colors_node, pos=pos_1, node_size=1)
+    nx.draw_networkx_edges(G, edge_color=colors_edge, pos=pos_1)
 
-    return plt.savefig(f'../plots/noisy_graphs/noisy_graphs{args.idx}_{args.exp_epoch}_{args.exp_lr}_{args.retun_type}_{args.feat_mask_type}.png', dpi=1000)
+    clinical_type = original_test_graph.clinical_type
+    img_id = original_test_graph.img_id
+    p_id = original_test_graph.p_id
+
+    clinical_type = test_graph.clinical_type
+    img_id = test_graph.img_id
+    p_id = test_graph.p_id
+    y_label = 'p_noise:{}'.format(args.prop_noise_nodes) 
+    
+
+    noisy_node_in_expl = 'g'
+    d = Counter(colors_node)
+    num_noisy_node_in_expl = d[noisy_node_in_expl]
+    print('num_noisy_node_in_expl:', num_noisy_node_in_expl)
+
+    noisy_node_in_graph = 'y'
+    d = Counter(colors_node)
+    num_noisy_node_in_graph = d[noisy_node_in_graph]
+    print('num_noisy_node_in_graph:', num_noisy_node_in_graph)
+
+    ################################################################
+
+    noisy_edge_in_expl = 'g'
+    d = Counter(colors_edge)
+    num_noisy_edge_in_expl = d[noisy_edge_in_expl]
+    print('num_noisy_edge_in_expl:', num_noisy_edge_in_expl)
+
+    noisy_edge_in_graph = 'y'
+    d = Counter(colors_edge)
+    num_noisy_edge_in_graph = d[noisy_edge_in_graph]
+    print('num_noisy_edge_in_graph:', num_noisy_edge_in_graph)
+
+    print('Proportion of # of noisy node in Explanation to total # of noisy node {}%'.format((num_noisy_node_in_expl/(num_noisy_node_in_graph+num_noisy_node_in_expl))*100))
+    
+    print('Proportion of # of noisy node in Explanation to total # of noisy node {}%'.format((num_noisy_edge_in_expl/(num_noisy_edge_in_graph+num_noisy_edge_in_expl))*100))
+
+    #######################################################################
+    x_1 = 'There are {} noise neighbours found in the explanations of {} test samples, an average of {} per sample'.format(sum(pred_class_num_noise_neis), args_test_samples, sum(pred_class_num_noise_neis)/args_test_samples)
+    x_2 = 'Proportion of explanations showing noisy neighbours: {:.2f}%'.format(
+            100 * sum(pred_class_num_noise_neis) / sum(K))
+    perc = 100 * sum(pred_class_num_noise_neis) / (sum(total_num_noisy_nei))
+    perc2 = 100 * (sum(K) - sum(pred_class_num_noise_neis)) \
+    / (sum(total_neigbours) - sum(total_num_noisy_nei))
+    x_3 = 'Proportion of noisy neighbours found in explanations vs normal neighbours (in subgraph): {:.2f}% vs {:.2f}'.format(
+            perc, perc2)
+    x_4 = 'Proportion of nodes in subgraph that are noisy: {:.2f}%'.format(
+            100 * sum(total_num_noisy_nei) / sum(total_neigbours))
+    x_5 = 'Proportion of noisy neighbours found in explanations (entire graph): {:.2f}%'.format(
+            100 * sum(pred_class_num_noise_neis) / (args_test_samples * args_num_noise_nodes))
+    columns = ('Results')
+    data = [[x_1], [x_2], [x_3], [x_4], [x_5]]
+    rows = ['%d' % x for x in (1, 2, 3, 4, 5)]
+    n_rows = len(data)
+
+    index = np.arange(len(columns)) + 0.3
+    bar_width = 0.4
+    y_offset = np.zeros(len(columns))
+
+    cell_text = []
+    for row in range(n_rows):
+        #plt.plot(index, data[row], color=colors[row])
+        y_offset = data[row]
+        cell_text.append([x for x in y_offset])
+
+    cell_text.reverse()
+
+    # Add a table at the bottom of the axes
+    '''the_table = plt.table(cellText=cell_text,
+                      rowLabels=rows,
+                      #rowColours=colors,
+                      colLabels=columns,
+                      loc='bottom')'''
+    #plt.xticks([])
+    # Adjust layout to make room for the table:
+    #plt.subplots_adjust(left=0.2, bottom=0.2)
+
+    #plt.xlabel(x_label)
+    plt.title('Clinincal Type: {}, Image Id: {}, Patient Id: {}'.format(clinical_type,img_id,p_id))
+    plt.ylabel(y_label)
+
+    plt.savefig(f'plot/subgraph_{clinical_type}_{img_id}_{p_id}_{args.exp_epoch}_{args.exp_lr}_{args.relevant_edges}_{args.factor}_{args.patience}_{args.noisy_data}_{args.prop_noise_nodes}.png', dpi=1000)
+
+    return plt.close()
+
 
 def filter_useless_nodes(args_hops=args.hops,
                                     args_num_samples=args.num_samples,
-                                    args_test_samples=40,
+                                    args_test_samples=20,
                                     args_prop_noise_nodes=args.prop_noise_nodes,
                                     args_connectedness=args.connectedness,
                                     node_indices=None,
@@ -1149,6 +1262,8 @@ def filter_useless_nodes(args_hops=args.hops,
     #print('noisy_dataset:', type(noisy_dataset))
     num_of_train = int(len(dataset)*0.80)
     num_of_val = int(len(dataset)*0.10)
+
+    
     
     train_dataset = noisy_dataset[:num_of_train]
     validation_dataset = noisy_dataset[num_of_train:num_of_train+num_of_val]
@@ -1260,11 +1375,21 @@ def filter_useless_nodes(args_hops=args.hops,
         args_list = sorted(vars(args).keys())
         args_str = "-".join([f"{arg}:{str(vars(args)[arg])}" for arg in args_list])
         print(args_str)
-        print('Loading pretrained model...')
+        
         if args.model == 'PNAConv':
-            checkpoint = torch.load('../data/models/pna_noise_node_model.pth')
+            if args.noisy_data is True:
+                print('Loading pretrained PNA model with noisy dataset...')
+                checkpoint = torch.load('../data/models/pna_noise_node_model.pth')
+            else:
+                print('Loading pretrained PNA model with original dataset...')
+                checkpoint = torch.load('../data/models/pna_model.pth')
         elif args.model == 'GATConv':
-            checkpoint = torch.load('../data/models/gat_noise_node_model.pth')        
+            if args.noisy_data is True:
+                print('Loading pretrained GAT model with original dataset...')
+                checkpoint = torch.load('../data/models/gat_noise_node_model.pth')  
+            else:
+                print('Loading pretrained GAT model with original dataset...')
+                checkpoint = torch.load('../data/models/gat_model.pth')        
         model.load_state_dict(checkpoint)
         model = model.eval()
 
@@ -1299,11 +1424,16 @@ def filter_useless_nodes(args_hops=args.hops,
     total_neigbours_in_test_dataset = []
 
     K_in_test_dataset = []
-    for i in range(len(test_dataset)):
+
+    t_total = time.time()
+    len_test_dataset = 5#len(test_dataset)
+    for i in range(len_test_dataset):#((len(test_dataset))//2):
 
         print('EXPLAINER: ', args.explainer_name)
 
         test_graph = test_dataset[i]
+        original_test_graph = original_test_dataset[i]
+        plot_original_graph(original_test_graph)
 
         print(test_graph)
         # Loop on each test sample and store how many times do noisy nodes appear among
@@ -1318,6 +1448,8 @@ def filter_useless_nodes(args_hops=args.hops,
         K = []  
         # To retrieve the predicted class
         j = 0
+
+        t_small = time.time()
         
         for node_idx in tqdm(node_indices, desc='explain node', leave=False):
 
@@ -1331,12 +1463,18 @@ def filter_useless_nodes(args_hops=args.hops,
                                     return_type = args.retun_type, feat_mask_type = args.feat_mask_type, att=args.att).to(device)
             
                 if args.att is True:
-                    _ = explainer.explain_graph(node_idx, test_graph.x.to(device), test_graph.edge_index.to(device))
+                    result = explainer.explain_graph(node_idx, test_graph.x.to(device), test_graph.edge_index.to(device))
                 else:
-                    _ = explainer.explain_graph(node_idx, test_graph.x.to(device), test_graph.edge_index.to(device))
+                    result = explainer.explain_graph(node_idx, test_graph.x.to(device), test_graph.edge_index.to(device))
+
+                (feature_mask, edge_mask) = result 
+
+                edges_idx = edge_mask > args.relevant_edges
+
+                #plot_subgraph(test_graph, original_test_graph, edges_idx)
 
                 coefs = explainer.coefs
-                #print('coefs:',coefs.shape)
+
             
             elif args.explainer_name == 'SHAP':
 
@@ -1379,6 +1517,8 @@ def filter_useless_nodes(args_hops=args.hops,
 
             j += 1
 
+        plot_subgraph(test_graph, original_test_graph, edges_idx, pred_class_num_noise_neis, total_num_noisy_nei, total_neigbours, args_test_samples, K, args_num_noise_nodes)
+
         print('Noisy neighbours included in explanations: ',
                         pred_class_num_noise_neis)
 
@@ -1399,9 +1539,11 @@ def filter_useless_nodes(args_hops=args.hops,
 
         print('Proportion of noisy neighbours found in explanations (entire graph): {:.2f}%'.format(
             100 * sum(pred_class_num_noise_neis) / (args_test_samples * args_num_noise_nodes)))
+
+        print('Time: {:.4f}s'.format(time.time() - t_small))
         
         print('------------------------------------')
-
+        
         pred_class_num_noise_neis_in_test_dataset.append(sum(pred_class_num_noise_neis))
         total_num_noisy_nei_in_test_dataset.append(sum(total_num_noisy_nei))
         total_neigbours_in_test_dataset.append(sum(total_neigbours))
@@ -1411,7 +1553,7 @@ def filter_useless_nodes(args_hops=args.hops,
                         pred_class_num_noise_neis_in_test_dataset)
 
     print('There are {} noise neighbours found in the explanations of {} test samples, an average of {} per sample'
-                        .format(sum(pred_class_num_noise_neis_in_test_dataset), args_test_samples*len(test_dataset), sum(pred_class_num_noise_neis_in_test_dataset)/(args_test_samples*len(test_dataset))))
+                        .format(sum(pred_class_num_noise_neis_in_test_dataset), args_test_samples*len_test_dataset, sum(pred_class_num_noise_neis_in_test_dataset)/(args_test_samples*len_test_dataset)))
     print('Proportion of explanations showing noisy neighbours: {:.2f}%'.format(100 * sum(pred_class_num_noise_neis_in_test_dataset) / sum(K_in_test_dataset)))
     perc_test_dataset = 100 * sum(pred_class_num_noise_neis_in_test_dataset) / (sum(total_num_noisy_nei_in_test_dataset))
     perc2_test_dataset = 100 * (sum(K_in_test_dataset) - sum(pred_class_num_noise_neis_in_test_dataset)) \
@@ -1422,15 +1564,16 @@ def filter_useless_nodes(args_hops=args.hops,
             100 * sum(total_num_noisy_nei_in_test_dataset) / sum(total_neigbours_in_test_dataset)))
 
     print('Proportion of noisy neighbours found in explanations (entire graph): {:.2f}%'.format(
-            100 * sum(pred_class_num_noise_neis_in_test_dataset) / (args_test_samples * args_num_noise_nodes * len(test_dataset))))
+            100 * sum(pred_class_num_noise_neis_in_test_dataset) / (args_test_samples * args_num_noise_nodes * len_test_dataset)))
     #################################################################################################################
+    print("Total time elapsed: {:.4f}s".format(time.time() - t_total))
     print(#'Noisy neighbours included in explanation: {}'.format(pred_class_num_noise_neis_in_test_dataset),
-              'Noise neighbours found in the explanations of {} test samples: {}'.format(args_test_samples*len(test_dataset), sum(pred_class_num_noise_neis_in_test_dataset)),
-              'An average of per sample: {}'.format(sum(pred_class_num_noise_neis_in_test_dataset)/(args_test_samples*len(test_dataset))),
+              'Noise neighbours found in the explanations of {} test samples: {}'.format(args_test_samples*len_test_dataset, sum(pred_class_num_noise_neis_in_test_dataset)),
+              'An average of per sample: {}'.format(sum(pred_class_num_noise_neis_in_test_dataset)/(args_test_samples*len_test_dataset)),
               'Proportion of explanations showing noisy neighbours: {:.2f}%'.format(100 * sum(pred_class_num_noise_neis_in_test_dataset) / sum(K_in_test_dataset)),
               'Proportion of noisy neighbours found in explanations vs normal neighbours (in subgraph): {:.2f}% vs {:.2f}'.format(perc_test_dataset, perc2_test_dataset),
               'Proportion of nodes in subgraph that are noisy: {:.2f}%'.format(100 * sum(total_num_noisy_nei_in_test_dataset) / sum(total_neigbours_in_test_dataset)),
-              'Proportion of noisy neighbours found in explanations (entire graph): {:.2f}%'.format(100 * sum(pred_class_num_noise_neis_in_test_dataset) / (args_test_samples * args_num_noise_nodes * len(test_dataset))))
+              'Proportion of noisy neighbours found in explanations (entire graph): {:.2f}%'.format(100 * sum(pred_class_num_noise_neis_in_test_dataset) / (args_test_samples * args_num_noise_nodes * len_test_dataset)))
 
     #print('There are {} noise neighbours found in test dataset'.format(sum(pred_class_num_noise_neis_in_test_dataset)))
     # Random explainer - plot estimated kernel density
