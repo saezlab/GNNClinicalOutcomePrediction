@@ -14,9 +14,27 @@ SEED = 42
 # ORIGINAL NAME WAS model_dgermen changed to model, can cause import porblems # WARN
 
 class CustomGCN(torch.nn.Module):
+    """Customizable GCN class, currectly supporting GATConv, TransformerConv
+    GINConv, PNAConv
+
+
+
+    Returns:
+        CustomGCN: CustomGCN model
+    """
     # TODO  Make the layers modular, can switch places of the layers with "init's" input
     # TODO  Can use mroe than one type of model
     def __init__(self, type, **kwargs):
+        """Initilizes customGCN model according to specified arguments,
+        eventhough only must argument can be seen as type, according to
+        supplied type, type's related arguments MUST be provided
+
+        Args:
+            type (str): type of the model
+
+        Raises:
+            KeyError: Not proper arguments, miss matching types
+        """
         super(CustomGCN, self).__init__()
         pl.seed_everything(SEED)
 
@@ -145,7 +163,18 @@ class CustomGCN(torch.nn.Module):
     
     # Helper function to avoid getting keyError
     # If key doesnt exists default value is set to 0
-    def check_Key(self, key ,expectedType = "int"):
+    def check_Key(self, key: str ,expectedType = "int"):
+        """Check supplied arguments' existance in provided arguments
+        if not found, uses a predetermined, default value. This is
+        mainly done to handle unused parameters by the model
+
+        Args:
+            key (str): parameter dict.'s key
+            expectedType (str, optional): expectedType of the parameter. Defaults to "int".
+
+        Returns:
+            _type_: value of the corresponding parameter
+        """
         try:
             value = self.pars[key]
         except KeyError:
