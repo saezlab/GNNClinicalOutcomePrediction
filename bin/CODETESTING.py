@@ -213,13 +213,16 @@
 
 # print("nooo")
 
-import custom_tools
+# import custom_tools
 
-args  = custom_tools.general_parser()
+# args  = custom_tools.general_parser()
 
-print(args.lr)
-
-
+# print(args.lr)
 
 
 
+
+for i in range(10):
+    print(i)
+    if i == 3:
+        break

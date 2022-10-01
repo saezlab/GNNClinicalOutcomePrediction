@@ -367,7 +367,22 @@ def general_parser() -> argparse.Namespace:
         metavar='SCL',
         help='Set of scaling function identifiers,')
 
+    
+
 
     args = parser.parse_args()
 
+    # Handling string inputs
+    if type(args.aggregators) != list:
+        args.aggregators = args.aggregators.split()
+
+    if type(args.scalers) != list:
+        args.scalers = args.scalers.split()
+
+    # This can be used to print all parser arguments
+    parser_args_list = sorted(vars(args).keys())
+    args.str = "-".join([f"{arg}:{str(vars(args)[arg])}" for arg in parser_args_list])
+
     return args
+
+

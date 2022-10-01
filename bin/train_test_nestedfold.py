@@ -5,7 +5,7 @@
 
 import torch
 from data_processing import OUT_DATA_PATH
-from model_dgermen import CustomGCN
+from model import CustomGCN
 from dataset import TissueDataset
 from torch_geometric.loader import DataLoader
 from torch.nn import BatchNorm1d
@@ -40,7 +40,6 @@ OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 S_PATH = os.path.dirname(__file__)
 # endregion
-
 
 # region PARSER SETTINGS
 parser = argparse.ArgumentParser(description='GNN Arguments')
