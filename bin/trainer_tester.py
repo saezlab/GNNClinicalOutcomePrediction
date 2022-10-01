@@ -29,6 +29,12 @@ class trainer_tester:
 
 
     def __init__(self, parser_args, setup_args ) -> None:
+        """Manager of processes under train_tester, main goel is to show the processes squentially
+
+        Args:
+            parser_args (Namespace): Holds the arguments that came from parsing CLI
+            setup_args (Namespace): Holds the arguments that came from setup
+        """
         self.set_device()
 
         self.parser_args = parser_args
@@ -41,9 +47,14 @@ class trainer_tester:
         self.save_results()
 
     def set_device(self):
+        """Sets up the computation device for the class
+        """
         self.device = custom_tools.get_device()
 
     def init_folds(self):
+        """Pulls data, creates samplers according to ratios, creates train, test and validation loaders for 
+        each fold, saves them under the 'folds_dict' dictionary
+        """
 
         self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
         self.dataset = self.dataset.shuffle()
@@ -84,6 +95,11 @@ class trainer_tester:
                 break
 
     def calculate_deg(self,train_sampler):
+        """Calcualtes deg, which is necessary for some models
+
+        Args:
+            train_sampler (_type_): Training data sampler
+        """
         train_dataset = self.dataset[train_sampler.indices]
         max_degree = -1
         for data in train_dataset:
@@ -97,6 +113,11 @@ class trainer_tester:
             deg += torch.bincount(d, minlength=deg.numel())
 
     def set_model(self, deg):
+        """Sets the model according to parser parameters and deg
+
+        Args:
+            deg (_type_): degree data of the graph
+        """
         self.model = CustomGCN(
                     type = self.parser_args.model,
                     num_node_features = self.dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
@@ -111,6 +132,14 @@ class trainer_tester:
                         ).to(self.device)
 
     def train(self, fold_dict):
+        """Trains the network
+
+        Args:
+            fold_dict (dict): Holds data about the used fold
+
+        Returns:
+            float: Total loss
+        """
         fold_dict["model"].train()
         total_loss = 0.0
         pred_list = []
@@ -133,6 +162,18 @@ class trainer_tester:
         return total_loss
 
     def test(self, fold_dict, test_on: str,label=None, fl_name=None, plot_pred=False):
+        """Tests the model on wanted loader
+
+        Args:
+            fold_dict (dict): Holds data about the used fold
+            test_on (str): Which loader to test on (train_loader, test_loader, valid_loader)
+            label (_type_, optional): Label of the loader. Defaults to None.
+            fl_name (_type_, optional): Name of the loader. Defaults to None.
+            plot_pred (bool, optional): Should there be a plot. Defaults to False.
+
+        Returns:
+            float: total loss
+        """
 
         loader = fold_dict[test_on]
         fold_dict["model"].eval()
@@ -166,6 +207,8 @@ class trainer_tester:
             return total_loss
 
     def train_test_loop(self):
+        """Training and testing occurs under this function. 
+        """
 
         self.results =[] 
 
@@ -210,6 +253,8 @@ class trainer_tester:
             self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss])
 
 def save_results(self):
+    """Found results are saved into CSV file
+    """
     header = ["fold_number","train","validation","test"]
 
     train_results = []
