@@ -2,7 +2,6 @@
 
 import torch
 from data_processing import OUT_DATA_PATH
-import argparse
 import os
 import pytorch_lightning as pl
 import custom_tools as custom_tools
