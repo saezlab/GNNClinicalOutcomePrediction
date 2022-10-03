@@ -91,7 +91,7 @@ class trainer_tester:
 
             self.fold_dicts.append(fold_dict)
 
-            if not self.setup_args.fold:
+            if not self.setup_args.use_fold:
                 break
 
     def calculate_deg(self,train_sampler):
@@ -112,13 +112,15 @@ class trainer_tester:
             d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
             deg += torch.bincount(d, minlength=deg.numel())
 
+        return deg
+
     def set_model(self, deg):
         """Sets the model according to parser parameters and deg
 
         Args:
             deg (_type_): degree data of the graph
         """
-        self.model = CustomGCN(
+        model = CustomGCN(
                     type = self.parser_args.model,
                     num_node_features = self.dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
                     num_gcn_layers=self.parser_args.num_of_gcn_layers, 
@@ -130,6 +132,8 @@ class trainer_tester:
                     scalers=self.parser_args.scalers,
                     deg = deg # Comes from data not hyperparameter
                         ).to(self.device)
+
+        return model
 
     def train(self, fold_dict):
         """Trains the network
@@ -183,7 +187,7 @@ class trainer_tester:
 
         for data in loader:  # Iterate in batches over the training/test dataset.
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
-            loss = fold_dict["critertion"](out.squeeze(), data.y.to(self.device))  # Compute the loss.
+            loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
             total_loss += float(loss.item())
 
             true_list.extend([val.item() for val in data.y])
@@ -230,9 +234,9 @@ class trainer_tester:
                     best_train_loss = train_loss
                     best_test_loss = test_loss
 
-            train_loss, df_train = self.test(fold_dict, "train_loader", "train", "train", self.parser_args.plot_result)
-            validation_loss, df_val= self.test(fold_dict, "validation_loader", "validation", "validation", self.parser_args.plot_result)
-            test_loss, df_test = self.test(fold_dict, "test_loader", "test", "test", self.parser_args.plot_result)
+            train_loss, df_train = self.test(fold_dict, "train_loader", "train", "train", self.setup_args.plot_result)
+            validation_loss, df_val= self.test(fold_dict, "validation_loader", "validation", "validation", self.setup_args.plot_result)
+            test_loss, df_test = self.test(fold_dict, "test_loader", "test", "test", self.setup_args.plot_result)
             list_ct = list(set(df_train["Clinical Type"]))
             r2_score = r_squared_score(df_val['OS Month (log)'], df_val['Predicted'])
 
@@ -252,30 +256,37 @@ class trainer_tester:
 
             self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss])
 
-def save_results(self):
-    """Found results are saved into CSV file
-    """
-    header = ["fold_number","train","validation","test"]
+    def save_results(self):
+        """Found results are saved into CSV file
+        """
+        header = ["fold_number","train","validation","test"]
 
-    train_results = []
-    valid_results = []
-    test_results = []
+        train_results = []
+        valid_results = []
+        test_results = []
 
-    for _,train,valid,test in self.results:
-        train_results.append(train)
-        valid_results.append(valid)
-        test_results.append(test)
+        for _,train,valid,test in self.results:
+            train_results.append(train)
+            valid_results.append(valid)
+            test_results.append(test)
 
-    means = [["Means",statistics.mean(train_results),statistics.mean(valid_results),statistics.mean(test_results)]]
-    variances = [["Variances",statistics.variance(train_results),statistics.variance(valid_results),statistics.variance(test_results)]]
+        if self.setup_args.use_fold:
+            means = [["Means",statistics.mean(train_results),statistics.mean(valid_results),statistics.mean(test_results)]]
+            variances = [["Variances",statistics.variance(train_results),statistics.variance(valid_results),statistics.variance(test_results)]]
 
-    with open('results/idedFiles/' + str(self.setup_args.id) + '.csv', 'w', encoding="UTF8", newline='') as f:
-        writer = csv.writer(f)
+        else:
 
-        writer.writerow(header)
+            means = [["Means",train_results[0],valid_results[0],test_results[0]]]
+            variances = [["Variances",train_results[0],valid_results[0],test_results[0]]]
 
-        writer.writerows(self.results)
 
-        writer.writerows(means)
+        with open('results/idedFiles/' + str(self.setup_args.id) + '.csv', 'w', encoding="UTF8", newline='') as f:
+            writer = csv.writer(f)
 
-        writer.writerows(variances)
+            writer.writerow(header)
+
+            writer.writerows(self.results)
+
+            writer.writerows(means)
+
+            writer.writerows(variances)

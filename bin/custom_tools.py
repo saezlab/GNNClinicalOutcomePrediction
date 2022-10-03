@@ -277,7 +277,7 @@ def general_parser() -> argparse.Namespace:
     parser.add_argument(
         '--epoch',
         type=int,
-        default=2,
+        default=5,
         metavar='EPC',
         help='Number of epochs (default: 50)')
 
