@@ -1,23 +1,11 @@
 import torch
-from data_processing import OUT_DATA_PATH
 from model import CustomGCN
 from dataset import TissueDataset
 from torch_geometric.loader import DataLoader
-from torch.nn import BatchNorm1d
-from torch.utils.tensorboard import SummaryWriter
-import argparse
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import plotting
 import pandas as pd
-import pickle
 import os
-import pytorch_lightning as pl
-from torch_geometric import utils
-
-import networkx as nx
 from torch_geometric.utils import degree
 from evaluation_metrics import r_squared_score
 import custom_tools as custom_tools
