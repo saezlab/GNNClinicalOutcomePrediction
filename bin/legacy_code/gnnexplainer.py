@@ -10,7 +10,7 @@ import torch_geometric as pyg
 from torch_geometric import utils
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import degree
-from explainer import GNNExplainer
+from bin.explainer import GNNExplainer
 
 
 from dataset import TissueDataset

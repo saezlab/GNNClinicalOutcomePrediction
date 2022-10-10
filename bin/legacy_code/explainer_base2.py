@@ -1,9 +1,12 @@
+from cgi import print_environ
 from operator import index
 from platform import node
+from tkinter import NoDefaultRoot
 from typing import Optional
 
 from math import sqrt
 from inspect import signature
+import random
 
 import torch
 from tqdm import tqdm
@@ -77,23 +80,20 @@ class GNNExplainer(torch.nn.Module):
     """
 
     coeffs = {
-        'edge_size': 0.005,
+        #'edge_size': 0.005,
         'edge_reduction': 'sum',
-        'node_feat_size': 1.0,
+        #'node_feat_size': 1.0,
         'node_feat_reduction': 'mean',
-        'edge_ent': 1.0,
-        'node_feat_ent': 0.1,
+        #'edge_ent': 1.0,
+        #'node_feat_ent': 0.1,
     }
 
-    def __init__(self, model, epochs: int = 100, lr: float = 0.01,
-                num_hops: Optional[int] = None, return_type: str = 'log_prob',
+    def __init__(self, model, data, epochs: int = 100, lr: float = 0.01, weight_decay: float = 0.001,
+                 factor: float = 0.5, patience: int = 5, min_lr: float = 0.00002,
+                 edge_size: float = 0.005, node_feat_size: float = 1.00, edge_ent: float = 1.0, node_feat_ent: float = 0.1,
+                 num_hops: Optional[int] = None, return_type: str = 'log_prob',
                  feat_mask_type: str = 'feature', allow_edge_mask: bool = True,
-                 log: bool = True, weight_decay: float = 0.001,
-                 factor: float = 0.5, patience: int = 5, min_lr: float = 0.00002, **kwargs):
-                #weight_decay: float = 0.001,
-                #factor: float = 0.5, patience: int = 5, min_lr: float = 0.00002,   
-                #feat_mask_type: str = 'feature', allow_edge_mask: bool = True,
-                #log: bool = True, **kwargs):
+                 log: bool = False, att: bool=False, **kwargs):
         super().__init__()
         assert return_type in ['log_prob', 'prob', 'raw', 'regression']
         assert feat_mask_type in ['feature', 'individual_feature', 'scalar']
@@ -104,17 +104,22 @@ class GNNExplainer(torch.nn.Module):
         self.factor = factor
         self.patience = patience
         self.min_lr = min_lr
+        self.edge_size = edge_size
+        self.node_feat_size = node_feat_size
+        self.edge_ent = edge_ent
+        self.node_feat_ent = node_feat_ent
         self.__num_hops__ = num_hops
         self.return_type = return_type
         self.log = log
         self.allow_edge_mask = allow_edge_mask
         self.feat_mask_type = feat_mask_type
         self.coeffs.update(kwargs)
-        self.neighbours = None
+        self.neighbour = None
         self.coefs = None
-        self.M = None
-        self.F = self.M
-        
+        self.M = data.x.size(0) + data.x.size(1)
+        self.Feat = data.x.size(1)
+        self.att=att
+
     def __set_masks__(self, x, edge_index, init="normal"):
         (N, F), E = x.size(), edge_index.size(1)
 
@@ -185,7 +190,6 @@ class GNNExplainer(torch.nn.Module):
 
     def __loss__(self, node_idx, log_logits, pred_label):
         # node_idx is -1 for explaining graphs
-        # try mean squared error for loss
         if self.return_type == 'regression':
             if node_idx != -1:
                 loss = torch.cdist(log_logits[node_idx], pred_label[node_idx])
@@ -199,15 +203,15 @@ class GNNExplainer(torch.nn.Module):
 
         m = self.edge_mask.sigmoid()
         edge_reduce = getattr(torch, self.coeffs['edge_reduction'])
-        loss = loss + self.coeffs["edge_size"] * edge_reduce(m)
+        loss = loss + self.edge_size * edge_reduce(m)
         ent = -m * torch.log(m + EPS) - (1 - m) * torch.log(1 - m + EPS)
-        loss = loss + self.coeffs["edge_ent"] * ent.mean()
+        loss = loss + self.edge_ent * ent.mean()
 
         m = self.node_feat_mask.sigmoid()
         node_feat_reduce = getattr(torch, self.coeffs['node_feat_reduction'])
-        loss = loss + self.coeffs["node_feat_size"] * node_feat_reduce(m)
+        loss = loss + self.node_feat_size * node_feat_reduce(m)
         ent = -m * torch.log(m + EPS) - (1 - m) * torch.log(1 - m + EPS)
-        loss = loss + self.coeffs["node_feat_ent"] * ent.mean()
+        loss = loss + self.node_feat_ent * ent.mean()
 
         return loss
 
@@ -216,7 +220,7 @@ class GNNExplainer(torch.nn.Module):
         x = x.log() if self.return_type == 'prob' else x
         return x
 
-    def explain_graph(self, x, edge_index, **kwargs):
+    def explain_graph(self, node_idx, x, edge_index, **kwargs):
         r"""Learns and returns a node feature mask and an edge mask that play a
         crucial role to explain the prediction made by the GNN for a graph.
 
@@ -227,11 +231,6 @@ class GNNExplainer(torch.nn.Module):
 
         :rtype: (:class:`Tensor`, :class:`Tensor`)
         """
-        #self.M = self.data.num_features
-        self.M = x.size(1)
-        self.F = self.M
-        #print('self.M:',self.M)
-
 
         self.model.eval()
         self.__clear_masks__()
@@ -241,7 +240,10 @@ class GNNExplainer(torch.nn.Module):
 
         # Get the initial prediction.
         with torch.no_grad():
-            out = self.model(x=x, edge_index=edge_index, batch=batch, **kwargs)
+            if self.att is True:
+                out, alpha = self.model(x=x, edge_index=edge_index, batch=batch, att=self.att, **kwargs)
+            else:
+                out = self.model(x=x, edge_index=edge_index, batch=batch, att=False, **kwargs)
             if self.return_type == 'regression':
                 prediction = out
             else:
@@ -254,8 +256,8 @@ class GNNExplainer(torch.nn.Module):
             parameters = [self.node_feat_mask, self.edge_mask]
         else:
             parameters = [self.node_feat_mask]
-        optimizer = torch.optim.Adam(parameters, lr=self.lr) # , weight_decay = self.weight_decay)
-        # scheduler = ReduceLROnPlateau(optimizer, 'min', factor=self.factor, patience=self.patience, min_lr=self.min_lr, verbose=True)
+        optimizer = torch.optim.Adam(parameters, lr=self.lr, weight_decay = self.weight_decay)
+        scheduler = ReduceLROnPlateau(optimizer, 'min', factor=self.factor, patience=self.patience, min_lr=self.min_lr, verbose=True)
 
         if self.log:  # pragma: no cover
             pbar = tqdm(total=self.epochs)
@@ -264,16 +266,18 @@ class GNNExplainer(torch.nn.Module):
         for epoch in range(1, self.epochs + 1):
             optimizer.zero_grad()
             h = x * self.node_feat_mask.sigmoid()
-            out = self.model(x=h, edge_index=edge_index, batch=batch, **kwargs)
+            if self.att is True:
+                out, alpha = self.model(x=h, edge_index=edge_index, batch=batch, att=self.att, **kwargs)
+            else:
+                out = self.model(x=h, edge_index=edge_index, batch=batch, att=False, **kwargs)
             if self.return_type == 'regression':
                 loss = self.__loss__(-1, out, prediction)
             else:
                 log_logits = self.__to_log_prob__(out)
                 loss = self.__loss__(-1, log_logits, pred_label)
-            
             loss.backward()
             optimizer.step()
-            # scheduler.step(loss)
+            scheduler.step(loss)
 
             if self.log:  # pragma: no cover
                 pbar.update(1)
@@ -291,19 +295,24 @@ class GNNExplainer(torch.nn.Module):
                 dico[node] = [self.edge_mask[idx]]
             else:
                 dico[node].append(self.edge_mask[idx])
-        self.neighbours = torch.tensor([index for index in dico.keys()])
-        
-        '''self.coefs = torch.zeros(
-                self.neighbours.shape[0], self.data.num_classes)
-            # for key, val in dico.items():
-        for i, val in enumerate(dico.values()):
-                # self.coefs[i, :] = sum(val)
-            self.coefs[i, :] = max(val)
-                
 
-        # Eliminate node_index from neighbourhood
-        self.neighbours = self.neighbours[self.neighbours != node_index]
-        self.coefs = self.coefs[1:]'''
+        self.neighbour = torch.tensor([index for index in dico.keys()])
+
+        self.coefs = torch.zeros(self.neighbour.shape[0])
+        for k, val in enumerate(dico.values()):
+            self.coefs[k] = sum(val)
+
+        '''print('self.neighbour:',self.neighbour)
+        print('node_idx:',node_idx)
+        print('(self.neighbour == node_idx):',(self.neighbour == node_idx))
+        print('(self.neighbour == node_idx).nonzero():',(self.neighbour == node_idx).nonzero())
+        print('(self.neighbour == node_idx).nonzero().item():',(self.neighbour == node_idx).nonzero().item())'''
+        if node_idx in self.neighbour.tolist():
+            j = (self.neighbour == node_idx).nonzero().item()
+        else:
+            j = random.choice(self.neighbour.tolist())
+        self.coefs = torch.cat([self.coefs[:j], self.coefs[j+1:]])
+        self.neighbour = self.neighbour[self.neighbour != node_idx]        
 
 
         self.__clear_masks__()
