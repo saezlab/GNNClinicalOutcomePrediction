@@ -10,336 +10,221 @@ from torch.nn import ModuleList
 import pytorch_lightning as pl
 
 SEED = 42
-class GCN(torch.nn.Module):
-    def __init__(self, num_node_features, hidden_channels):
-        super(GCN, self).__init__()
-        pl.seed_everything(SEED)
-        self.conv1 = GCNConv(num_node_features, hidden_channels)
-        self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        self.conv3 = GCNConv(hidden_channels, hidden_channels)
-        self.lin = Linear(hidden_channels, 1)
 
-    def forward(self, x, edge_index, batch):
-        # 1. Obtain node embeddings 
-        x = self.conv1(x, edge_index)
-        x = x.relu()
-        x = self.conv2(x, edge_index)
-        x = x.relu()
-        x = self.conv3(x, edge_index)
-
-        # 2. Readout layer
-        x = global_mean_pool(x, batch)  # [batch_size, hidden_channels]
-
-        # 3. Apply a final classifier
-        x = F.dropout(x, p=0.25, training=self.training)
-        x = self.lin(x)
-        x = x.relu()
-        
-        return x
+# ORIGINAL NAME WAS model_dgermen changed to model, can cause import porblems # WARN
 
 class CustomGCN(torch.nn.Module):
+    """Customizable GCN class, currectly supporting GATConv, TransformerConv
+    GINConv, PNAConv
+
+
+
+    Returns:
+        CustomGCN: CustomGCN model
+    """
+    # TODO  Make the layers modular, can switch places of the layers with "init's" input
+    # TODO  Can use mroe than one type of model
     def __init__(self, type, **kwargs):
-        super(GCN, self).__init__()
+        """Initilizes customGCN model according to specified arguments,
+        eventhough only must argument can be seen as type, according to
+        supplied type, type's related arguments MUST be provided
+
+        Args:
+            type (str): type of the model
+
+        Raises:
+            KeyError: Not proper arguments, miss matching types
+        """
+        super(CustomGCN, self).__init__()
         pl.seed_everything(SEED)
+
 
         # Recording the parameters
         self.pars = kwargs
+        
+        self.dropout = self.pars["dropout"]
+        # Extracting generic parameters
+        self.num_node_features = self.pars["num_node_features"]
+        self.gcn_hidden_neurons = self.pars["gcn_hidden_neurons"]
+
+        # Extracting layer related parameters
+        self.num_gcn_layers = self.pars["num_gcn_layers"]
+        self.num_ff_layers = self.check_Key("num_ff_layers")
+        self.ff_hidden_neurons = self.check_Key("ff_hidden_neurons")
+        self.aggregators = self.check_Key("aggregators","list")
+        self.scalers = self.check_Key("scalers","list")
+        self.deg = self.check_Key("deg")
+
+        # Setting generic model parameters
+        model_pars_head = {
+            "in_channels" : self.num_node_features,
+            "out_channels"  : self.gcn_hidden_neurons
+        }
+        model_pars_rest = {
+            "in_channels" : self.gcn_hidden_neurons,
+            "out_channels"  : self.gcn_hidden_neurons
+        }
+        self.type = type
 
         # Choosing the type of GCN
-        if type == "GATConv":
-            self.GATConv()
-            return
-        
+        try: 
+            # WORKS
+            if type == "GATConv":
+                self.GCN_type_1 = GATConv
 
-        # Creating the layers, template
-        self.conv1 = GCNConv(num_node_features, hidden_channels)
-        self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        self.conv3 = GCNConv(hidden_channels, hidden_channels)
-        self.lin = Linear(hidden_channels, 1)
+            # WORKS
+            elif type == "TransformerConv":
+                self.GCN_type_1 = TransformerConv
 
-    def GATConv(self):
-        # Parameter Extraction
-        try:
-            num_node_feautures = self.pars["num_node_features"]
-            hidden_channels = self.pars["hidden_channels"]
+            # Currently not working, problem with model, nn = (int)
+            # Need to feed a NN
+            # PROBLEM Not working RN
+            elif type == "GINConv":
+                self.GCN_type_1 = GINConv
+
+            # WORKS
+            elif type == "PNAConv":
+                self.GCN_type_1 = PNAConv
+                model_pars_head["aggregators"] = self.aggregators
+                model_pars_head["scalers"] = self.scalers
+                model_pars_head["deg"] = self.deg
+                
+                model_pars_rest["aggregators"] = self.aggregators
+                model_pars_rest["scalers"] = self.scalers
+                model_pars_rest["deg"] = self.deg
+
+            # No type name match case
+            else:
+                raise("Supplied model GCN type is not avaliable!")
+
         except KeyError:
-            print("Parameters are not proper.")
+            raise KeyError("Parameters are not proper")
 
-        # Layer setup
-        self.conv1 = GATConv(num_node_feautures, hidden_channels)
-        self.conv2 = GATConv(hidden_channels, hidden_channels)
-        self.conv3 = GATConv(hidden_channels, hidden_channels)
-        self.lin = Linear(hidden_channels,1)
+        # Creating the layers
 
-    def forward(self, x, edge_index, batch):
-        # 1. Obtain node embeddings 
-        x = self.conv1(x, edge_index)
-        x = x.relu()
-        x = self.conv2(x, edge_index)
-        x = x.relu()
-        x = self.conv3(x, edge_index)
-
-        # 2. Readout layer
-        x = global_mean_pool(x, batch)  # [batch_size, hidden_channels]
-
-        # 3. Apply a final classifier
-        x = F.dropout(x, p=0.25, training=self.training)
-        x = self.lin(x)
-        x = x.relu()
         
-        return x
 
-
-class GCN2(torch.nn.Module):
-    def __init__(self, num_node_features, hidden_channels, fcl1, drop_rate):
-        super(GCN2, self).__init__()
-        pl.seed_everything(SEED)
-
-        self.dropout = drop_rate 
-        self.conv1 = GCNConv(num_node_features, hidden_channels)
-        self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        self.lin1 = Linear(hidden_channels, fcl1)
-        self.bn1 = BatchNorm1d(hidden_channels)
-        self.bn2 = BatchNorm1d(fcl1)
-        self.lin = Linear(fcl1, 1)
-
-    def forward(self, x, edge_index, batch):
-        # 1. Obtain node embeddings 
-        x = self.conv1(x, edge_index)
-        x = x.relu()
-        x = self.conv2(x, edge_index)
-        x = x.relu()
-        
-    
-
-        # 2. Readout layer
-        x = global_mean_pool(x, batch)  # [batch_size, hidden_channels]
-        x = self.bn1(x)
-        x = x.relu()
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        
-        x = self.bn2(self.lin1(x))
-        x = x.relu()
-        # 3. Apply a final classifier
-        x = F.dropout(x, p=self.dropout, training=self.training)
-
-        x = self.lin(x)
-        x = x.relu()
-        
-        
-        return x
-
-# https://github.com/lukecavabarrett/pna/blob/master/models/pytorch_geometric/example.py
-class GCN_NEW(torch.nn.Module):
-    def __init__(self, num_node_features, num_of_gcn_layers, num_of_ff_layers, gcn_hidden_neurons, ff_hidden_neurons, dropout):
-        super(GCN_NEW, self).__init__()
-        pl.seed_everything(SEED)
-
-        self.dropout = dropout
-
-        # GCN list
+        # Module lists
         self.convs = ModuleList()
         self.batch_norms = ModuleList()
-
-        self.convs.append(GCNConv(num_node_features, gcn_hidden_neurons))
-        self.batch_norms.append(BatchNorm1d(gcn_hidden_neurons))
-        for _ in range(num_of_gcn_layers-1):
-            self.convs.append(GCNConv(gcn_hidden_neurons, gcn_hidden_neurons))
-            self.batch_norms.append(BatchNorm1d(gcn_hidden_neurons))
-
-        # fully connected layer list
         self.ff_layers = ModuleList()
         self.ff_batch_norms = ModuleList()
 
-        self.ff_layers.append(Linear(gcn_hidden_neurons, ff_hidden_neurons))
-        self.ff_batch_norms.append(BatchNorm1d(ff_hidden_neurons))
-        for _ in range(num_of_ff_layers-1):
-            self.ff_layers.append(Linear(ff_hidden_neurons, ff_hidden_neurons))
-            self.ff_batch_norms.append(BatchNorm1d(ff_hidden_neurons))
-
-        self.lin = Linear(ff_hidden_neurons, 1)
-
-    def forward(self, x, edge_index, batch):
-
-
-        for conv, batch_norm in zip(self.convs, self.batch_norms):
-            x = F.relu(batch_norm(conv(x, edge_index)))
-            # x = h + x  # residual#
-            x = F.dropout(x, self.dropout, training=self.training)
-
-        # 2. Readout layer
-        x = global_mean_pool(x, batch)  # [batch_size, hidden_channels]
-
-
-        for ff_l, batch_norm in zip(self.ff_layers, self.ff_batch_norms):
-            x = F.relu(batch_norm(ff_l(x)))
-            # x = h + x  # residual#
-            x = F.dropout(x, self.dropout, training=self.training)
-
-    
-        x = self.lin(x)
-        x = x.relu()
-        
-        return x
-
-
-
-class GCN_EXP(torch.nn.Module):
-    def __init__(self, num_node_features, num_of_gcn_layers, num_of_ff_layers, gcn_hidden_neurons, ff_hidden_neurons, dropout):
-        super(GCN_EXP, self).__init__()
-        pl.seed_everything(SEED)
-
-        # explainability
-        self.input = None
-        self.final_conv_acts = None
-        self.final_conv_grads = None
-
-        self.num_of_gcn_layers = num_of_gcn_layers
-        self.dropout = dropout
-
-        # GCN list
-        self.convs = ModuleList()
-        self.batch_norms = ModuleList()
-
-        self.convs.append(GCNConv(num_node_features, gcn_hidden_neurons))
-        self.batch_norms.append(BatchNorm1d(gcn_hidden_neurons))
-        for _ in range(num_of_gcn_layers-1):
-            self.convs.append(GCNConv(gcn_hidden_neurons, gcn_hidden_neurons))
-            self.batch_norms.append(BatchNorm1d(gcn_hidden_neurons))
-
-        # fully connected layer list
-        self.ff_layers = ModuleList()
-        self.ff_batch_norms = ModuleList()
-
-        self.ff_layers.append(Linear(gcn_hidden_neurons, ff_hidden_neurons))
-        self.ff_batch_norms.append(BatchNorm1d(ff_hidden_neurons))
-        for _ in range(num_of_ff_layers-1):
-            self.ff_layers.append(Linear(ff_hidden_neurons, ff_hidden_neurons))
-            self.ff_batch_norms.append(BatchNorm1d(ff_hidden_neurons))
-
-        self.lin = Linear(ff_hidden_neurons, 1)
-
-
-    def activations_hook(self, grad):
-        self.final_conv_grads = grad
-
-
-    def forward(self, x, edge_index, batch):
-    
-        x.requires_grad = True
-        self.input = x.requires_grad_()
-        # print("INPUT X", x.grad)
-        # print("INPUT", self.input.grad)
-
-        for l, (conv, batch_norm) in enumerate(zip(self.convs, self.batch_norms)):
+        if type == 'GATConv':
+            self.convs_in = GATConv(
+                **model_pars_head,
+                )
+            self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
             
-            if l<=self.num_of_gcn_layers-2:
-                x = F.relu(batch_norm(conv(x, edge_index)))
+            for _ in range(self.num_gcn_layers-1):
+                self.convs.append(self.GCN_type_1(
+                    **model_pars_rest,
+                    ))
+                self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
+
+            if self.num_ff_layers != 0:
+                # Initial ff layer ----
+                self.ff_layers.append(Linear(self.gcn_hidden_neurons, self.ff_hidden_neurons))
+                self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
+                # Other ff layers
+                for _ in range(self.num_ff_layers-2):
+                    self.ff_layers.append(Linear(self.ff_hidden_neurons, self.ff_hidden_neurons))
+                    self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
+                
+                self.ff_layers.append(Linear(self.ff_hidden_neurons, 1))
+
+        else:
+
+            # Initial GCN Layer -----
+            self.convs.append(self.GCN_type_1(
+                **model_pars_head,
+            ))
+            self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
+
+            # Other GCN Layers
+            for _ in range(self.num_gcn_layers-1):
+                self.convs.append(self.GCN_type_1(
+                    **model_pars_rest,
+                    ))
+                self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
+
+            
+            if self.num_ff_layers != 0:
+                # Initial ff layer ----
+                self.ff_layers.append(Linear(self.gcn_hidden_neurons, self.ff_hidden_neurons))
+                self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
+                # Other ff layers
+                for _ in range(self.num_ff_layers-2):
+                    self.ff_layers.append(Linear(self.ff_hidden_neurons, self.ff_hidden_neurons))
+                    self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
+                
+                self.ff_layers.append(Linear(self.ff_hidden_neurons, 1))
+
+    
+    # Helper function to avoid getting keyError
+    # If key doesnt exists default value is set to 0
+    def check_Key(self, key: str ,expectedType = "int"):
+        """Check supplied arguments' existance in provided arguments
+        if not found, uses a predetermined, default value. This is
+        mainly done to handle unused parameters by the model
+
+        Args:
+            key (str): parameter dict.'s key
+            expectedType (str, optional): expectedType of the parameter. Defaults to "int".
+
+        Returns:
+            _type_: value of the corresponding parameter
+        """
+        try:
+            value = self.pars[key]
+        except KeyError:
+            if expectedType == "int":
+                value = 0
+            elif expectedType == "str":
+                value = ""
+            elif expectedType == "list":
+                value = []
+        return value
+
+
+    def forward(self, x, edge_index, batch, att=False):
+        
+        if self.type == 'GATConv':
+            if att is True:
+                '''
+                In this implementation just first GAT layers' attention weights have been looked at.
+                '''
+                x, alpha = self.convs_in(x, edge_index, return_attention_weights=att)
+                x = F.relu(x)
+                x = F.dropout(x, self.dropout, training=self.training)
+
+                for conv in self.convs:
+                    x = F.relu(conv(x, edge_index))
+                    x = F.dropout(x, self.dropout, training=self.training)
+
+                x = global_mean_pool(x, batch)  # [batch_size, gcn_hidden_neurons]
+                for ff_l in self.ff_layers:
+                    x = F.relu(ff_l(x))
+                    # x = h + x  # residual#
+                    x = F.dropout(x, self.dropout, training=self.training)
+
+                return x, alpha
+
+        else:
+            # Conv layers
+            for conv in self.convs:
+                x = F.relu(conv(x, edge_index))
+                x = F.dropout(x, self.dropout, training=self.training)
+
+            # Convulution Result Aggregation
+            x = global_mean_pool(x, batch)  # [batch_size, gcn_hidden_neurons]
+
+            # Classification according to ppoling
+            for ff_l in self.ff_layers:
+                x = F.relu(ff_l(x))
                 # x = h + x  # residual#
                 x = F.dropout(x, self.dropout, training=self.training)
-            else:
-                with torch.enable_grad():
-                    self.final_conv_acts = conv(x, edge_index)
 
-                self.final_conv_acts.register_hook(self.activations_hook)
-                # print(self.final_conv_grads)
-                self.final_conv_acts = F.relu(batch_norm(self.final_conv_acts))
-
-        
-
-        # 2. Readout layer
-        x = global_mean_pool(self.final_conv_acts, batch)  # [batch_size, hidden_channels]
-
-
-        for ff_l, batch_norm in zip(self.ff_layers, self.ff_batch_norms):
-            x = F.relu(batch_norm(ff_l(x)))
-            # x = h + x  # residual#
-            x = F.dropout(x, self.dropout, training=self.training)
-
-    
-        x = self.lin(x)
-        x = x.relu()
-        
-        return x
-
-
-class GCN_MNIST_EXP(torch.nn.Module):
-    def __init__(self, num_node_features, num_of_gcn_layers, num_of_ff_layers, gcn_hidden_neurons, ff_hidden_neurons, dropout):
-        super(GCN_MNIST_EXP, self).__init__()
-        pl.seed_everything(SEED)
-
-        # explainability
-        self.input = None
-        self.final_conv_acts = None
-        self.final_conv_grads = None
-
-        self.num_of_gcn_layers = num_of_gcn_layers
-        self.dropout = dropout
-
-        # GCN list
-        self.convs = ModuleList()
-        self.batch_norms = ModuleList()
-
-        self.convs.append(GCNConv(num_node_features, gcn_hidden_neurons))
-        self.batch_norms.append(BatchNorm1d(gcn_hidden_neurons))
-        for _ in range(num_of_gcn_layers-1):
-            self.convs.append(GCNConv(gcn_hidden_neurons, gcn_hidden_neurons))
-            self.batch_norms.append(BatchNorm1d(gcn_hidden_neurons))
-
-        # fully connected layer list
-        self.ff_layers = ModuleList()
-        self.ff_batch_norms = ModuleList()
-
-        self.ff_layers.append(Linear(gcn_hidden_neurons, ff_hidden_neurons))
-        self.ff_batch_norms.append(BatchNorm1d(ff_hidden_neurons))
-        for _ in range(num_of_ff_layers-1):
-            self.ff_layers.append(Linear(ff_hidden_neurons, ff_hidden_neurons))
-            self.ff_batch_norms.append(BatchNorm1d(ff_hidden_neurons))
-
-        self.lin = Linear(ff_hidden_neurons, 10)
-
-
-    def activations_hook(self, grad):
-        self.final_conv_grads = grad
-
-
-    def forward(self, x, edge_index, batch):
-    
-        x.requires_grad = True
-        self.input = x.requires_grad_()
-        # print("INPUT X", x.grad)
-        # print("INPUT", self.input.grad)
-
-        for l, (conv, batch_norm) in enumerate(zip(self.convs, self.batch_norms)):
-            
-            if l<=self.num_of_gcn_layers-2:
-                x = F.relu(batch_norm(conv(x, edge_index)))
-                # x = h + x  # residual#
-                x = F.dropout(x, self.dropout, training=self.training)
-            else:
-                with torch.enable_grad():
-                    self.final_conv_acts = conv(x, edge_index)
-
-                self.final_conv_acts.register_hook(self.activations_hook)
-                # print(self.final_conv_grads)
-                self.final_conv_acts = F.relu(batch_norm(self.final_conv_acts))
-
-        
-
-        # 2. Readout layer
-        x = global_mean_pool(self.final_conv_acts, batch)  # [batch_size, hidden_channels]
-
-
-        for ff_l, batch_norm in zip(self.ff_layers, self.ff_batch_norms):
-            x = F.relu(batch_norm(ff_l(x)))
-            # x = h + x  # residual#
-            x = F.dropout(x, self.dropout, training=self.training)
-
-    
-        x = self.lin(x)
-        x = x.relu()
-        
-        return x
-
+            return x
 
 

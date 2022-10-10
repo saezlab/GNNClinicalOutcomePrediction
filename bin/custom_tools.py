@@ -5,7 +5,7 @@ import pickle
 import secrets
 from random import random
 from distutils.log import error
-from model_dgermen import CustomGCN
+from model import CustomGCN
 from sklearn.model_selection import KFold
 
 
