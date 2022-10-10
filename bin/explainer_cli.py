@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import custom_tools as custom_tools
 import pickle
-import plotting
+import bin.plotting as plotting
 from tqdm import tqdm   
 import torch_geometric as pyg
 from explainer import GNNExplainer

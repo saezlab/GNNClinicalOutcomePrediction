@@ -21,7 +21,7 @@ from torch_geometric.utils import degree
 from explainer_base import GNNExplainer, LIME, SHAP
 from torch_geometric.data import Data
 import pandas as pd
-import plotting
+import bin.plotting as plotting
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 

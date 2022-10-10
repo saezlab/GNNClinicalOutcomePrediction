@@ -1,5 +1,3 @@
-
-
 import torch
 from data_processing import OUT_DATA_PATH
 import os
@@ -35,7 +33,6 @@ device = custom_tools.get_device()
 
 # Object can be saved if wanted
 trainer_tester(parser_args, setup_args)
-
 
 
 

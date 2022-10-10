@@ -10,7 +10,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-import plotting
+import bin.plotting as plotting
 import pandas as pd
 import os
 import pytorch_lightning as pl

@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import seaborn as sns
 import numpy as np
-import plotting
+import bin.plotting as plotting
 import pandas as pd
 import pickle
 import os

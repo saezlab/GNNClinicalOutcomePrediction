@@ -204,6 +204,8 @@ class trainer_tester:
 
         self.results =[] 
 
+        print(self.fold_dicts)
+
         for fold_dict in self.fold_dicts:
 
             best_val_loss = np.inf

@@ -173,8 +173,14 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
 
         return model
 
-def get_device():
 
+
+def get_device():
+    """Returns the available device, default priority is "cuda"
+
+    Returns:
+        string: cuda or cpu
+    """
 
     use_gpu = torch.cuda.is_available()
 
@@ -188,12 +194,56 @@ def get_device():
 
     return device
 
+def save_dict_as_json(s_dict, file_name, path):
+    """
+    Save dictionary as a json file
+    """
+
+    with open(os.path.join(path,file_name+".json"), "w") as write_file:
+        json.dump(s_dict, write_file, indent=4)
+
+def load_json(file_path):
+    """Loads the json file for given path
+
+    Args:
+        file_path (string): file path
+
+    Returns:
+        dict: dict of the json
+    """
+    
+    with open(file_path, 'r') as fp:
+        l_dict = json.load(fp)
+    return l_dict
+
+def save_pickle(obj, file_name: str, path =  os.curdir):
+
+    pickle_out = open(os.path.join(path, file_name),"wb")
+    pickle.dump(obj, pickle_out)
+    pickle_out.close()
+
+def load_pickle(path_obj):
+    pickle_in = open(path_obj,"rb")
+    obj = pickle.load(pickle_in)
+    pickle_in.close()
+    return obj
+
+
+def generate_session_id():
+    """
+    Creates a cryptographically-secure, URL-safe string
+    """
+    return secrets.token_urlsafe(16)  
+
 import argparse
-from dataset import TissueDataset
-from torch_geometric.utils import degree
 
+def general_parser() -> argparse.Namespace:
+    """Used inside a file, makes the file able to parse CLI arguments.
 
-def model_fast():
+    Returns:
+        argparse.Namespace: argparse namespace that includes supplied argument values
+    """
+
     parser = argparse.ArgumentParser(description='GNN Arguments')
     parser.add_argument(
         '--model',
@@ -227,7 +277,7 @@ def model_fast():
     parser.add_argument(
         '--epoch',
         type=int,
-        default=2,
+        default=5,
         metavar='EPC',
         help='Number of epochs (default: 50)')
 
@@ -317,24 +367,10 @@ def model_fast():
         metavar='SCL',
         help='Set of scaling function identifiers,')
 
-    device = get_device()
+    
+
 
     args = parser.parse_args()
-
-    S_PATH = os.path.dirname(__file__)
-    args = parser.parse_args()
-
-    # writer = SummaryWriter(log_dir=os.path.join(S_PATH,"../logs"))
-    dataset = TissueDataset(os.path.join(S_PATH,"../data"))
-
-    dataset = dataset.shuffle()
-
-    num_of_train = int(len(dataset)*0.80)
-    num_of_val = int(len(dataset)*0.10)
-
-
-
-    train_dataset = dataset[:num_of_train]
 
     # Handling string inputs
     if type(args.aggregators) != list:
@@ -343,33 +379,9 @@ def model_fast():
     if type(args.scalers) != list:
         args.scalers = args.scalers.split()
 
-    deg = 1
+    # This can be used to print all parser arguments
+    parser_args_list = sorted(vars(args).keys())
+    args.str = "-".join([f"{arg}:{str(vars(args)[arg])}" for arg in parser_args_list])
 
-    # Calculating degree
-    if args.model == "PNAConv":
-        max_degree = -1
-        for data in train_dataset:
-            d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
-            max_degree = max(max_degree, int(d.max()))
+    return args
 
-        # Compute the in-degree histogram tensor
-        deg = torch.zeros(max_degree + 1, dtype=torch.long)
-        for data in train_dataset:
-            d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
-            deg += torch.bincount(d, minlength=deg.numel())
-
-
-    model = CustomGCN(
-                    type = args.model,
-                    num_node_features = dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
-                    num_gcn_layers=args.num_of_gcn_layers, 
-                    num_ff_layers=args.num_of_ff_layers, 
-                    gcn_hidden_neurons=args.gcn_h, 
-                    ff_hidden_neurons=args.fcl, 
-                    dropout=args.dropout,
-                    aggregators=args.aggregators,
-                    scalers=args.scalers,
-                    deg = deg # Comes from data not hyperparameter
-                        ).to(device)
-
-    return model
