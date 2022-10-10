@@ -269,10 +269,10 @@ class trainer_tester:
             means = [["Means",train_results[0],valid_results[0],test_results[0]]]
             variances = [["Variances",train_results[0],valid_results[0],test_results[0]]]
 
-        ff = open('results/idedFiles/' + str(self.setup_args.id) + '.csv', 'w')
+        ff = open(self.setup_args.RESULT_PATH + str(self.setup_args.id) + '.csv', 'w')
         ff.close()
 
-        with open('results/idedFiles/' + str(self.setup_args.id) + '.csv', 'w', encoding="UTF8", newline='') as f:
+        with open(self.setup_args.RESULT_PATH + str(self.setup_args.id) + '.csv', 'w', encoding="UTF8", newline='') as f:
             writer = csv.writer(f)
 
             writer.writerow(header)
