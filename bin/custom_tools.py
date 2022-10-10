@@ -45,7 +45,7 @@ def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio):
                 (torch.utils.data.SubsetRandomSampler(train_idx)),
                 (torch.utils.data.SubsetRandomSampler(test_idx)),
                 (torch.utils.data.SubsetRandomSampler(valid_idx))))
-
+                
     return samplers
 
 

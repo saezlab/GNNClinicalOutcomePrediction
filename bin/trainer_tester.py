@@ -45,8 +45,9 @@ class trainer_tester:
         """
 
         self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
+        print(len(self.dataset))
         self.dataset = self.dataset.shuffle()
-
+        print(len(self.dataset))
         self.samplers = custom_tools.k_fold_ttv(self.dataset, 
             T2VT_ratio=self.setup_args.T2VT_ratio,
             V2T_ratio=self.setup_args.V2T_ratio)
@@ -59,6 +60,10 @@ class trainer_tester:
             train_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= train_sampler)
             validation_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= validation_sampler)
             test_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= test_sampler)
+
+            print(len(train_loader))
+            print(len(validation_loader))
+            print(len(test_loader))
             
             if self.parser_args.model == "PNAConv":
                 deg = self.calculate_deg(train_sampler)
@@ -136,9 +141,10 @@ class trainer_tester:
         total_loss = 0.0
         pred_list = []
         out_list = []
+        
         for data in fold_dict["train_loader"]:  # Iterate in batches over the training dataset.
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
- 
+
             loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
         
             loss.backward()  # Derive gradients.
@@ -150,7 +156,7 @@ class trainer_tester:
             fold_dict["optimizer"].step()  # Update parameters based on gradients.
             fold_dict["optimizer"].zero_grad()  # Clear gradients
 
-
+        print("xxxx", len(pred_list))
         return total_loss
 
     def test(self, fold_dict, test_on: str,label=None, fl_name=None, plot_pred=False):
@@ -172,8 +178,10 @@ class trainer_tester:
 
         total_loss = 0.0
         pid_list, img_list, pred_list, true_list, tumor_grade_list, clinical_type_list, osmonth_list = [], [], [], [], [], [], []
-
+        
         for data in loader:  # Iterate in batches over the training/test dataset.
+            
+            print(data)
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
             loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
             total_loss += float(loss.item())
@@ -186,7 +194,7 @@ class trainer_tester:
             osmonth_list.extend([val for val in data.osmonth])
             pid_list.extend([val for val in data.p_id])
             img_list.extend([val for val in data.img_id])
-        
+        print("testxxxx", len(pred_list))
         if plot_pred:
             #plotting.plot_pred_vs_real(df, 'OS Month (log)', 'Predicted', "Clinical Type", fl_name)
             
@@ -204,8 +212,6 @@ class trainer_tester:
 
         self.results =[] 
 
-        print(self.fold_dicts)
-
         for fold_dict in self.fold_dicts:
 
             best_val_loss = np.inf
@@ -216,6 +222,7 @@ class trainer_tester:
                 self.train(fold_dict)
 
                 train_loss = self.test(fold_dict, "train_loader")
+                print("train", train_loss)
                 validation_loss= self.test(fold_dict, "validation_loader")
                 test_loss = self.test(fold_dict, "test_loader")
 

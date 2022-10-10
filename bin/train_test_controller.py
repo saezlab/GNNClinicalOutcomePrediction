@@ -1,3 +1,4 @@
+
 import torch
 from data_processing import OUT_DATA_PATH
 import os
@@ -14,7 +15,7 @@ parser_args = custom_tools.general_parser()
 setup_args = SimpleNamespace()
 
 # WARN is this correct usage?
-setup_args.id = custom_tools.generate_session_id()
+setup_args.id = custom_tools.generate_session_id
 
 setup_args.S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 setup_args.OUT_DATA_PATH = os.path.join(setup_args.S_PATH, "../data", "out_data")
