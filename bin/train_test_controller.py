@@ -19,6 +19,7 @@ setup_args.id = custom_tools.generate_session_id
 
 setup_args.S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 setup_args.OUT_DATA_PATH = os.path.join(setup_args.S_PATH, "../data", "out_data")
+setup_args.RESULT_PATH = os.path.join(setup_args.S_PATH, "../results", "idedFiles")
 setup_args.S_PATH = os.path.dirname(__file__)
 
 setup_args.T2VT_ratio = 4
