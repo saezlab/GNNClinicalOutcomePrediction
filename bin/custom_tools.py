@@ -45,7 +45,7 @@ def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio):
                 (torch.utils.data.SubsetRandomSampler(train_idx)),
                 (torch.utils.data.SubsetRandomSampler(test_idx)),
                 (torch.utils.data.SubsetRandomSampler(valid_idx))))
-                
+
     return samplers
 
 
@@ -277,7 +277,7 @@ def general_parser() -> argparse.Namespace:
     parser.add_argument(
         '--epoch',
         type=int,
-        default=5,
+        default=50,
         metavar='EPC',
         help='Number of epochs (default: 50)')
 

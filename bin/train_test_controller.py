@@ -24,10 +24,10 @@ setup_args.S_PATH = os.path.dirname(__file__)
 
 setup_args.T2VT_ratio = 4
 setup_args.V2T_ratio = 1
-setup_args.use_fold = False
+setup_args.use_fold = True
 
 setup_args.criterion = torch.nn.MSELoss()
-setup_args.print_every_epoch = 5
+setup_args.print_every_epoch = 1
 setup_args.plot_result = True
 
 device = custom_tools.get_device()

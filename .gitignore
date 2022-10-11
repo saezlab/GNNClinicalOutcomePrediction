@@ -166,3 +166,4 @@ models/
 bin/processed/
 raw/
 logs
+results/

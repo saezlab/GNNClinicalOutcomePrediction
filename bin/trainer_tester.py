@@ -4,6 +4,7 @@ from dataset import TissueDataset
 from torch_geometric.loader import DataLoader
 import numpy as np
 import plotting
+from tqdm import tqdm
 import pandas as pd
 import os
 from torch_geometric.utils import degree
@@ -61,10 +62,6 @@ class trainer_tester:
             validation_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= validation_sampler)
             test_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= test_sampler)
 
-            print(len(train_loader))
-            print(len(validation_loader))
-            print(len(test_loader))
-            
             if self.parser_args.model == "PNAConv":
                 deg = self.calculate_deg(train_sampler)
             
@@ -156,7 +153,6 @@ class trainer_tester:
             fold_dict["optimizer"].step()  # Update parameters based on gradients.
             fold_dict["optimizer"].zero_grad()  # Clear gradients
 
-        print("xxxx", len(pred_list))
         return total_loss
 
     def test(self, fold_dict, test_on: str,label=None, fl_name=None, plot_pred=False):
@@ -181,20 +177,23 @@ class trainer_tester:
         
         for data in loader:  # Iterate in batches over the training/test dataset.
             
-            print(data)
-            out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
-            loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
-            total_loss += float(loss.item())
+            if data.y.shape[0]>1:
+                out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
+                loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
+                
+                total_loss += float(loss.item())
 
-            true_list.extend([val.item() for val in data.y])
-            pred_list.extend([val.item() for val in out.squeeze()])
-            #pred_list.extend([val.item() for val in data.y])
-            tumor_grade_list.extend([val for val in data.tumor_grade])
-            clinical_type_list.extend([val for val in data.clinical_type])
-            osmonth_list.extend([val for val in data.osmonth])
-            pid_list.extend([val for val in data.p_id])
-            img_list.extend([val for val in data.img_id])
-        print("testxxxx", len(pred_list))
+                true_list.extend([val.item() for val in data.y])
+                pred_list.extend([val.item() for val in out.squeeze()])
+                #pred_list.extend([val.item() for val in data.y])
+                tumor_grade_list.extend([val for val in data.tumor_grade])
+                clinical_type_list.extend([val for val in data.clinical_type])
+                osmonth_list.extend([val for val in data.osmonth])
+                pid_list.extend([val for val in data.p_id])
+                img_list.extend([val for val in data.img_id])
+            else:
+                pass
+        
         if plot_pred:
             #plotting.plot_pred_vs_real(df, 'OS Month (log)', 'Predicted', "Clinical Type", fl_name)
             
@@ -217,12 +216,12 @@ class trainer_tester:
             best_val_loss = np.inf
 
 
-            for epoch in range(1, self.parser_args.epoch):
+            for epoch in tqdm(range(self.parser_args.epoch)):
 
                 self.train(fold_dict)
 
                 train_loss = self.test(fold_dict, "train_loader")
-                print("train", train_loss)
+                print("Train loss: ", train_loss)
                 validation_loss= self.test(fold_dict, "validation_loader")
                 test_loss = self.test(fold_dict, "test_loader")
 
