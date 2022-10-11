@@ -12,7 +12,7 @@ from sklearn.model_selection import KFold
 # K-Fold cross validation index creator function
 # Dataset idices and ratios must be supplied
 # Return triplet of samplers for amount of wanted fold
-def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio):
+def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False):
     """Splits dataset into Train, Validation and Test sets
 
     Args:
@@ -45,6 +45,9 @@ def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio):
                 (torch.utils.data.SubsetRandomSampler(train_idx)),
                 (torch.utils.data.SubsetRandomSampler(test_idx)),
                 (torch.utils.data.SubsetRandomSampler(valid_idx))))
+
+            if not shuffle_VT:
+                break
 
     return samplers
 
@@ -277,7 +280,7 @@ def general_parser() -> argparse.Namespace:
     parser.add_argument(
         '--epoch',
         type=int,
-        default=50,
+        default=5,
         metavar='EPC',
         help='Number of epochs (default: 50)')
 

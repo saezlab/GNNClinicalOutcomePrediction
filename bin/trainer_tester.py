@@ -8,7 +8,7 @@ from tqdm import tqdm
 import pandas as pd
 import os
 from torch_geometric.utils import degree
-from evaluation_metrics import r_squared_score
+from evaluation_metrics import r_squared_score, mse, rmse
 import custom_tools as custom_tools
 import csv
 import statistics
@@ -195,9 +195,9 @@ class trainer_tester:
         if plot_pred:
             #plotting.plot_pred_vs_real(df, 'OS Month (log)', 'Predicted', "Clinical Type", fl_name)
             
-            label_list = [label]*len(clinical_type_list)
+            label_list = [str(fold_dict["fold"]) + "-" + label]*len(clinical_type_list)
             df = pd.DataFrame(list(zip(pid_list, img_list, true_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, label_list)),
-                columns =["Patient ID","Image Number", 'OS Month (log)', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Train Val Test"])
+                columns =["Patient ID","Image Number", 'OS Month (log)', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Fold#-Set"])
             
             return total_loss, df
         else:
@@ -234,14 +234,15 @@ class trainer_tester:
             test_loss, df_test = self.test(fold_dict, "test_loader", "test", "test", self.setup_args.plot_result)
             list_ct = list(set(df_train["Clinical Type"]))
             r2_score = r_squared_score(df_val['OS Month (log)'], df_val['Predicted'])
-
-            if r2_score>0.7 or True:
-
-                df2 = pd.concat([df_train, df_val, df_test])
-                df2.to_csv(f"{self.setup_args.OUT_DATA_PATH}/{self.setup_args.id}.csv", index=False)
-                # print(list_ct)
-                # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, parser_args_str)
-                plotting.plot_pred_(df2, list_ct, self.setup_args.id)
+            mse_score = mse(df_val['OS Month (log)'], df_val['Predicted'])
+            rmse_score = rmse(df_val['OS Month (log)'], df_val['Predicted'])
+            
+                
+            df2 = pd.concat([df_train, df_val, df_test])
+            df2.to_csv(f"{self.setup_args.OUT_DATA_PATH}/{self.setup_args.id}.csv", index=False)
+            # print(list_ct)
+            # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, parser_args_str)
+            plotting.plot_pred_(df2, list_ct, self.setup_args.id)
 
             if (epoch % self.setup_args.print_every_epoch) == 0:
                 print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
@@ -249,35 +250,42 @@ class trainer_tester:
             print(f"For fold:  {fold_dict['fold']}")
             print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
 
-            self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss])
+            self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, r2_score, mse_score, rmse_score])
 
     def save_results(self):
         """Found results are saved into CSV file
         """
-        header = ["fold_number","train","validation","test"]
+        header = ["fold_number","train","validation","test","r2","mse","rmse"]
 
         train_results = []
         valid_results = []
         test_results = []
+        r2_results = []
+        mse_results = []
+        rmse_results = []
 
-        for _,train,valid,test in self.results:
+        for _,train,valid,test,r2,mse,rmse in self.results:
             train_results.append(train)
             valid_results.append(valid)
             test_results.append(test)
+            r2_results.append(r2)
+            mse_results.append(mse)
+            rmse_results.append(rmse)
+
 
         if self.setup_args.use_fold:
-            means = [["Means",statistics.mean(train_results),statistics.mean(valid_results),statistics.mean(test_results)]]
-            variances = [["Variances",statistics.variance(train_results),statistics.variance(valid_results),statistics.variance(test_results)]]
+            means = [["Means",statistics.mean(train_results),statistics.mean(valid_results),statistics.mean(test_results)],statistics.mean(r2_results),statistics.mean(mse_results),statistics.mean(rmse_results)]
+            variances = [["Variances",statistics.variance(train_results),statistics.variance(valid_results),statistics.variance(test_results),statistics.variance(r2_results),statistics.variance(mse_results),statistics.variance(rmse_results)]]
 
         else:
 
-            means = [["Means",train_results[0],valid_results[0],test_results[0]]]
-            variances = [["Variances",train_results[0],valid_results[0],test_results[0]]]
+            means = [["Means",train_results[0],valid_results[0],test_results[0],r2_results[0],mse_results[0],rmse_results[0]]]
+            variances = [["Variances",train_results[0],valid_results[0],test_results[0],r2_results[0],mse_results[0],rmse_results[0]]]
 
-        ff = open(self.setup_args.RESULT_PATH + str(self.setup_args.id) + '.csv', 'w')
+        ff = open(self.setup_args.RESULT_PATH + "/" + str(self.setup_args.id) + '.csv', 'w')
         ff.close()
 
-        with open(self.setup_args.RESULT_PATH + str(self.setup_args.id) + '.csv', 'w', encoding="UTF8", newline='') as f:
+        with open(self.setup_args.RESULT_PATH + "/" + str(self.setup_args.id) + '.csv', 'w', encoding="UTF8", newline='') as f:
             writer = csv.writer(f)
 
             writer.writerow(header)

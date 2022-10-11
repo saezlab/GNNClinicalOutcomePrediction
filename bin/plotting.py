@@ -97,7 +97,7 @@ def plot_pred_(df, color, fl_name):
     
     for idx, val in enumerate(["train", "validation", "test"]):
 
-        df_tvt = df.loc[(df['Train Val Test'] == val)]
+        df_tvt = df.loc[(df['Fold#-Set'].str[2:] == val)]
         for idxlbl, lbl in enumerate(labels):
             # df_temp = df.loc[(df['Train Val Test'] == val) & (df['Clinical Type'] == lbl)]
             df_temp = df_tvt.loc[(df_tvt['Clinical Type'] == lbl)]
