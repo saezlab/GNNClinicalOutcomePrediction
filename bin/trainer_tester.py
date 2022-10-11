@@ -46,9 +46,7 @@ class trainer_tester:
         """
 
         self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
-        print(len(self.dataset))
         self.dataset = self.dataset.shuffle()
-        print(len(self.dataset))
         self.samplers = custom_tools.k_fold_ttv(self.dataset, 
             T2VT_ratio=self.setup_args.T2VT_ratio,
             V2T_ratio=self.setup_args.V2T_ratio)
@@ -216,12 +214,13 @@ class trainer_tester:
             best_val_loss = np.inf
 
 
-            for epoch in tqdm(range(self.parser_args.epoch)):
+            for epoch in (pbar := tqdm(range(self.parser_args.epoch))):
 
                 self.train(fold_dict)
 
                 train_loss = self.test(fold_dict, "train_loader")
-                print("Train loss: ", train_loss)
+                pbar.set_description(f"Train loss: {train_loss}")
+    
                 validation_loss= self.test(fold_dict, "validation_loader")
                 test_loss = self.test(fold_dict, "test_loader")
 
@@ -236,13 +235,13 @@ class trainer_tester:
             list_ct = list(set(df_train["Clinical Type"]))
             r2_score = r_squared_score(df_val['OS Month (log)'], df_val['Predicted'])
 
-            if r2_score>0.7:
+            if r2_score>0.7 or True:
 
                 df2 = pd.concat([df_train, df_val, df_test])
-                df2.to_csv(f"{self.setup_args.OUT_DATA_PATH}/{self.parser_args_str}.csv", index=False)
+                df2.to_csv(f"{self.setup_args.OUT_DATA_PATH}/{self.setup_args.id}.csv", index=False)
                 # print(list_ct)
                 # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, parser_args_str)
-                plotting.plot_pred_(df2, list_ct, self.parser_args_str)
+                plotting.plot_pred_(df2, list_ct, self.setup_args.id)
 
             if (epoch % self.setup_args.print_every_epoch) == 0:
                 print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
