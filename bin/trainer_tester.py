@@ -208,6 +208,7 @@ class trainer_tester:
         """
 
         self.results =[] 
+        df3 = []
 
         for fold_dict in self.fold_dicts:
 
@@ -239,7 +240,10 @@ class trainer_tester:
             
                 
             df2 = pd.concat([df_train, df_val, df_test])
-            df2.to_csv(f"{self.setup_args.OUT_DATA_PATH}/{self.setup_args.id}.csv", index=False)
+            if fold_dict["fold"] == 1:
+                df3 = df2
+            else:
+                df3 = pd.concat([df3, df2])
             # print(list_ct)
             # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, parser_args_str)
             plotting.plot_pred_(df2, list_ct, self.setup_args.id)
@@ -252,6 +256,7 @@ class trainer_tester:
 
             self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, r2_score, mse_score, rmse_score])
 
+        df3.to_csv(f"{self.setup_args.OUT_DATA_PATH}/{self.setup_args.id}.csv", index=False)
     def save_results(self):
         """Found results are saved into CSV file
         """
@@ -274,7 +279,7 @@ class trainer_tester:
 
 
         if self.setup_args.use_fold:
-            means = [["Means",statistics.mean(train_results),statistics.mean(valid_results),statistics.mean(test_results)],statistics.mean(r2_results),statistics.mean(mse_results),statistics.mean(rmse_results)]
+            means = [["Means",statistics.mean(train_results),statistics.mean(valid_results),statistics.mean(test_results),statistics.mean(r2_results),statistics.mean(mse_results),statistics.mean(rmse_results)]]
             variances = [["Variances",statistics.variance(train_results),statistics.variance(valid_results),statistics.variance(test_results),statistics.variance(r2_results),statistics.variance(mse_results),statistics.variance(rmse_results)]]
 
         else:
