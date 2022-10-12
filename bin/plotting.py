@@ -56,14 +56,14 @@ def plot_nom_distribution():
 
 # plot_nom_distribution()
 
-def plot_pred_vs_real(df, x_axis, y_axis, color, fl_name):
+"""def plot_pred_vs_real(df, x_axis, y_axis, color, fl_name):
     # print(out_list, pred_list)
     sns_plot = sns.scatterplot(data=df, x=x_axis, y=y_axis, hue=color)
     plt.ylim(0, None)
     plt.xlim(0, None)
     fig = sns_plot.get_figure()
     fig.savefig(f"{PLOT_PATH}/{fl_name}.png")
-    plt.clf()
+    plt.clf()"""
 
 
 def plot_pred_vs_real_lst(df_lst, x_axis_lst, y_axis_lst, color, order, fl_name):
@@ -87,14 +87,13 @@ def plot_pred_vs_real_lst(df_lst, x_axis_lst, y_axis_lst, color, order, fl_name)
 
 import matplotlib.lines as mlines
 
-def plot_pred_(df, color, fl_name):
-    # print(out_list, pred_list)
+def plot_pred_vs_real(df, exp_name, fl_name):
+
     fig, axs = plt.subplots(1,3,figsize=(20,5))
     colors = {'TripleNeg':'red', 'HR+HER2-':'green', 'HR-HER2+':'blue', 'HR+HER2+':'orange'}
     labels = ['TripleNeg', 'HR+HER2-', 'HR-HER2+', 'HR+HER2+']
     colors = ['red', 'green', 'blue', 'orange']
 
-    
     for idx, val in enumerate(["train", "validation", "test"]):
 
         df_tvt = df.loc[(df['Fold#-Set'].str[2:] == val)]
@@ -111,30 +110,8 @@ def plot_pred_(df, color, fl_name):
         mser = mse(df_tvt['OS Month (log)'], df_tvt['Predicted'])
         axs[idx].set_title(f"MSE: {mser:.3f}   R2 Score: {r2_score:.3f}")
         axs[idx].legend(loc='lower right')
-        # plt.legend(loc='lower right')
 
-    
-        
-    
-
-    # line = mlines.Line2D([0, 1], [0, 1], color='red')
-
-    # plt.scatter(df['OS Month (log)'], df['Predicted'], c=df['Clinical Type'].map(colors))
-    
-    plt.savefig(f"{PLOT_PATH}/{fl_name}.png")
-    """for ind in range(n_cols):
-
-        sns_plot = sns.scatterplot(data=df_lst[ind], x=x_axis_lst[ind], y=y_axis_lst[ind], hue=color, hue_order=order, ax = axs[ind])
-        sns_plot.set_xlim(0, 6)
-        sns_plot.set_ylim(0, 6)
-        plt.legend(loc='upper left')    
-        
-        #plt.ylim(0, None)
-        #plt.xlim(0, None)
-    
-    fig = sns_plot.get_figure()
-    fig.savefig(f"{PLOT_PATH}/{fl_name}.png")
-    plt.clf()"""
+    plt.savefig(os.path.join(PLOT_PATH, exp_name, f"{fl_name}.png"))
 
 def plot_subgraph(test_graph, path, file_name, coordinates_arr, edges_idx):
 

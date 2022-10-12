@@ -3,8 +3,7 @@ import torch
 import json
 import pickle
 import secrets
-from random import random
-from distutils.log import error
+from pathlib import Path
 from model import CustomGCN
 from sklearn.model_selection import KFold
 
@@ -315,9 +314,9 @@ def general_parser() -> argparse.Namespace:
     parser.add_argument(
         '--en',
         type=str,
-        default="my_experiment",
+        default="test_experiment",
         metavar='EN',
-        help='the name of the experiment (default: my_experiment)')
+        help='the name of the experiment (default: test_experiment)')
 
     parser.add_argument(
         '--weight_decay',
@@ -370,6 +369,13 @@ def general_parser() -> argparse.Namespace:
         metavar='SCL',
         help='Set of scaling function identifiers,')
 
+    parser.add_argument(
+        '--fold',
+        type= bool,
+        action=argparse.BooleanOptionalAction,
+        default= True,
+        metavar='F',
+        help='Perform train/val/test or n-fold x-val (--fold, --no-fold),')
     
 
 
@@ -388,3 +394,12 @@ def general_parser() -> argparse.Namespace:
 
     return args
 
+def create_directories(lst_path):
+    """Create nested directories for the input paths
+    
+    Args:
+        lst_path (list): file paths
+
+    """
+    for path in lst_path:
+        Path(path).mkdir(parents=True, exist_ok=True)

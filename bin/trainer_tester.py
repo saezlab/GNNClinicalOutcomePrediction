@@ -33,7 +33,7 @@ class trainer_tester:
 
         self.train_test_loop()
 
-        self.save_results()
+        # self.save_results()
 
     def set_device(self):
         """Sets up the computation device for the class
@@ -153,14 +153,13 @@ class trainer_tester:
 
         return total_loss
 
-    def test(self, fold_dict, test_on: str,label=None, fl_name=None, plot_pred=False):
+    def test(self, fold_dict, test_on: str,label=None, plot_pred=False):
         """Tests the model on wanted loader
 
         Args:
             fold_dict (dict): Holds data about the used fold
             test_on (str): Which loader to test on (train_loader, test_loader, valid_loader)
             label (_type_, optional): Label of the loader. Defaults to None.
-            fl_name (_type_, optional): Name of the loader. Defaults to None.
             plot_pred (bool, optional): Should there be a plot. Defaults to False.
 
         Returns:
@@ -181,12 +180,12 @@ class trainer_tester:
                 
                 total_loss += float(loss.item())
 
-                true_list.extend([val.item() for val in data.y])
-                pred_list.extend([val.item() for val in out.squeeze()])
+                true_list.extend([round(val.item(),6) for val in data.y])
+                pred_list.extend([round(val.item(),6) for val in out.squeeze()])
                 #pred_list.extend([val.item() for val in data.y])
-                tumor_grade_list.extend([val for val in data.tumor_grade])
+                tumor_grade_list.extend([val.item() for val in data.tumor_grade])
                 clinical_type_list.extend([val for val in data.clinical_type])
-                osmonth_list.extend([val for val in data.osmonth])
+                osmonth_list.extend([val.item() for val in data.osmonth])
                 pid_list.extend([val for val in data.p_id])
                 img_list.extend([val for val in data.img_id])
             else:
@@ -208,7 +207,8 @@ class trainer_tester:
         """
 
         self.results =[] 
-        df3 = []
+        train_pred_df = []
+        pred_plot_axis = []
 
         for fold_dict in self.fold_dicts:
 
@@ -230,23 +230,24 @@ class trainer_tester:
                     best_train_loss = train_loss
                     best_test_loss = test_loss
 
-            train_loss, df_train = self.test(fold_dict, "train_loader", "train", "train", self.setup_args.plot_result)
-            validation_loss, df_val= self.test(fold_dict, "validation_loader", "validation", "validation", self.setup_args.plot_result)
-            test_loss, df_test = self.test(fold_dict, "test_loader", "test", "test", self.setup_args.plot_result)
+
+            train_loss, df_train = self.test(fold_dict, "train_loader", "train", self.setup_args.plot_result)
+            validation_loss, df_val= self.test(fold_dict, "validation_loader", "validation", self.setup_args.plot_result)
+            test_loss, df_test = self.test(fold_dict, "test_loader", "test", self.setup_args.plot_result)
             list_ct = list(set(df_train["Clinical Type"]))
-            r2_score = r_squared_score(df_val['OS Month (log)'], df_val['Predicted'])
-            mse_score = mse(df_val['OS Month (log)'], df_val['Predicted'])
-            rmse_score = rmse(df_val['OS Month (log)'], df_val['Predicted'])
+            r2_score = round(r_squared_score(df_val['OS Month (log)'], df_val['Predicted']),3)
+            mse_score = round(mse(df_val['OS Month (log)'], df_val['Predicted']),3)
+            rmse_score = round(rmse(df_val['OS Month (log)'], df_val['Predicted']),3)
             
                 
             df2 = pd.concat([df_train, df_val, df_test])
             if fold_dict["fold"] == 1:
-                df3 = df2
+                train_pred_df = df2
             else:
-                df3 = pd.concat([df3, df2])
+                train_pred_df = pd.concat([train_pred_df, df2])
             # print(list_ct)
             # plotting.plot_pred_vs_real_lst(df2, ['OS Month (log)']*3, ["Predicted"]*3, "Clinical Type", list_ct, parser_args_str)
-            plotting.plot_pred_(df2, list_ct, self.setup_args.id)
+
 
             if (epoch % self.setup_args.print_every_epoch) == 0:
                 print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
@@ -255,8 +256,21 @@ class trainer_tester:
             print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
 
             self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, r2_score, mse_score, rmse_score])
+        
+        val_df = train_pred_df.loc[(train_pred_df['Fold#-Set'].str[2:] == "validation")]
+        val_r2_score = r_squared_score(val_df['OS Month (log)'], val_df['Predicted'])
+    
+        if val_r2_score>0.6:
+            plotting.plot_pred_vs_real(train_pred_df, self.parser_args.en, self.setup_args.id)
+            train_pred_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
+            self.save_results()
+            """custom_tools.save_model(model=model, fileName=session_id, mode="SD")
+            custom_tools.save_dict_as_json(args_dict, session_id, "../models")
 
-        df3.to_csv(f"{self.setup_args.OUT_DATA_PATH}/{self.setup_args.id}.csv", index=False)
+            if args.model == "PNAConv":
+                custom_tools.save_pickle(deg, f"{session_id}_deg.pckl", "../models")"""
+
+    
     def save_results(self):
         """Found results are saved into CSV file
         """
@@ -279,18 +293,18 @@ class trainer_tester:
 
 
         if self.setup_args.use_fold:
-            means = [["Means",statistics.mean(train_results),statistics.mean(valid_results),statistics.mean(test_results),statistics.mean(r2_results),statistics.mean(mse_results),statistics.mean(rmse_results)]]
-            variances = [["Variances",statistics.variance(train_results),statistics.variance(valid_results),statistics.variance(test_results),statistics.variance(r2_results),statistics.variance(mse_results),statistics.variance(rmse_results)]]
+            means = [["Mean", round(statistics.mean(train_results), 4), round(statistics.mean(valid_results), 4), round(statistics.mean(test_results), 4), statistics.mean(r2_results), statistics.mean(mse_results),statistics.mean(rmse_results)]]
+            variances = [["Variance", round(statistics.variance(train_results), 4) ,round(statistics.variance(valid_results), 4), round(statistics.variance(test_results), 4), statistics.variance(r2_results),statistics.variance(mse_results),statistics.variance(rmse_results)]]
 
         else:
 
-            means = [["Means",train_results[0],valid_results[0],test_results[0],r2_results[0],mse_results[0],rmse_results[0]]]
-            variances = [["Variances",train_results[0],valid_results[0],test_results[0],r2_results[0],mse_results[0],rmse_results[0]]]
+            means = [["Mean", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4),r2_results[0],mse_results[0],rmse_results[0]]]
+            variances = [["Variance", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4), r2_results[0],mse_results[0],rmse_results[0]]]
 
-        ff = open(self.setup_args.RESULT_PATH + "/" + str(self.setup_args.id) + '.csv', 'w')
+        ff = open(os.path.join(self.setup_args.RESULT_PATH, f"{str(self.setup_args.id)}.csv"), 'w')
         ff.close()
 
-        with open(self.setup_args.RESULT_PATH + "/" + str(self.setup_args.id) + '.csv', 'w', encoding="UTF8", newline='') as f:
+        with open(os.path.join(self.setup_args.RESULT_PATH, f"{str(self.setup_args.id)}.csv"), 'w', encoding="UTF8", newline='') as f:
             writer = csv.writer(f)
 
             writer.writerow(header)
