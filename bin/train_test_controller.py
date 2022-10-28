@@ -32,6 +32,7 @@ setup_args.use_fold = parser_args.fold
 print(setup_args.use_fold )
 
 
+# This is NOT for sure, loss can change inside the class
 setup_args.criterion = torch.nn.MSELoss()
 setup_args.print_every_epoch = 1
 setup_args.plot_result = True

@@ -357,6 +357,8 @@ def general_parser() -> argparse.Namespace:
         default= ["sum","mean"], # "sum", "mean", "min", "max", "var" and "std".
         metavar='AGR',
         help= "aggregator list for PNAConv"
+
+    
     )
 
     parser.add_argument(
@@ -376,6 +378,13 @@ def general_parser() -> argparse.Namespace:
         default= True,
         metavar='F',
         help='Perform train/val/test or n-fold x-val (--fold, --no-fold),')
+    parser.add_argument(
+        '--label',
+        type= str,
+        default= "grade", # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
+        metavar='LBL',
+        help='Which property of the dataset will be used as label')
+
     
 
 

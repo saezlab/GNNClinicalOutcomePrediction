@@ -1,3 +1,5 @@
+from cProfile import label
+from sklearn.metrics import accuracy_score
 import torch
 from model import CustomGCN
 from dataset import TissueDataset
@@ -45,8 +47,18 @@ class trainer_tester:
         each fold, saves them under the 'folds_dict' dictionary
         """
 
-        self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
+        self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"),wanted_label=self.parser_args.label)
         self.dataset = self.dataset.shuffle()
+
+        # TODO COMPLETE THESE
+        self.label_type = "regression" # regression, classification # TODO EXTRACT THIS
+
+        # TODO This is a bad design choice, CHOOSE a side controller or here
+        if self.label_type == "classification":
+            self.setup_args.criterion = torch.nn.CrossEntropyLoss()
+
+        self.num_classes = None
+
         self.samplers = custom_tools.k_fold_ttv(self.dataset, 
             T2VT_ratio=self.setup_args.T2VT_ratio,
             V2T_ratio=self.setup_args.V2T_ratio)
@@ -118,7 +130,9 @@ class trainer_tester:
                     dropout=self.parser_args.dropout,
                     aggregators=self.parser_args.aggregators,
                     scalers=self.parser_args.scalers,
-                    deg = deg # Comes from data not hyperparameter
+                    deg = deg, # Comes from data not hyperparameter
+                    num_classes = self.num_classes,
+                    label_type = self.label_type
                         ).to(self.device)
 
         return model
@@ -196,7 +210,7 @@ class trainer_tester:
             
             label_list = [str(fold_dict["fold"]) + "-" + label]*len(clinical_type_list)
             df = pd.DataFrame(list(zip(pid_list, img_list, true_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, label_list)),
-                columns =["Patient ID","Image Number", 'OS Month (log)', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Fold#-Set"])
+                columns =["Patient ID","Image Number", 'True Value', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Fold#-Set"])
             
             return total_loss, df
         else:
@@ -235,10 +249,14 @@ class trainer_tester:
             validation_loss, df_val= self.test(fold_dict, "validation_loader", "validation", self.setup_args.plot_result)
             test_loss, df_test = self.test(fold_dict, "test_loader", "test", self.setup_args.plot_result)
             list_ct = list(set(df_train["Clinical Type"]))
-            r2_score = round(r_squared_score(df_val['OS Month (log)'], df_val['Predicted']),3)
-            mse_score = round(mse(df_val['OS Month (log)'], df_val['Predicted']),3)
-            rmse_score = round(rmse(df_val['OS Month (log)'], df_val['Predicted']),3)
-            
+            if self.label_type == "regression":
+                accuracy_score = accuracy_score(df_val["True Value"], df_val['Predicted'])
+                roc_auc_score = roc_auc_score(df_val["True Value"], df_val['Predicted'])
+            elif self.label_type == "classification":
+                r2_score = r_squared_score(df_val['True Value'], df_val['Predicted'])
+                mse_score = mse(df_val['True Value'], df_val['Predicted'])
+                rmse_score = rmse(df_val['True Value'], df_val['Predicted'])
+                
                 
             df2 = pd.concat([df_train, df_val, df_test])
             if fold_dict["fold"] == 1:
