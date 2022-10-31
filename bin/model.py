@@ -147,6 +147,8 @@ class CustomGCN(torch.nn.Module):
                     self.ff_layers.append(Linear(self.ff_hidden_neurons, self.ff_hidden_neurons))
                     self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
                 
+
+                # WARN add final layer size change
                 self.ff_layers.append(Linear(self.ff_hidden_neurons, 1))
 
         else:
@@ -174,7 +176,7 @@ class CustomGCN(torch.nn.Module):
                     self.ff_layers.append(Linear(self.ff_hidden_neurons, self.ff_hidden_neurons))
                     self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
                 
-                self.ff_layers.append(Linear(self.ff_hidden_neurons, self.num_ff_final))
+                self.final_ff_layer = Linear(self.ff_hidden_neurons, self.num_ff_final)
 
     
     # Helper function to avoid getting keyError
@@ -223,6 +225,10 @@ class CustomGCN(torch.nn.Module):
                     x = F.relu(ff_l(x))
                     # x = h + x  # residual#
                     x = F.dropout(x, self.dropout, training=self.training)
+                if self.label_type == "regression":
+                    x = F.relu(self.final_ff_layer(x))
+                else:
+                    x = self.final_ff_layer(x)
 
                 return x, alpha
 
@@ -237,9 +243,16 @@ class CustomGCN(torch.nn.Module):
 
             # Classification according to ppoling
             for ff_l in self.ff_layers:
+                # TODO Upon seeing it is CLASSIFICATION and CHECK if cross entropy uses ACTIVATION function
+                # REMEMBER TO APPLY IT TO THE LAST LAYER
                 x = F.relu(ff_l(x))
                 # x = h + x  # residual#
                 x = F.dropout(x, self.dropout, training=self.training)
+
+            if self.label_type == "regression":
+                    x = F.relu(self.final_ff_layer(x))
+            else:
+                    x = self.final_ff_layer(x)
 
             return x
 
