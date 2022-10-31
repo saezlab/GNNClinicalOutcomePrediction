@@ -1,5 +1,5 @@
 from cProfile import label
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score
 import torch
 from model import CustomGCN
 from dataset import TissueDataset
@@ -71,7 +71,10 @@ class trainer_tester:
             self.unique_classes = torch.unique(self.dataset.data.tumor_grade)
             self.num_classes = len(self.unique_classes)
 
-        
+        self.label_data = self.dataset.data.y
+
+        self.LT_ToIndex, self.LT_FromIndex = custom_tools.extract_LT(self.dataset.data.y)
+        self.dataset.data.y = custom_tools.convert_wLT(self.dataset.data.y,self.LT_ToIndex)
 
         self.dataset = self.dataset.shuffle()
 
@@ -167,7 +170,8 @@ class trainer_tester:
         fold_dict["model"].train()
         total_loss = 0.0
         pred_list = []
-        out_list = []
+        # WARN Disabled it but IDK what it does
+        #out_list = []
         
         for data in fold_dict["train_loader"]:  # Iterate in batches over the training dataset.
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
@@ -175,7 +179,7 @@ class trainer_tester:
             loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
         
             loss.backward()  # Derive gradients.
-            out_list.extend([val.item() for val in out.squeeze()])
+            #out_list.extend([val.item() for val in out.squeeze()])
             
             pred_list.extend([val.item() for val in data.y])
 
@@ -213,7 +217,11 @@ class trainer_tester:
                 total_loss += float(loss.item())
 
                 true_list.extend([round(val.item(),6) for val in data.y])
-                pred_list.extend([round(val.item(),6) for val in out.squeeze()])
+                # WARN Correct usage of "max" ?
+                if self.label_type == "regression":
+                    pred_list.extend([round(max(val.item()),6) for val in out.squeeze()])
+                else:
+                    pred_list.extend([custom_tools.argmax(val) for val in out.squeeze()])
                 #pred_list.extend([val.item() for val in data.y])
                 tumor_grade_list.extend([val.item() for val in data.tumor_grade])
                 clinical_type_list.extend([val for val in data.clinical_type])
@@ -274,7 +282,9 @@ class trainer_tester:
                 rmse_score = rmse(df_val['True Value'], df_val['Predicted'])
 
             elif self.label_type == "classification":
-                accuracy_score = accuracy_score(df_val["True Value"], df_val['Predicted'])              
+                accuracy_Score = accuracy_score(df_val["True Value"], df_val['Predicted'])
+                precision_Score = precision_score(df_val["True Value"], df_val['Predicted'],average="micro")   
+                f1_Score = f1_score(df_val["True Value"], df_val['Predicted'],average="micro")              
                 
             df2 = pd.concat([df_train, df_val, df_test])
             if fold_dict["fold"] == 1:
@@ -291,15 +301,19 @@ class trainer_tester:
             print(f"For fold:  {fold_dict['fold']}")
             print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
 
+            val_df = train_pred_df.loc[(train_pred_df['Fold#-Set'].str[2:] == "validation")]
 
             if self.label_type == "regression": 
                 self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, r2_score, mse_score, rmse_score])
+                val_r2_score = r_squared_score(val_df['OS Month (log)'], val_df['Predicted'])
+                
 
             elif self.label_type == "classification":
-                self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, accuracy_score])
+                self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, accuracy_Score,precision_Score,f1_Score])
+                val_r2_score = 0
         
-        val_df = train_pred_df.loc[(train_pred_df['Fold#-Set'].str[2:] == "validation")]
-        val_r2_score = r_squared_score(val_df['OS Month (log)'], val_df['Predicted'])
+        
+
     
         if val_r2_score>0.6:
             plotting.plot_pred_vs_real(train_pred_df, self.parser_args.en, self.setup_args.id)
@@ -315,7 +329,7 @@ class trainer_tester:
     def save_results(self):
         """Found results are saved into CSV file
         """
-        header = ["fold_number","train","validation","test","r2","mse","rmse"]
+        
 
         train_results = []
         valid_results = []
@@ -324,6 +338,8 @@ class trainer_tester:
         mse_results = []
         rmse_results = []
         accuracy_results =[] 
+        precision_results =[] 
+        f1_results =[] 
 
         if self.label_type == "regression":
             for _,train,valid,test,r2,mse,rmse in self.results:
@@ -336,14 +352,19 @@ class trainer_tester:
                 rmse_results.append(rmse)
 
         elif self.label_type == "classification":
-            for _,train,valid,test,accuracy in self.results:
+            for _,train,valid,test,accuracy,precision,f1 in self.results:
                 train_results.append(train)
                 valid_results.append(valid)
                 test_results.append(test)
 
                 accuracy_results.append(accuracy)
+                precision_results.append(precision)
+                f1_results.append(f1)
 
         if self.label_type == "regression":
+
+            header = ["fold_number","train","validation","test","r2","mse","rmse"]
+
             if self.setup_args.use_fold:
                 means = [["Mean", round(statistics.mean(train_results), 4), round(statistics.mean(valid_results), 4), round(statistics.mean(test_results), 4), statistics.mean(r2_results), statistics.mean(mse_results),statistics.mean(rmse_results)]]
                 variances = [["Variance", round(statistics.variance(train_results), 4) ,round(statistics.variance(valid_results), 4), round(statistics.variance(test_results), 4), statistics.variance(r2_results),statistics.variance(mse_results),statistics.variance(rmse_results)]]
@@ -354,14 +375,17 @@ class trainer_tester:
                 variances = [["Variance", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4), r2_results[0],mse_results[0],rmse_results[0]]]
 
         elif self.label_type == "classification":
+
+            header = ["fold_number","train","validation","accuracy","precision","f1"]
+
             if self.setup_args.use_fold:
-                means = [["Mean", round(statistics.mean(train_results), 4), round(statistics.mean(valid_results), 4), round(statistics.mean(test_results), 4), statistics.mean(accuracy_results)]]
-                variances = [["Variance", round(statistics.variance(train_results), 4) ,round(statistics.variance(valid_results), 4), round(statistics.variance(test_results), 4), statistics.variance(accuracy_results)]]
+                means = [["Mean", round(statistics.mean(train_results), 4), round(statistics.mean(valid_results), 4), round(statistics.mean(test_results), 4), statistics.mean(accuracy_results), statistics.mean(precision_results), statistics.mean(f1_results)]]
+                variances = [["Variance", round(statistics.variance(train_results), 4) ,round(statistics.variance(valid_results), 4), round(statistics.variance(test_results), 4), statistics.variance(accuracy_results), statistics.mean(precision_results), statistics.mean(f1_results)]]
 
             else:
 
-                means = [["Mean", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4),accuracy_results[0]]]
-                variances = [["Variance", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4), accuracy_results[0]]]
+                means = [["Mean", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4),accuracy_results[0],precision_results[0],f1_results[0]]]
+                variances = [["Variance", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4), accuracy_results[0],precision_results[0],f1_results[0]]]
 
 
         ff = open(os.path.join(self.setup_args.RESULT_PATH, f"{str(self.setup_args.id)}.csv"), 'w')

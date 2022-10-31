@@ -412,3 +412,20 @@ def create_directories(lst_path):
     """
     for path in lst_path:
         Path(path).mkdir(parents=True, exist_ok=True)
+
+def extract_LT(list):
+    unique_elements = set(list)
+    ToIndex = {}
+    ToElement = {}
+    for i, element in enumerate(unique_elements):
+        ToIndex[str(element)] = i
+        ToElement[str(i)] = element
+
+    return (ToIndex,ToElement)
+
+def convert_wLT(theList,LT) -> list:
+    converted_list = list(map(lambda x:LT[str(x)], theList))
+    return converted_list
+
+def argmax(x):
+    return max(range(len(x)), key=lambda i: x[i])
