@@ -11,6 +11,7 @@ from torch_geometric.data import Data
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import k_hop_subgraph, to_networkx
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+import pytorch_lightning as pl
 
 EPS = 1e-15
 from torch_geometric.nn import GNNExplainer as GNNE
@@ -22,6 +23,7 @@ import numpy as np
 
 from sklearn.linear_model import (LassoLars, Lasso,
                                   LinearRegression, Ridge)
+
 
 
 class GNNExplainer(torch.nn.Module):
@@ -77,8 +79,9 @@ class GNNExplainer(torch.nn.Module):
     """
 
     coeffs = {
-        'edge_size': 0.005,
-        'edge_reduction': 'sum',
+        
+        'edge_size': 0.005, # default: 0.005
+        'edge_reduction': 'mean', # default: sum
         'node_feat_size': 1.0,
         'node_feat_reduction': 'mean',
         'edge_ent': 1.0,
@@ -89,14 +92,17 @@ class GNNExplainer(torch.nn.Module):
                 num_hops: Optional[int] = None, return_type: str = 'log_prob',
                  feat_mask_type: str = 'feature', allow_edge_mask: bool = True,
                  log: bool = True, weight_decay: float = 0.001,
-                 factor: float = 0.5, patience: int = 5, min_lr: float = 0.00002, **kwargs):
+                 factor: float = 0.5, patience: int = 5, min_lr: float = 0.00002, seed=42, **kwargs):
                 #weight_decay: float = 0.001,
                 #factor: float = 0.5, patience: int = 5, min_lr: float = 0.00002,   
                 #feat_mask_type: str = 'feature', allow_edge_mask: bool = True,
                 #log: bool = True, **kwargs):
         super().__init__()
+        if seed != 42:
+            pl.seed_everything(seed)
         assert return_type in ['log_prob', 'prob', 'raw', 'regression']
         assert feat_mask_type in ['feature', 'individual_feature', 'scalar']
+
         self.model = model
         self.epochs = epochs
         self.lr = lr
@@ -208,6 +214,7 @@ class GNNExplainer(torch.nn.Module):
         loss = loss + self.coeffs["node_feat_size"] * node_feat_reduce(m)
         ent = -m * torch.log(m + EPS) - (1 - m) * torch.log(1 - m + EPS)
         loss = loss + self.coeffs["node_feat_ent"] * ent.mean()
+        # print("Loss, :",loss, self.lr)
 
         return loss
 
@@ -393,7 +400,7 @@ class GNNExplainer(torch.nn.Module):
 
     def visualize_subgraph(self, node_idx, edge_index, edge_mask, y=None,
                            threshold=None, edge_y=None, node_alpha=None,
-                           seed=10, **kwargs):
+                           seed=10, my_pos=None, **kwargs):
         r"""Visualizes the subgraph given an edge mask
         :attr:`edge_mask`.
 
@@ -441,7 +448,7 @@ class GNNExplainer(torch.nn.Module):
                 num_nodes=None, flow=self.__flow__())
 
         edge_mask = edge_mask[hard_edge_mask]
-
+        print(edge_mask)
         if threshold is not None:
             edge_mask = (edge_mask >= threshold).to(torch.float)
 
@@ -478,28 +485,31 @@ class GNNExplainer(torch.nn.Module):
 
         pos = nx.spring_layout(G, seed=seed)
         ax = plt.gca()
-        for source, target, data in G.edges(data=True):
+        """for source, target, data in G.edges(data=True):
             ax.annotate(
-                '', xy=pos[target], xycoords='data', xytext=pos[source],
-                textcoords='data', arrowprops=dict(
+                '', xy=my_pos[target], # xycoords='data', # xytext=pos[source],
+                # textcoords='data', 
+                arrowprops=dict(
                     arrowstyle="->",
                     alpha=max(data['att'], 0.1),
                     color=data['edge_color'],
                     shrinkA=sqrt(node_kwargs['node_size']) / 2.0,
                     shrinkB=sqrt(node_kwargs['node_size']) / 2.0,
                     connectionstyle="arc3,rad=0.1",
-                ))
+                ))"""
 
         if node_alpha is None:
-            nx.draw_networkx_nodes(G, pos, node_color=y.tolist(),
-                                   **node_kwargs)
+            nx.draw_networkx_nodes(G, my_pos, node_color=y.tolist(), node_size=1,)#,
+                                   # **node_kwargs)
+            nx.draw_networkx_edges(G, pos=my_pos)
         else:
             node_alpha_subset = node_alpha[subset]
             assert ((node_alpha_subset >= 0) & (node_alpha_subset <= 1)).all()
-            nx.draw_networkx_nodes(G, pos, alpha=node_alpha_subset.tolist(),
-                                   node_color=y.tolist(), **node_kwargs)
+            nx.draw_networkx_nodes(G, my_pos, alpha=node_alpha_subset.tolist(),
+                                   node_color=y.tolist(), node_size=1, **node_kwargs)
+            nx.draw_networkx_edges(G, pos=my_pos)
 
-        nx.draw_networkx_labels(G, pos, **label_kwargs)
+        # qnx.draw_networkx_labels(G, my_pos)
 
         return ax, G
 

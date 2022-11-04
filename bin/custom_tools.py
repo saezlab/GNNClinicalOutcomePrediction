@@ -134,7 +134,7 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
                     scalers=args["scalers"],
                     deg = deg
                         )
-        
+
         model.load_state_dict(torch.load(path_model))
         model.eval()
 

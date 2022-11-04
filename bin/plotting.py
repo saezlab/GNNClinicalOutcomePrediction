@@ -7,7 +7,7 @@ import torch
 from torch_geometric import utils
 import networkx as nx
 from dataset import TissueDataset
-
+from scipy.spatial import Voronoi, voronoi_plot_2d
 from evaluation_metrics import r_squared_score, mse, rmse
 
 
@@ -113,18 +113,136 @@ def plot_pred_vs_real(df, exp_name, fl_name):
 
     plt.savefig(os.path.join(PLOT_PATH, exp_name, f"{fl_name}.png"))
 
-def plot_subgraph(test_graph, path, file_name, coordinates_arr, edges_idx):
+
+def plot_graph(test_graph, path, file_name, coordinates_arr):
+    original_graph = utils.to_networkx(test_graph)
+    pos_1 = coordinates_arr
+    nx.draw_networkx_nodes(original_graph,  pos=pos_1, node_size=10)
+    nx.draw_networkx_labels(original_graph, pos=pos_1, font_size=4)
+    nx.draw_networkx_edges(original_graph,  pos=pos_1, arrows=False)
+    plt.savefig(os.path.join(path, file_name+"_original"), dpi = 300)
+
+def plot_subgraph(test_graph, path, file_name, coordinates_arr, edges_idx, cc_threshold = 5):
 
     options = ['r','b','y','g']
     colors_edge = []
+    pos_1 = coordinates_arr
+    
+    original_graph = utils.to_networkx(test_graph)
+
+    plt.clf()
+    explained_graph = nx.Graph()
+    explained_edges = []
+    explained_graph.add_nodes_from(original_graph.nodes)
+    for ind, val in enumerate(edges_idx):
+        if val.item():
+            explained_edges.append((test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()))
+    
+    print(f"Number of explained edges: {len(explained_edges)}")
+
+    explained_graph.add_edges_from(list(explained_edges))
+    nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
+    nx.draw_networkx_edges(explained_graph,  pos=pos_1)
+    #print(explained_graph.edges)
+    plt.savefig(os.path.join(path, file_name+"onlynodes"), dpi = 300)
+    plt.clf()
+
+    for component in list(nx.connected_components(explained_graph)):
+        if len(component)<=cc_threshold:
+            for node in component:
+                explained_graph.remove_node(node)
+    nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
+    nx.draw_networkx_edges(explained_graph,  pos=pos_1)
+    plt.savefig(os.path.join(path, file_name+"removedsmallcc"), dpi = 300)
+    plt.clf()
+    
+    colors_node = ['b']*len(original_graph.nodes)
+    for ind, val in enumerate(edges_idx):
+        #for g_exp in gexp_edges:
+        if val.item():
+            colors_edge.append(options[0])
+            n1, n2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
+            colors_node[n1]=options[0]
+            colors_node[n2]=options[0]
+        else:
+            colors_edge.append(options[1])   
+
+    nx.draw_networkx_nodes(original_graph, node_color=colors_node, pos=pos_1, node_size=10)
+    nx.draw_networkx_edges(original_graph, edge_color=colors_edge, pos=pos_1,  arrows=False)
+    plt.savefig(os.path.join(path, file_name), dpi = 300)
+    plt.clf()
+
+
+def plot_khop(test_graph, path, file_name, coordinates_arr):
+    # The method returns (1) the nodes involved in the subgraph, (2) the filtered edge_index connectivity, (3) the mapping from node indices in node_idx to their new location, and (4) the edge mask indicating which edges were preserved.
+    subset_nodes, subset_edge_index, mapping, edge_mask = utils.k_hop_subgraph(6, 2, test_graph.edge_index)
+    original_graph = utils.to_networkx(test_graph)
+    # original_edges = list(original_graph.edges)
+    # print("khop subset_edge_index:", subset_edge_index)
+    pos_1 = coordinates_arr
+    explained_graph = nx.Graph()
+    explained_edges = []
+    explained_graph.add_nodes_from(original_graph.nodes)
+    
+    for ind, val in enumerate(edge_mask):
+        if val.item():
+            # print(original_edges[ind])
+            explained_edges.append((test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()))
+
+    explained_graph.add_edges_from(list(explained_edges))
+    nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
+    nx.draw_networkx_labels(explained_graph, pos=pos_1, font_size=4)
+    nx.draw_networkx_edges(explained_graph,  pos=pos_1)
+    plt.savefig(os.path.join(path, file_name+"khop"), dpi = 300)
+    plt.clf()
+    
+    # print(test_graph.edge_index.shape)
     
 
-    g = utils.to_networkx(test_graph, to_undirected=True)
+
+
+
+def plot_voronoi(test_graph, path, file_name, coordinates_arr, edges_idx, cc_threshold = 5):
+
+    options = ['r','b','y','g']
+    colors_edge = []
+    pos_1 = coordinates_arr
+    
+    original_graph = utils.to_networkx(test_graph)
+    original_edges = list(original_graph.edges)
+    
+    explained_graph = nx.Graph()
+    explained_edges = []
+    explained_graph.add_nodes_from(original_graph.nodes)
+    for ind, val in enumerate(edges_idx):
+        if val.item():
+            explained_edges.append(original_edges[ind])
+
+    vor = Voronoi(coordinates_arr)
+    fig = voronoi_plot_2d(vor, show_vertices=False, line_colors='orange', line_width=1, line_alpha=0.6, point_size=2)
+    plt.savefig(os.path.join(path, file_name+"voronoi"), dpi = 100)
+    plt.clf()
+    
+    explained_graph.add_edges_from(list(explained_edges))
+    nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
+    nx.draw_networkx_edges(explained_graph,  pos=pos_1)
+    plt.savefig(os.path.join(path, file_name+"onlynodes"), dpi = 100)
+    plt.clf()
+
+    for component in list(nx.connected_components(explained_graph)):
+        if len(component)<=cc_threshold:
+            for node in component:
+                explained_graph.remove_node(node)
+    nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
+    nx.draw_networkx_edges(explained_graph,  pos=pos_1)
+    plt.savefig(os.path.join(path, file_name+"removedsmallcc"), dpi = 100)
+    plt.clf()
     
 
-    colors_node = ['b']*len(g.nodes)
 
-    for id,e_idx in enumerate(g.edges):
+    colors_node = ['b']*len(original_graph.nodes)
+
+    for id,e_idx in enumerate(original_graph.edges):
         #for g_exp in gexp_edges:
             if edges_idx[id]:
                 colors_edge.append(options[0])
@@ -133,12 +251,13 @@ def plot_subgraph(test_graph, path, file_name, coordinates_arr, edges_idx):
                 colors_node[n2]=options[0]
             else:
                 colors_edge.append(options[1])   
-                
 
-    pos_1 = coordinates_arr
-
-    nx.draw_networkx_nodes(g, node_color=colors_node, pos=pos_1, node_size=1)
-    nx.draw_networkx_edges(g, edge_color=colors_edge, pos=pos_1)
-    
-    plt.savefig(os.path.join(path, file_name), dpi=100)
+    nx.draw_networkx_nodes(original_graph, node_color=colors_node, pos=pos_1, node_size=10)
+    nx.draw_networkx_edges(original_graph, edge_color=colors_edge, pos=pos_1)
+    # graphs = list(nx.connected_component(g))
+    # print(graphs)
+    # graphs_m = max(nx.connected_component(g), key=len)
+    # print("largest,", graphs_m)
+    plt.savefig(os.path.join(path, file_name), dpi = 100)
     plt.clf()
+    

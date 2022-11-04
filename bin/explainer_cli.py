@@ -3,12 +3,18 @@ import torch
 import numpy as np
 import custom_tools as custom_tools
 import pickle
+from torch_geometric import utils
 import plotting as plotting
 from tqdm import tqdm   
+import matplotlib.pyplot as plt
 import torch_geometric as pyg
 from explainer import GNNExplainer
 from explainer_base import GNNExplainer
+import largest_connected_component
 from data_processing import OUT_DATA_PATH
+import networkx as nx
+import pytorch_lightning as pl
+
 
 device = custom_tools.get_device()
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
@@ -19,7 +25,11 @@ RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 class Explainer:
  
     # init method or constructor
-    def __init__(self, model, dataset = None):
+    def __init__(self, model,dataset = None, seed=42):
+
+        if seed!=42:
+            pl.seed_everything(seed)
+        self.seed = seed
         self.model = model
         self.dataset = dataset
 
@@ -38,35 +48,43 @@ class Explainer:
         """
         explainer = GNNExplainer(self.model, epochs = epoch, lr = lr,
                                     return_type = return_type, feat_mask_type = feat_mask_type).to(device)
-        
+        count = 0
         for test_graph in tqdm(self.dataset):
 
             with open(os.path.join(RAW_DATA_PATH, f'{test_graph.img_id}_{test_graph.p_id}_coordinates.pickle'), 'rb') as handle:
                 coordinates_arr = pickle.load(handle)
-            result = explainer.explain_graph(test_graph.x.to(device), test_graph.edge_index.to(device))
             
-            (feature_mask, edge_mask) = result
+            # number of nodes
+            # test_graph.num_nodes g.number_of_nodes() g.number_of_edges()
+
+            (feature_mask, edge_mask) = explainer.explain_graph(test_graph.x.to(device), test_graph.edge_index.to(device))
+
+            edgeid_to_mask_dict = dict()
+            for ind, m_val in enumerate(edge_mask):
+                # print(ind, m_val)
+                node_id1, node_id2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
+                edgeid_to_mask_dict[(node_id1, node_id2)] = m_val.item()
+                
             edge_thr = np.quantile(np.array(edge_mask.cpu()), 0.90)
-            edge_thr2 = np.quantile(np.array(edge_mask.cpu()), 0.01)
-            edge_thr3 = np.quantile(np.array(edge_mask.cpu()), 0.10)
-            edge_thr4 = np.quantile(np.array(edge_mask.cpu()), 0.50)
-            edge_thr5 = np.quantile(np.array(edge_mask.cpu()), 0.70)
+
             edges_idx = edge_mask > edge_thr
+            edge_mask_arr = np.array(edge_mask.cpu())
 
-            print(edge_mask)
-            print(edge_thr2)
-            print(edge_thr3)
-            print(edge_thr4)
-            print(edge_thr5)
-            explanation = pyg.data.Data(test_graph.x, test_graph.edge_index[:, edges_idx], pos= coordinates_arr)
-            explanation = pyg.transforms.RemoveIsolatedNodes()(pyg.transforms.ToUndirected()(explanation))
-
+            print(f"Edge thr: {edge_thr:.3f}\tMin: {np.min(edge_mask_arr)}\tMax: {np.max(edge_mask_arr):.3f}\tMin: {np.min(edge_mask_arr):.3f}")
+            print(f"{test_graph.img_id}_{test_graph.p_id}")
+            
             plotting.plot_subgraph(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr, edges_idx )
-            print(edge_thr)
+            plotting.plot_khop(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr)
+            return edges_idx
+            break
+            count +=1
+            if count ==10:
+                break
+        
+
             
             
 
-    
     def explain_by_lime(self, epoch, return_type, feat_mask_type):
         ## TODO: Include lime implementation 
         return
