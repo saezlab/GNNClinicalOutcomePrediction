@@ -173,7 +173,7 @@ def plot_subgraph(test_graph, path, file_name, coordinates_arr, edges_idx, cc_th
     plt.clf()
 
 
-def plot_khop(test_graph, path, file_name, coordinates_arr):
+def plot_khop(test_graph, path, file_name, coordinates_arr, edgeid_to_mask_dict):
     # The method returns (1) the nodes involved in the subgraph, (2) the filtered edge_index connectivity, (3) the mapping from node indices in node_idx to their new location, and (4) the edge mask indicating which edges were preserved.
     subset_nodes, subset_edge_index, mapping, edge_mask = utils.k_hop_subgraph(6, 2, test_graph.edge_index)
     original_graph = utils.to_networkx(test_graph)
@@ -184,6 +184,7 @@ def plot_khop(test_graph, path, file_name, coordinates_arr):
     explained_edges = []
     explained_graph.add_nodes_from(original_graph.nodes)
     
+    total_score=0.0
     for ind, val in enumerate(edge_mask):
         if val.item():
             # print(original_edges[ind])

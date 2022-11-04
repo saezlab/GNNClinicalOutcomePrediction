@@ -74,7 +74,7 @@ class Explainer:
             print(f"{test_graph.img_id}_{test_graph.p_id}")
             
             plotting.plot_subgraph(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr, edges_idx )
-            plotting.plot_khop(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr)
+            plotting.plot_khop(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr, edgeid_to_mask_dict)
             return edges_idx
             break
             count +=1
