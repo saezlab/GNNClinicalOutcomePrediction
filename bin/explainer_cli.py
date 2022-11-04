@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-import custom_tools as custom_tools
+import custom_tools
 import pickle
 from torch_geometric import utils
 import plotting as plotting
@@ -56,6 +56,7 @@ class Explainer:
             
             # number of nodes
             # test_graph.num_nodes g.number_of_nodes() g.number_of_edges()
+            print(test_graph.edge_index)
 
             (feature_mask, edge_mask) = explainer.explain_graph(test_graph.x.to(device), test_graph.edge_index.to(device))
 
@@ -64,7 +65,8 @@ class Explainer:
                 # print(ind, m_val)
                 node_id1, node_id2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
                 edgeid_to_mask_dict[(node_id1, node_id2)] = m_val.item()
-                
+            
+
             edge_thr = np.quantile(np.array(edge_mask.cpu()), 0.90)
 
             edges_idx = edge_mask > edge_thr
@@ -72,11 +74,13 @@ class Explainer:
 
             print(f"Edge thr: {edge_thr:.3f}\tMin: {np.min(edge_mask_arr)}\tMax: {np.max(edge_mask_arr):.3f}\tMin: {np.min(edge_mask_arr):.3f}")
             print(f"{test_graph.img_id}_{test_graph.p_id}")
+            node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict)
             
+            plotting.plot_node_importances(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}_node_importances", coordinates_arr, node_to_score_dict)
             plotting.plot_subgraph(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr, edges_idx )
             plotting.plot_khop(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr, edgeid_to_mask_dict)
-            return edges_idx
-            break
+            # return edges_idx
+            
             count +=1
             if count ==10:
                 break

@@ -3,8 +3,10 @@ import torch
 import json
 import pickle
 import secrets
+import networkx as nx
 from pathlib import Path
 from model import CustomGCN
+from torch_geometric import utils
 from sklearn.model_selection import KFold
 
 
@@ -429,3 +431,30 @@ def convert_wLT(theList,LT) -> list:
 
 def argmax(x):
     return max(range(len(x)), key=lambda i: x[i])
+
+def get_khop_node_score(test_graph, node_id, edgeid_to_mask_dict, n_of_hops=2):
+    subset_nodes, subset_edge_index, mapping, edge_mask = utils.k_hop_subgraph(node_id, n_of_hops, test_graph.edge_index)
+    explained_edges = []
+    
+    total_score=0.0
+    for ind, val in enumerate(edge_mask):
+        if val.item():
+            # print(original_edges[ind])
+            n1, n2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
+            explained_edges.append((n1,n2))
+            total_score += edgeid_to_mask_dict[(n1,n2)]
+            # print((n1,n2), edgeid_to_mask_dict[(n1,n2)])
+    
+    total_score = total_score/len(explained_edges)
+    return total_score
+
+def get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops=2):
+    original_graph = utils.to_networkx(test_graph)
+    node_list= original_graph.nodes
+    nodeid_score_dict = dict()
+
+    for node_id in node_list:
+        node_score = get_khop_node_score(test_graph, node_id, edgeid_to_mask_dict, n_of_hops)
+        nodeid_score_dict[node_id] = node_score
+
+    return nodeid_score_dict

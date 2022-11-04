@@ -175,7 +175,7 @@ def plot_subgraph(test_graph, path, file_name, coordinates_arr, edges_idx, cc_th
 
 def plot_khop(test_graph, path, file_name, coordinates_arr, edgeid_to_mask_dict):
     # The method returns (1) the nodes involved in the subgraph, (2) the filtered edge_index connectivity, (3) the mapping from node indices in node_idx to their new location, and (4) the edge mask indicating which edges were preserved.
-    subset_nodes, subset_edge_index, mapping, edge_mask = utils.k_hop_subgraph(6, 2, test_graph.edge_index)
+    subset_nodes, subset_edge_index, mapping, edge_mask = utils.k_hop_subgraph(0, 2, test_graph.edge_index)
     original_graph = utils.to_networkx(test_graph)
     # original_edges = list(original_graph.edges)
     # print("khop subset_edge_index:", subset_edge_index)
@@ -188,7 +188,12 @@ def plot_khop(test_graph, path, file_name, coordinates_arr, edgeid_to_mask_dict)
     for ind, val in enumerate(edge_mask):
         if val.item():
             # print(original_edges[ind])
-            explained_edges.append((test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()))
+            n1, n2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
+            explained_edges.append((n1,n2))
+            total_score += edgeid_to_mask_dict[(n1,n2)]
+            # print((n1,n2), edgeid_to_mask_dict[(n1,n2)])
+
+    print(f"Total score: {total_score/len(explained_edges)}")
 
     explained_graph.add_edges_from(list(explained_edges))
     nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
@@ -262,3 +267,14 @@ def plot_voronoi(test_graph, path, file_name, coordinates_arr, edges_idx, cc_thr
     plt.savefig(os.path.join(path, file_name), dpi = 100)
     plt.clf()
     
+
+def plot_node_importances(test_graph, path, file_name, coordinates_arr, node_score_dict):
+    original_graph = utils.to_networkx(test_graph)
+
+    color_list = []
+    for n_id in original_graph.nodes:
+        color_list.append(node_score_dict[n_id])
+
+    nx.draw(original_graph, pos=coordinates_arr, node_color=color_list, node_size=80, cmap=plt.cm.afmhot)
+    plt.savefig(os.path.join(path, file_name), dpi = 300)
+    plt.clf()
