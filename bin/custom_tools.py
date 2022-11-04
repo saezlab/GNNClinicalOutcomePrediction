@@ -357,6 +357,8 @@ def general_parser() -> argparse.Namespace:
         default= ["sum","mean"], # "sum", "mean", "min", "max", "var" and "std".
         metavar='AGR',
         help= "aggregator list for PNAConv"
+
+    
     )
 
     parser.add_argument(
@@ -376,6 +378,13 @@ def general_parser() -> argparse.Namespace:
         default= True,
         metavar='F',
         help='Perform train/val/test or n-fold x-val (--fold, --no-fold),')
+    parser.add_argument(
+        '--label',
+        type= str,
+        default= "treatment", # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
+        metavar='LBL',
+        help='Which property of the dataset will be used as label')
+
     
 
 
@@ -403,3 +412,20 @@ def create_directories(lst_path):
     """
     for path in lst_path:
         Path(path).mkdir(parents=True, exist_ok=True)
+
+def extract_LT(list):
+    unique_elements = set(list)
+    ToIndex = {}
+    ToElement = {}
+    for i, element in enumerate(unique_elements):
+        ToIndex[str(element)] = i
+        ToElement[str(i)] = element
+
+    return (ToIndex,ToElement)
+
+def convert_wLT(theList,LT) -> list:
+    converted_list = list(map(lambda x:LT[str(x)], theList))
+    return converted_list
+
+def argmax(x):
+    return max(range(len(x)), key=lambda i: x[i])
