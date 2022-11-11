@@ -24,7 +24,6 @@ model = custom_tools.load_model(f"{job_id}_SD", path = "../models/PNA_training_1
 
 dataset = TissueDataset(os.path.join(S_PATH,"../data"))
 
-
 dataset = dataset.shuffle()
 
 num_of_train = int(len(dataset)*0.80)
@@ -41,7 +40,7 @@ with open(os.path.join(RAW_DATA_PATH, f'{test_graph.img_id}_{test_graph.p_id}_co
 plotting.plot_khop(test_dataset[0], "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr,)"""
 
 
-random_seed_list = [42, 21, 1, 12, 123, 1234, 2, 23, 234, 2345]
+random_seed_list = [42] # , 21, 1, 12, 123, 1234, 2, 23, 234, 2345]
 all_edges_list = []
 for random_seed in random_seed_list:
     explainer = Explainer(model, test_dataset, seed=random_seed)

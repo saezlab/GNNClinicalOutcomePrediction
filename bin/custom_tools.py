@@ -3,12 +3,19 @@ import torch
 import json
 import pickle
 import secrets
+import argparse
+import numpy as np
+import pandas as pd
+import scanpy as sc
 import networkx as nx
 from pathlib import Path
 from model import CustomGCN
 from torch_geometric import utils
 from sklearn.model_selection import KFold
 
+S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
+OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
+RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 
 # K-Fold cross validation index creator function
 # Dataset idices and ratios must be supplied
@@ -53,7 +60,6 @@ def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False):
     return samplers
 
 
-
 def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curdir, "..", "models")):
     """
     Saves the pytoch model, has 3 modes.
@@ -95,6 +101,7 @@ def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curd
         torch.save(model, path_model)
 
     print(f"Model saved with session id: {fileName}!")
+
 
 def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args: dict = {}, deg = None):
     """Models the specified model and returns it
@@ -178,7 +185,6 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
         return model
 
 
-
 def get_device():
     """Returns the available device, default priority is "cuda"
 
@@ -198,6 +204,7 @@ def get_device():
 
     return device
 
+
 def save_dict_as_json(s_dict, file_name, path):
     """
     Save dictionary as a json file
@@ -205,6 +212,7 @@ def save_dict_as_json(s_dict, file_name, path):
 
     with open(os.path.join(path,file_name+".json"), "w") as write_file:
         json.dump(s_dict, write_file, indent=4)
+
 
 def load_json(file_path):
     """Loads the json file for given path
@@ -220,11 +228,13 @@ def load_json(file_path):
         l_dict = json.load(fp)
     return l_dict
 
+
 def save_pickle(obj, file_name: str, path =  os.curdir):
 
     pickle_out = open(os.path.join(path, file_name),"wb")
     pickle.dump(obj, pickle_out)
     pickle_out.close()
+
 
 def load_pickle(path_obj):
     pickle_in = open(path_obj,"rb")
@@ -239,7 +249,6 @@ def generate_session_id():
     """
     return secrets.token_urlsafe(16)  
 
-import argparse
 
 def general_parser() -> argparse.Namespace:
     """Used inside a file, makes the file able to parse CLI arguments.
@@ -405,6 +414,7 @@ def general_parser() -> argparse.Namespace:
 
     return args
 
+
 def create_directories(lst_path):
     """Create nested directories for the input paths
     
@@ -414,6 +424,7 @@ def create_directories(lst_path):
     """
     for path in lst_path:
         Path(path).mkdir(parents=True, exist_ok=True)
+
 
 def extract_LT(list):
     unique_elements = set(list)
@@ -425,14 +436,17 @@ def extract_LT(list):
 
     return (ToIndex,ToElement)
 
+
 def convert_wLT(theList,LT) -> list:
     converted_list = list(map(lambda x:LT[str(x)], theList))
     return converted_list
 
+
 def argmax(x):
     return max(range(len(x)), key=lambda i: x[i])
 
-def get_khop_node_score(test_graph, node_id, edgeid_to_mask_dict, n_of_hops=2):
+
+def get_khop_node_score(test_graph, node_id, edgeid_to_mask_dict, n_of_hops):
     subset_nodes, subset_edge_index, mapping, edge_mask = utils.k_hop_subgraph(node_id, n_of_hops, test_graph.edge_index)
     explained_edges = []
     
@@ -441,14 +455,16 @@ def get_khop_node_score(test_graph, node_id, edgeid_to_mask_dict, n_of_hops=2):
         if val.item():
             # print(original_edges[ind])
             n1, n2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
+            # if abs(edgeid_to_mask_dict[(n1,n2)] - edgeid_to_mask_dict[(n2,n1)]) < 0.5:
             explained_edges.append((n1,n2))
             total_score += edgeid_to_mask_dict[(n1,n2)]
-            # print((n1,n2), edgeid_to_mask_dict[(n1,n2)])
+                # print((n1,n2), edgeid_to_mask_dict[(n1,n2)])
     
     total_score = total_score/len(explained_edges)
     return total_score
 
-def get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops=2):
+
+def get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops):
     original_graph = utils.to_networkx(test_graph)
     node_list= original_graph.nodes
     nodeid_score_dict = dict()
@@ -458,3 +474,68 @@ def get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops=2):
         nodeid_score_dict[node_id] = node_score
 
     return nodeid_score_dict
+
+
+def convert_graph_to_anndata(graph, node_id_to_importance_dict):
+    adata = None
+    positions = np.array(graph.pos)
+    features = np.array(graph.x)
+    obs = [str(val) for val in list(range(graph.x.shape[0]))]
+    var = get_features()
+    node_importance = []
+    for item in obs:
+        node_importance.append(node_id_to_importance_dict[int(item)])
+
+    node_importance = np.array(node_importance)
+
+    adata = sc.AnnData(features)
+    adata.obs_names = obs
+    adata.var_names = var
+
+    adata.obsm["pos"] = positions
+    adata.obsm["importance"] = node_importance
+
+    adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"{graph.img_id}_{graph.p_id}.h5ad"))
+    
+    return adata
+
+
+def get_hvgs(adata):
+    pass
+
+
+def get_features():
+    lst_features = ['Intensity_MeanIntensity_FullStack_c12',
+       'Intensity_MeanIntensity_FullStack_c13',
+       'Intensity_MeanIntensity_FullStack_c14',
+       'Intensity_MeanIntensity_FullStack_c15',
+       'Intensity_MeanIntensity_FullStack_c16',
+       'Intensity_MeanIntensity_FullStack_c17',
+       'Intensity_MeanIntensity_FullStack_c18',
+       'Intensity_MeanIntensity_FullStack_c19',
+       'Intensity_MeanIntensity_FullStack_c20',
+       'Intensity_MeanIntensity_FullStack_c21',
+       'Intensity_MeanIntensity_FullStack_c22',
+       'Intensity_MeanIntensity_FullStack_c23',
+       'Intensity_MeanIntensity_FullStack_c24',
+       'Intensity_MeanIntensity_FullStack_c25',
+       'Intensity_MeanIntensity_FullStack_c27',
+       'Intensity_MeanIntensity_FullStack_c28',
+       'Intensity_MeanIntensity_FullStack_c29',
+       'Intensity_MeanIntensity_FullStack_c30',
+       'Intensity_MeanIntensity_FullStack_c31',
+       'Intensity_MeanIntensity_FullStack_c33',
+       'Intensity_MeanIntensity_FullStack_c34',
+       'Intensity_MeanIntensity_FullStack_c35',
+       'Intensity_MeanIntensity_FullStack_c37',
+       'Intensity_MeanIntensity_FullStack_c38',
+       'Intensity_MeanIntensity_FullStack_c39',
+       'Intensity_MeanIntensity_FullStack_c40',
+       'Intensity_MeanIntensity_FullStack_c41',
+       'Intensity_MeanIntensity_FullStack_c43',
+       'Intensity_MeanIntensity_FullStack_c44',
+       'Intensity_MeanIntensity_FullStack_c45',
+       'Intensity_MeanIntensity_FullStack_c46',
+       'Intensity_MeanIntensity_FullStack_c47',
+       'Intensity_MeanIntensity_FullStack_c9']
+    return lst_features

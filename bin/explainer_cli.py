@@ -56,34 +56,57 @@ class Explainer:
             
             # number of nodes
             # test_graph.num_nodes g.number_of_nodes() g.number_of_edges()
-            print(test_graph.edge_index)
 
-            (feature_mask, edge_mask) = explainer.explain_graph(test_graph.x.to(device), test_graph.edge_index.to(device))
+            (feature_val_mask, edge_value_mask) = explainer.explain_graph(test_graph.x.to(device), test_graph.edge_index.to(device))
+            quant_thr = 0.80
+
+            edge_exp_score_mask_arr = np.array(edge_value_mask.cpu())
+
+
+            edge_thr = np.quantile(np.array(edge_value_mask.cpu()), quant_thr)
+
+            # print(f"Edge thr: {edge_thr:.3f}\tMin: {np.min(edge_exp_score_mask_arr)}\tMax: {np.max(edge_exp_score_mask_arr):.3f}\tMin: {np.min(edge_exp_score_mask_arr):.3f}")
+            print(f"{test_graph.img_id}_{test_graph.p_id}")
+
+            exp_edges_bool = edge_exp_score_mask_arr > edge_thr
+
+
+            
+            explained_edge_indices = exp_edges_bool.nonzero()[0]
+
+            """for ind, val in enumerate(exp_edges_bool):
+                if val:
+                    print(val, edge_exp_score_mask_arr[ind])"""
+            # print(edge_exp_score_mask_arr)
+            # print(list(set(range(len(edge_value_mask)))- set(explained_edge_indices)))
+            np.put(edge_exp_score_mask_arr, list(set(range(len(edge_value_mask)))- set(explained_edge_indices)), 0.0)
+
 
             edgeid_to_mask_dict = dict()
-            for ind, m_val in enumerate(edge_mask):
-                # print(ind, m_val)
+            for ind, m_val in enumerate(edge_exp_score_mask_arr):
+                # print(ind, m_val, exp_edges_bool[ind], edge_value_mask[ind], edge_thr)
                 node_id1, node_id2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
                 edgeid_to_mask_dict[(node_id1, node_id2)] = m_val.item()
             
-
-            edge_thr = np.quantile(np.array(edge_mask.cpu()), 0.90)
-
-            edges_idx = edge_mask > edge_thr
-            edge_mask_arr = np.array(edge_mask.cpu())
-
-            print(f"Edge thr: {edge_thr:.3f}\tMin: {np.min(edge_mask_arr)}\tMax: {np.max(edge_mask_arr):.3f}\tMin: {np.min(edge_mask_arr):.3f}")
-            print(f"{test_graph.img_id}_{test_graph.p_id}")
-            node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict)
             
-            plotting.plot_node_importances(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}_node_importances", coordinates_arr, node_to_score_dict)
-            plotting.plot_subgraph(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr, edges_idx )
-            plotting.plot_khop(test_graph, "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr, edgeid_to_mask_dict)
-            # return edges_idx
+            n_of_hops = 2
+        
+            node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops)
+
+            custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict)
             
+            plt.rcParams['figure.figsize'] = 100, 100
+            fig, axs = plt.subplots(2, 2)
+            plotting.plot_graph(test_graph, coordinates_arr, axs[0][0])
+            plotting.plot_khop(test_graph, coordinates_arr, edgeid_to_mask_dict,  n_of_hops, axs[0][1])
+            plotting.plot_connected_components(test_graph, coordinates_arr, exp_edges_bool, axs[1][0])
+            plotting.plot_node_importances(test_graph, coordinates_arr, node_to_score_dict,  axs[1][1])
+            
+            fig.savefig(f"../plots/subgraphs/{test_graph.img_id}_{test_graph.p_id}")
+                
             count +=1
-            if count ==10:
-                break
+            # if count ==10:
+            #     break
         
 
             

@@ -114,75 +114,87 @@ def plot_pred_vs_real(df, exp_name, fl_name):
     plt.savefig(os.path.join(PLOT_PATH, exp_name, f"{fl_name}.png"))
 
 
-def plot_graph(test_graph, path, file_name, coordinates_arr):
+def plot_graph(test_graph, coordinates_arr,  ax, node_size=3000, font_size=20, width=8):
+    """Plots the original graph"""
     original_graph = utils.to_networkx(test_graph)
-    pos_1 = coordinates_arr
-    nx.draw_networkx_nodes(original_graph,  pos=pos_1, node_size=10)
-    nx.draw_networkx_labels(original_graph, pos=pos_1, font_size=4)
-    nx.draw_networkx_edges(original_graph,  pos=pos_1, arrows=False)
-    plt.savefig(os.path.join(path, file_name+"_original"), dpi = 300)
+    nx.draw_networkx_nodes(original_graph,  pos=coordinates_arr, node_size=node_size, ax=ax)
+    nx.draw_networkx_labels(original_graph, pos=coordinates_arr, font_size=font_size, ax=ax)
+    nx.draw_networkx_edges(original_graph,  pos=coordinates_arr, arrows=False, width=width, ax=ax)
+    return ax
 
-def plot_subgraph(test_graph, path, file_name, coordinates_arr, edges_idx, cc_threshold = 5):
 
-    options = ['r','b','y','g']
-    colors_edge = []
-    pos_1 = coordinates_arr
+
+def plot_only_explained_edges(test_graph, coordinates_arr, exp_edges_idx, ax, node_size=3000, font_size=20, width=8):
     
     original_graph = utils.to_networkx(test_graph)
-
-    plt.clf()
+    
     explained_graph = nx.Graph()
     explained_edges = []
     explained_graph.add_nodes_from(original_graph.nodes)
-    for ind, val in enumerate(edges_idx):
+    for ind, val in enumerate(exp_edges_idx):
         if val.item():
             explained_edges.append((test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()))
+
+    explained_graph.add_edges_from(list(explained_edges), weight=100)
+    nx.draw_networkx_nodes(explained_graph,  pos=coordinates_arr, node_size=node_size, ax=ax)
+    nx.draw_networkx_labels(original_graph, pos=coordinates_arr, font_size=font_size, ax=ax)
+    nx.draw_networkx_edges(explained_graph,  pos=coordinates_arr, width=width, ax=ax)
+
+    return ax
+
+
+
+def plot_connected_components(test_graph, coordinates_arr, exp_edges_idx, ax, cc_threshold = 5, node_size=3000, font_size=20, width=8):
     
-    print(f"Number of explained edges: {len(explained_edges)}")
+    original_graph = utils.to_networkx(test_graph)
+
+    explained_graph = nx.Graph()
+    explained_edges = []
+    explained_graph.add_nodes_from(original_graph.nodes)
+    for ind, val in enumerate(exp_edges_idx):
+        if val.item():
+            explained_edges.append((test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()))
 
     explained_graph.add_edges_from(list(explained_edges))
-    nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
-    nx.draw_networkx_edges(explained_graph,  pos=pos_1)
-    #print(explained_graph.edges)
-    plt.savefig(os.path.join(path, file_name+"onlynodes"), dpi = 300)
-    plt.clf()
 
     for component in list(nx.connected_components(explained_graph)):
         if len(component)<=cc_threshold:
             for node in component:
                 explained_graph.remove_node(node)
-    nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
-    nx.draw_networkx_edges(explained_graph,  pos=pos_1)
-    plt.savefig(os.path.join(path, file_name+"removedsmallcc"), dpi = 300)
-    plt.clf()
+    nx.draw_networkx_nodes(explained_graph,  pos=coordinates_arr, node_size=node_size, ax=ax)
+    nx.draw_networkx_labels(original_graph, pos=coordinates_arr, font_size=font_size, ax=ax)
+    nx.draw_networkx_edges(explained_graph,  pos=coordinates_arr, width=width, ax=ax)
     
-    colors_node = ['b']*len(original_graph.nodes)
-    for ind, val in enumerate(edges_idx):
-        #for g_exp in gexp_edges:
-        if val.item():
-            colors_edge.append(options[0])
-            n1, n2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
-            colors_node[n1]=options[0]
-            colors_node[n2]=options[0]
-        else:
-            colors_edge.append(options[1])   
-
-    nx.draw_networkx_nodes(original_graph, node_color=colors_node, pos=pos_1, node_size=10)
-    nx.draw_networkx_edges(original_graph, edge_color=colors_edge, pos=pos_1,  arrows=False)
-    plt.savefig(os.path.join(path, file_name), dpi = 300)
-    plt.clf()
+    return ax
 
 
-def plot_khop(test_graph, path, file_name, coordinates_arr, edgeid_to_mask_dict):
+def plot_node_importances(test_graph, coordinates_arr, node_score_dict, ax, node_size=3000, font_size=10, width=8):
+    original_graph = utils.to_networkx(test_graph)
+
+    color_list = []
+    for n_id in original_graph.nodes:
+        color_list.append(node_score_dict[n_id])
+    node_score_str_dict = dict()
+    for node_id in node_score_dict.keys():
+        node_score_str_dict[node_id] = f"{node_id}_{node_score_dict[node_id]:.2f}"
+    nx.draw(original_graph, pos=coordinates_arr, node_color=color_list, node_size=node_size, arrows=False, cmap=plt.cm.afmhot, ax=ax)
+    nx.draw_networkx_labels(original_graph, labels=node_score_str_dict, pos=coordinates_arr, font_size=font_size, ax=ax)
+    nx.draw_networkx_edges(original_graph,  pos=coordinates_arr, arrows=False, width=width, ax=ax)
+
+
+def plot_khop(test_graph, coordinates_arr, edgeid_to_mask_dict, n_of_hops, ax, node_size=3000, font_size=10, width=8):
     # The method returns (1) the nodes involved in the subgraph, (2) the filtered edge_index connectivity, (3) the mapping from node indices in node_idx to their new location, and (4) the edge mask indicating which edges were preserved.
-    subset_nodes, subset_edge_index, mapping, edge_mask = utils.k_hop_subgraph(0, 2, test_graph.edge_index)
+    subset_nodes, subset_edge_index, mapping, edge_mask = utils.k_hop_subgraph(407, n_of_hops, test_graph.edge_index)
+    # for ind in range(subset_edge_index.shape[1]):
+    #     print(subset_edge_index[0,ind],subset_edge_index[1,ind], f"{edgeid_to_mask_dict[(subset_edge_index[0,ind].item(),subset_edge_index[1,ind].item())]:.2f}" )
     original_graph = utils.to_networkx(test_graph)
     # original_edges = list(original_graph.edges)
     # print("khop subset_edge_index:", subset_edge_index)
-    pos_1 = coordinates_arr
     explained_graph = nx.Graph()
     explained_edges = []
     explained_graph.add_nodes_from(original_graph.nodes)
+    
+    edge_label_dict = dict()
     
     total_score=0.0
     for ind, val in enumerate(edge_mask):
@@ -190,20 +202,82 @@ def plot_khop(test_graph, path, file_name, coordinates_arr, edgeid_to_mask_dict)
             # print(original_edges[ind])
             n1, n2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
             explained_edges.append((n1,n2))
+            edge_label_dict[(n1,n2)] = f"{edgeid_to_mask_dict[(n1,n2)]:.2f}"
+            # edge_lbl_ids.append((n1,n2)) 
+            # edge_label.append(f"{edgeid_to_mask_dict[(n1,n2)]:.2f}")
             total_score += edgeid_to_mask_dict[(n1,n2)]
-            # print((n1,n2), edgeid_to_mask_dict[(n1,n2)])
+            """"print((n1,n2), edgeid_to_mask_dict[(n1,n2)])
+            if abs(edgeid_to_mask_dict[(n1,n2)]-edgeid_to_mask_dict[(n2,n1)])>0.5:
+                print("problem : ", n1, n2,edgeid_to_mask_dict[(n1,n2)], edgeid_to_mask_dict[(n2,n1)] )"""
 
     print(f"Total score: {total_score/len(explained_edges)}")
 
     explained_graph.add_edges_from(list(explained_edges))
-    nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
-    nx.draw_networkx_labels(explained_graph, pos=pos_1, font_size=4)
-    nx.draw_networkx_edges(explained_graph,  pos=pos_1)
-    plt.savefig(os.path.join(path, file_name+"khop"), dpi = 300)
-    plt.clf()
+    nx.draw_networkx_nodes(explained_graph,  pos=coordinates_arr, node_size=node_size, ax=ax)
+    nx.draw_networkx_labels(explained_graph, pos=coordinates_arr, font_size=10, ax=ax)
+    nx.draw_networkx_edges(explained_graph,  pos=coordinates_arr, ax=ax)
+    nx.draw_networkx_edge_labels(explained_graph, edge_labels=edge_label_dict, font_size=10, pos=coordinates_arr, ax=ax)
     
     # print(test_graph.edge_index.shape)
     
+
+
+def plot_all_and_explained_edges(test_graph, path, file_name, coordinates_arr, edges_idx, cc_threshold = 5):
+    original_graph = utils.to_networkx(test_graph)
+
+    explained_edges = []
+    explained_graph.add_nodes_from(original_graph.nodes)
+    for ind, val in enumerate(edges_idx):
+        if val.item():
+            explained_edges.append((test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()))
+
+    options = ['r','b','y','g']
+    node_color_dict = dict()
+    edge_color_dict = dict()
+    for node in original_graph.nodes:
+         node_color_dict[node] = options[1]
+
+    for edge in original_graph.edges:
+        n1, n2 = edge
+        edge_color_dict[(n1, n2)] = options[1]
+        edge_color_dict[(n2, n1)] = options[1]
+
+    for ind, val in enumerate(edges_idx):
+        #for g_exp in gexp_edges:
+        n1, n2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
+
+        if val.item():
+            edge_color_dict[(n1, n2)] = options[0]
+            edge_color_dict[(n2, n1)] = options[0]
+            node_color_dict[n1] = options[0]
+            node_color_dict[n2] = options[0]
+            
+    colors_node = []
+    for node in original_graph.nodes:
+        colors_node.append(node_color_dict[node])
+    
+    colors_edge = []
+    for edge in original_graph.edges:
+        n1, n2 = edge
+        colors_edge.append(edge_color_dict[(n1, n2)])
+        colors_edge.append(edge_color_dict[(n2, n1)])
+
+    
+    nx.draw_networkx_nodes(original_graph, node_color=colors_node, pos=coordinates_arr, node_size=30)
+    nx.draw_networkx_edges(original_graph, pos=pos_1,  arrows=False)
+    nx.draw_networkx_edges(original_graph, edgelist=explained_edges, edge_color=options[0], pos=coordinates_arr,  arrows=False)
+    plt.savefig(os.path.join(path, file_name), dpi = 300)
+    plt.clf()
+
+
+
+
+
+    
+    
+    
+
+
 
 
 
@@ -268,13 +342,4 @@ def plot_voronoi(test_graph, path, file_name, coordinates_arr, edges_idx, cc_thr
     plt.clf()
     
 
-def plot_node_importances(test_graph, path, file_name, coordinates_arr, node_score_dict):
-    original_graph = utils.to_networkx(test_graph)
 
-    color_list = []
-    for n_id in original_graph.nodes:
-        color_list.append(node_score_dict[n_id])
-
-    nx.draw(original_graph, pos=coordinates_arr, node_color=color_list, node_size=80, cmap=plt.cm.afmhot)
-    plt.savefig(os.path.join(path, file_name), dpi = 300)
-    plt.clf()

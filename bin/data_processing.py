@@ -112,9 +112,6 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
     
     assert edge_index_arr.shape[0]==edge_length_arr.shape[0]
 
-
-
-
     clinical_info_dict = dict()
     clinical_info_dict["grade"] = df_image["grade"].values[0]
     clinical_info_dict["tumor_size"] = df_image["tumor_size"].values[0]
