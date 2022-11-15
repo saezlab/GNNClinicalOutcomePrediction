@@ -100,14 +100,14 @@ def plot_pred_vs_real(df, exp_name, fl_name):
         for idxlbl, lbl in enumerate(labels):
             # df_temp = df.loc[(df['Train Val Test'] == val) & (df['Clinical Type'] == lbl)]
             df_temp = df_tvt.loc[(df_tvt['Clinical Type'] == lbl)]
-            axs[idx].scatter(x=df_temp['OS Month (log)'], y=df_temp['Predicted'], color= colors[idxlbl], label=lbl)
+            axs[idx].scatter(x=df_temp['True Value'], y=df_temp['Predicted'], color= colors[idxlbl], label=lbl)
             axs[idx].set_xlim(0, 6)
             axs[idx].set_ylim(0, 6)
             axs[idx].set_xlabel('OS Month (log)')
             axs[idx].set_ylabel('Predicted')
             
-        r2_score = r_squared_score(df_tvt['OS Month (log)'], df_tvt['Predicted'])
-        mser = mse(df_tvt['OS Month (log)'], df_tvt['Predicted'])
+        r2_score = r_squared_score(df_tvt['True Value'], df_tvt['Predicted'])
+        mser = mse(df_tvt['True Value'], df_tvt['Predicted'])
         axs[idx].set_title(f"MSE: {mser:.3f}   R2 Score: {r2_score:.3f}")
         axs[idx].legend(loc='lower right')
 
@@ -180,6 +180,44 @@ def plot_node_importances(test_graph, coordinates_arr, node_score_dict, ax, node
     nx.draw(original_graph, pos=coordinates_arr, node_color=color_list, node_size=node_size, arrows=False, cmap=plt.cm.afmhot, ax=ax)
     nx.draw_networkx_labels(original_graph, labels=node_score_str_dict, pos=coordinates_arr, font_size=font_size, ax=ax)
     nx.draw_networkx_edges(original_graph,  pos=coordinates_arr, arrows=False, width=width, ax=ax)
+
+
+def plot_node_importances_voronoi(test_graph, coordinates_arr, node_score_dict, ax, node_size=3000, font_size=10, width=8):
+
+    color_list = []
+    for n_id in original_graph.nodes:
+        color_list.append(node_score_dict[n_id])
+    
+    vor = Voronoi(coordinates_arr)
+    fig = voronoi_plot_2d(vor, show_vertices=True, line_colors='orange', line_width=1, line_alpha=0.6, point_size=2, ax=ax)
+
+    # find min/max values for normalization
+    minima = min(color_list)
+    maxima = max(color_list)
+
+    # normalize chosen colormap
+    norm = mpl.colors.Normalize(vmin=minima, vmax=maxima, clip=True)
+    mapper = cm.ScalarMappable(norm=norm, cmap=cm.afmhot)
+
+    for r in range(len(vor.point_region)):
+        region = vor.regions[vor.point_region[r]]
+        if not -1 in region:
+            polygon = [vor.vertices[i] for i in region]
+            plt.fill(*zip(*polygon), color=mapper.to_rgba(speed[r]))
+
+    return ax
+    
+
+    color_list = []
+    for n_id in original_graph.nodes:
+        color_list.append(node_score_dict[n_id])
+    node_score_str_dict = dict()
+    for node_id in node_score_dict.keys():
+        node_score_str_dict[node_id] = f"{node_id}_{node_score_dict[node_id]:.2f}"
+    nx.draw(original_graph, pos=coordinates_arr, node_color=color_list, node_size=node_size, arrows=False, cmap=plt.cm.afmhot, ax=ax)
+    nx.draw_networkx_labels(original_graph, labels=node_score_str_dict, pos=coordinates_arr, font_size=font_size, ax=ax)
+    nx.draw_networkx_edges(original_graph,  pos=coordinates_arr, arrows=False, width=width, ax=ax)
+
 
 
 def plot_khop(test_graph, coordinates_arr, edgeid_to_mask_dict, n_of_hops, ax, node_size=3000, font_size=10, width=8):
@@ -299,7 +337,7 @@ def plot_voronoi(test_graph, path, file_name, coordinates_arr, edges_idx, cc_thr
             explained_edges.append(original_edges[ind])
 
     vor = Voronoi(coordinates_arr)
-    fig = voronoi_plot_2d(vor, show_vertices=False, line_colors='orange', line_width=1, line_alpha=0.6, point_size=2)
+    fig = voronoi_plot_2d(vor, show_vertices=True, line_colors='orange', line_width=1, line_alpha=0.6, point_size=2)
     plt.savefig(os.path.join(path, file_name+"voronoi"), dpi = 100)
     plt.clf()
     

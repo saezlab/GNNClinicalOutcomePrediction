@@ -392,7 +392,7 @@ def general_parser() -> argparse.Namespace:
     parser.add_argument(
         '--label',
         type= str,
-        default= "treatment", # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
+        default= "OSMonth", # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
         metavar='LBL',
         help='Which property of the dataset will be used as label')
 

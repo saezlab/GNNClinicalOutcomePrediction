@@ -43,6 +43,20 @@ class CustomGCN(torch.nn.Module):
         self.pars = kwargs
         
         self.dropout = self.pars["dropout"]
+
+
+        # Prediction type
+        # TODO: Refactor this
+        self.label_type = "regression"
+        # self.label_type = self.pars["label_type"]
+
+
+        if self.label_type == "regression":
+            self.num_ff_final = 1
+        elif self.label_type == "classification":
+            self.num_classes = self.pars["num_classes"]
+            self.num_ff_final = self.num_classes
+
         # Extracting generic parameters
         self.num_node_features = self.pars["num_node_features"]
         self.gcn_hidden_neurons = self.pars["gcn_hidden_neurons"]
@@ -54,6 +68,12 @@ class CustomGCN(torch.nn.Module):
         self.aggregators = self.check_Key("aggregators","list")
         self.scalers = self.check_Key("scalers","list")
         self.deg = self.check_Key("deg")
+
+        if self.label_type == "regression":
+            self.num_ff_final = 1
+        else:
+            self.num_classes = self.pars["num_classes"]
+            self.num_ff_final = self.num_classes
 
         # Setting generic model parameters
         model_pars_head = {
@@ -131,7 +151,7 @@ class CustomGCN(torch.nn.Module):
                     self.ff_layers.append(Linear(self.ff_hidden_neurons, self.ff_hidden_neurons))
                     self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
                 
-                self.ff_layers.append(Linear(self.ff_hidden_neurons, 1))
+                self.ff_layers.append(Linear(self.ff_hidden_neurons, self.num_ff_final))
 
         else:
 
@@ -158,7 +178,7 @@ class CustomGCN(torch.nn.Module):
                     self.ff_layers.append(Linear(self.ff_hidden_neurons, self.ff_hidden_neurons))
                     self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
                 
-                self.ff_layers.append(Linear(self.ff_hidden_neurons, 1))
+                self.ff_layers.append(Linear(self.ff_hidden_neurons, self.num_ff_final))
 
     
     # Helper function to avoid getting keyError

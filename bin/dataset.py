@@ -32,7 +32,7 @@ PLOT_PATH = os.path.join(S_PATH, "../plots")
 
 
 class TissueDataset(InMemoryDataset):
-    def __init__(self, root, transform=None, pre_transform=None):
+    def __init__(self, root, wanted_label = "OSmonth", transform=None, pre_transform=None):
         """Creates the dataset for given "root" location.
 
         Args:
@@ -40,7 +40,10 @@ class TissueDataset(InMemoryDataset):
             transform (_type_, optional): _description_. Defaults to None.
             pre_transform (_type_, optional): _description_. Defaults to None.
         """
+        self.wanted_label = wanted_label
         super().__init__(root, transform, pre_transform)
+        print(wanted_label)
+        
         self.data, self.slices = torch.load(self.processed_paths[0])
 
     @property
@@ -49,7 +52,7 @@ class TissueDataset(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        return ['data.pt']
+        return [f'data.pt']
 
     def download(self):
         # Download to `self.raw_dir`.
@@ -86,7 +89,12 @@ class TissueDataset(InMemoryDataset):
                     with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_coordinates.pickle'), 'rb') as handle:
                         coordinates_arr = pickle.load(handle)
                         coordinates_arr = np.array(coordinates_arr)
-                        data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]+0.1), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid)
+                        if self.wanted_label == "OSmonth":
+                            
+                            data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]+0.1), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid)
+                        else:
+                            data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=clinical_info_dict[self.wanted_label], osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid)
+                    
                     data_list.append(data)
                     count+=1
 

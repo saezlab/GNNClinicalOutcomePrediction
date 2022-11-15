@@ -45,10 +45,12 @@ class trainer_tester:
         """Pulls data, creates samplers according to ratios, creates train, test and validation loaders for 
         each fold, saves them under the 'folds_dict' dictionary
         """
+        # self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
         self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
 
         if self.parser_args.label == "OSMonth":
             self.label_type = "regression"
+            self.num_classes = 1
 
         elif self.parser_args.label == "treatment":
             self.label_type = "classification"
@@ -71,9 +73,9 @@ class trainer_tester:
             self.num_classes = len(self.unique_classes)
 
         self.label_data = self.dataset.data.y
-
-        self.LT_ToIndex, self.LT_FromIndex = custom_tools.extract_LT(self.dataset.data.y)
-        self.dataset.data.y = custom_tools.convert_wLT(self.dataset.data.y,self.LT_ToIndex)
+        if self.label_type=="classification":
+            self.LT_ToIndex, self.LT_FromIndex = custom_tools.extract_LT(self.dataset.data.y)
+            self.dataset.data.y = custom_tools.convert_wLT(self.dataset.data.y,self.LT_ToIndex)
 
         self.dataset = self.dataset.shuffle()
 
@@ -82,7 +84,7 @@ class trainer_tester:
         self.samplers = custom_tools.k_fold_ttv(self.dataset, 
             T2VT_ratio=self.setup_args.T2VT_ratio,
             V2T_ratio=self.setup_args.V2T_ratio)
-        self.parser_args.num_node_features = self.dataset.num_node_features
+
 
         self.fold_dicts = []
 
@@ -174,8 +176,8 @@ class trainer_tester:
         #out_list = []
         
         for data in fold_dict["train_loader"]:  # Iterate in batches over the training dataset.
+        
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
-
             loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
         
             loss.backward()  # Derive gradients.
@@ -215,11 +217,12 @@ class trainer_tester:
                 loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
                 
                 total_loss += float(loss.item())
-
+                # print("test", data.y)
+                # print("test out", out.squeeze())
                 true_list.extend([round(val.item(),6) for val in data.y])
                 # WARN Correct usage of "max" ?
                 if self.label_type == "regression":
-                    pred_list.extend([round(max(val.item()),6) for val in out.squeeze()])
+                    pred_list.extend([val.item() for val in out.squeeze()])
                 else:
                     pred_list.extend([custom_tools.argmax(val) for val in out.squeeze()])
                 #pred_list.extend([val.item() for val in data.y])
@@ -281,9 +284,9 @@ class trainer_tester:
             list_ct = list(set(df_train["Clinical Type"]))
 
             if self.label_type == "regression":
-                r2_score = r_squared_score(df_val['True Value'], df_val['Predicted'])
-                mse_score = mse(df_val['True Value'], df_val['Predicted'])
-                rmse_score = rmse(df_val['True Value'], df_val['Predicted'])
+                fold_val_r2_score = r_squared_score(df_val['True Value'], df_val['Predicted'])
+                fold_val_mse_score = mse(df_val['True Value'], df_val['Predicted'])
+                fold_val_rmse_score = rmse(df_val['True Value'], df_val['Predicted'])
 
             elif self.label_type == "classification":
                 accuracy_Score = accuracy_score(df_val["True Value"], df_val['Predicted'])
@@ -292,7 +295,7 @@ class trainer_tester:
                 
             fold_tvt_preds_df = pd.concat([df_train, df_val, df_test])
 
-            # populate train_pred_df with the first fold predictions
+            # populate all_preds_df with the first fold predictions
             if fold_dict["fold"] == 1:
                 all_preds_df = fold_tvt_preds_df
             else:
@@ -301,26 +304,26 @@ class trainer_tester:
 
             
             print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
-
-            self.results.append([fold_dict['fold'], round(best_train_loss, 4), round(best_val_loss, 4), round(best_test_loss, 4), fold_val_r2_score, fold_val_mse_score, fold_val_rmse_score])
-        
-        all_folds_val_df = all_preds_df.loc[(all_preds_df['Fold#-Set'].str[2:] == "validation")]
-        all_fold_val_r2_score = r_squared_score(all_folds_val_df['OS Month (log)'], all_folds_val_df['Predicted'])
-            val_df = train_pred_df.loc[(train_pred_df['Fold#-Set'].str[2:] == "validation")]
-
+            
             if self.label_type == "regression": 
-                self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, r2_score, mse_score, rmse_score])
-                val_r2_score = r_squared_score(val_df['OS Month (log)'], val_df['Predicted'])
-                
+                # self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, r2_score, mse_score, rmse_score])
+                self.results.append([fold_dict['fold'], round(best_train_loss, 4), round(best_val_loss, 4), round(best_test_loss, 4), fold_val_r2_score, fold_val_mse_score, fold_val_rmse_score])
+                # val_r2_score = r_squared_score(all_folds_val_df['True Value'], val_df['Predicted'])
+            
 
             elif self.label_type == "classification":
-                self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, accuracy_Score,precision_Score,f1_Score])
+                self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, accuracy_Score, precision_Score, f1_Score])
                 val_r2_score = 0
+
+
+            
         
-        
+        all_folds_val_df = all_preds_df.loc[(all_preds_df['Fold#-Set'].str[2:] == "validation")]
+        all_fold_val_r2_score = r_squared_score(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
+    
 
     
-        if all_fold_val_r2_score>0.6:
+        if  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
             plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id)
             all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
             self.save_results()
@@ -379,6 +382,18 @@ class trainer_tester:
 
                 means = [["Mean", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4),r2_results[0],mse_results[0],rmse_results[0]]]
                 variances = [["Variance", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4), r2_results[0],mse_results[0],rmse_results[0]]]
+        
+        elif self.label_type == "classification":
+
+            header = ["fold_number","train","validation","accuracy","precision","f1"]
+            if self.setup_args.use_fold:
+                means = [["Mean", round(statistics.mean(train_results), 4), round(statistics.mean(valid_results), 4), round(statistics.mean(test_results), 4), statistics.mean(accuracy_results), statistics.mean(precision_results), statistics.mean(f1_results)]]
+                variances = [["Variance", round(statistics.variance(train_results), 4) ,round(statistics.variance(valid_results), 4), round(statistics.variance(test_results), 4), statistics.variance(accuracy_results), statistics.mean(precision_results), statistics.mean(f1_results)]]
+
+            else:
+
+                means = [["Mean", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4),accuracy_results[0],precision_results[0],f1_results[0]]]
+                variances = [["Variance", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4), accuracy_results[0],precision_results[0],f1_results[0]]]
 
         ff = open(os.path.join(self.setup_args.RESULT_PATH, f"{str(self.setup_args.id)}.csv"), 'w')
         ff.close()
