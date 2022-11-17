@@ -50,6 +50,7 @@ class Explainer:
                                     return_type = return_type, feat_mask_type = feat_mask_type).to(device)
         count = 0
         for test_graph in tqdm(self.dataset):
+            print(f"Sample id: {test_graph.img_id}_{test_graph.p_id}")
 
             with open(os.path.join(RAW_DATA_PATH, f'{test_graph.img_id}_{test_graph.p_id}_coordinates.pickle'), 'rb') as handle:
                 coordinates_arr = pickle.load(handle)
@@ -66,7 +67,7 @@ class Explainer:
             edge_thr = np.quantile(np.array(edge_value_mask.cpu()), quant_thr)
 
             # print(f"Edge thr: {edge_thr:.3f}\tMin: {np.min(edge_exp_score_mask_arr)}\tMax: {np.max(edge_exp_score_mask_arr):.3f}\tMin: {np.min(edge_exp_score_mask_arr):.3f}")
-            print(f"{test_graph.img_id}_{test_graph.p_id}")
+            
 
             exp_edges_bool = edge_exp_score_mask_arr > edge_thr
 
@@ -98,12 +99,13 @@ class Explainer:
             plt.rcParams['figure.figsize'] = 100, 100
             fig, axs = plt.subplots(2, 2)
             plotting.plot_graph(test_graph, coordinates_arr, axs[0][0])
-            plotting.plot_khop(test_graph, coordinates_arr, edgeid_to_mask_dict,  n_of_hops, axs[0][1])
+            # plotting.plot_khop(test_graph, coordinates_arr, edgeid_to_mask_dict,  n_of_hops, axs[0][1])
+            plotting.plot_node_importances_voronoi(test_graph, coordinates_arr, node_to_score_dict,  axs[0][1])
             plotting.plot_connected_components(test_graph, coordinates_arr, exp_edges_bool, axs[1][0])
             plotting.plot_node_importances(test_graph, coordinates_arr, node_to_score_dict,  axs[1][1])
             
             fig.savefig(f"../plots/subgraphs/{test_graph.img_id}_{test_graph.p_id}")
-                
+            plt.close()
             count +=1
             # if count ==10:
             #     break

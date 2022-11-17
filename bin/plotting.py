@@ -9,7 +9,7 @@ import networkx as nx
 from dataset import TissueDataset
 from scipy.spatial import Voronoi, voronoi_plot_2d
 from evaluation_metrics import r_squared_score, mse, rmse
-
+import matplotlib as mpl
 
 S_PATH = os.path.dirname(__file__)
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
@@ -183,40 +183,42 @@ def plot_node_importances(test_graph, coordinates_arr, node_score_dict, ax, node
 
 
 def plot_node_importances_voronoi(test_graph, coordinates_arr, node_score_dict, ax, node_size=3000, font_size=10, width=8):
-
+    original_graph = utils.to_networkx(test_graph)
     color_list = []
     for n_id in original_graph.nodes:
         color_list.append(node_score_dict[n_id])
     
-    vor = Voronoi(coordinates_arr)
-    fig = voronoi_plot_2d(vor, show_vertices=True, line_colors='orange', line_width=1, line_alpha=0.6, point_size=2, ax=ax)
-
     # find min/max values for normalization
     minima = min(color_list)
     maxima = max(color_list)
 
+    minx, miny = list(np.min(coordinates_arr, axis=0))
+    maxx, maxy = list(np.max(coordinates_arr, axis=0))
+    
+    # add dummy nodes to the corners 
+    coordinates_arr = np.append(coordinates_arr, [[maxx+10, maxy+10], [minx-10,maxy+10], [maxx+10,miny-10], [minx-10,miny-10]], axis = 0)
+
+    vor = Voronoi(coordinates_arr)
+    fig = voronoi_plot_2d(vor, show_vertices=True, line_colors='orange', line_width=1, line_alpha=0.6, point_size=10, ax=ax)
+   
     # normalize chosen colormap
     norm = mpl.colors.Normalize(vmin=minima, vmax=maxima, clip=True)
-    mapper = cm.ScalarMappable(norm=norm, cmap=cm.afmhot)
+    mapper = plt.cm.ScalarMappable(norm=norm, cmap=plt.cm.afmhot)
 
-    for r in range(len(vor.point_region)):
-        region = vor.regions[vor.point_region[r]]
+    #for r in range(len(vor.point_region)):
+    #    region = vor.regions[vor.point_region[r]]
+    #    # if not -1 in region:
+    #    polygon = [vor.vertices[i] for i in region]
+    #    ax.fill(*zip(*polygon), color=mapper.to_rgba(color_list[r]))
+
+    for j in range(len(coordinates_arr)):
+        region = vor.regions[vor.point_region[j]]
         if not -1 in region:
             polygon = [vor.vertices[i] for i in region]
-            plt.fill(*zip(*polygon), color=mapper.to_rgba(speed[r]))
-
-    return ax
+            ax.fill(*zip(*polygon), color=mapper.to_rgba(color_list[j]))
     
-
-    color_list = []
-    for n_id in original_graph.nodes:
-        color_list.append(node_score_dict[n_id])
-    node_score_str_dict = dict()
-    for node_id in node_score_dict.keys():
-        node_score_str_dict[node_id] = f"{node_id}_{node_score_dict[node_id]:.2f}"
-    nx.draw(original_graph, pos=coordinates_arr, node_color=color_list, node_size=node_size, arrows=False, cmap=plt.cm.afmhot, ax=ax)
-    nx.draw_networkx_labels(original_graph, labels=node_score_str_dict, pos=coordinates_arr, font_size=font_size, ax=ax)
-    nx.draw_networkx_edges(original_graph,  pos=coordinates_arr, arrows=False, width=width, ax=ax)
+    ax.set_xlim([minx, maxx])
+    ax.set_ylim([miny, maxy])
 
 
 
@@ -306,78 +308,4 @@ def plot_all_and_explained_edges(test_graph, path, file_name, coordinates_arr, e
     nx.draw_networkx_edges(original_graph, edgelist=explained_edges, edge_color=options[0], pos=coordinates_arr,  arrows=False)
     plt.savefig(os.path.join(path, file_name), dpi = 300)
     plt.clf()
-
-
-
-
-
-    
-    
-    
-
-
-
-
-
-
-def plot_voronoi(test_graph, path, file_name, coordinates_arr, edges_idx, cc_threshold = 5):
-
-    options = ['r','b','y','g']
-    colors_edge = []
-    pos_1 = coordinates_arr
-    
-    original_graph = utils.to_networkx(test_graph)
-    original_edges = list(original_graph.edges)
-    
-    explained_graph = nx.Graph()
-    explained_edges = []
-    explained_graph.add_nodes_from(original_graph.nodes)
-    for ind, val in enumerate(edges_idx):
-        if val.item():
-            explained_edges.append(original_edges[ind])
-
-    vor = Voronoi(coordinates_arr)
-    fig = voronoi_plot_2d(vor, show_vertices=True, line_colors='orange', line_width=1, line_alpha=0.6, point_size=2)
-    plt.savefig(os.path.join(path, file_name+"voronoi"), dpi = 100)
-    plt.clf()
-    
-    explained_graph.add_edges_from(list(explained_edges))
-    nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
-    nx.draw_networkx_edges(explained_graph,  pos=pos_1)
-    plt.savefig(os.path.join(path, file_name+"onlynodes"), dpi = 100)
-    plt.clf()
-
-    for component in list(nx.connected_components(explained_graph)):
-        if len(component)<=cc_threshold:
-            for node in component:
-                explained_graph.remove_node(node)
-    nx.draw_networkx_nodes(explained_graph,  pos=pos_1, node_size=10)
-    nx.draw_networkx_edges(explained_graph,  pos=pos_1)
-    plt.savefig(os.path.join(path, file_name+"removedsmallcc"), dpi = 100)
-    plt.clf()
-    
-
-
-    colors_node = ['b']*len(original_graph.nodes)
-
-    for id,e_idx in enumerate(original_graph.edges):
-        #for g_exp in gexp_edges:
-            if edges_idx[id]:
-                colors_edge.append(options[0])
-                n1, n2 = e_idx
-                colors_node[n1]=options[0]
-                colors_node[n2]=options[0]
-            else:
-                colors_edge.append(options[1])   
-
-    nx.draw_networkx_nodes(original_graph, node_color=colors_node, pos=pos_1, node_size=10)
-    nx.draw_networkx_edges(original_graph, edge_color=colors_edge, pos=pos_1)
-    # graphs = list(nx.connected_component(g))
-    # print(graphs)
-    # graphs_m = max(nx.connected_component(g), key=len)
-    # print("largest,", graphs_m)
-    plt.savefig(os.path.join(path, file_name), dpi = 100)
-    plt.clf()
-    
-
 
