@@ -321,7 +321,7 @@ class trainer_tester:
         all_folds_val_df = all_preds_df.loc[(all_preds_df['Fold#-Set'].str[2:] == "validation")]
         all_fold_val_r2_score = r_squared_score(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
     
-
+        # print("All folds val r2 score:", all_fold_val_r2_score)
     
         if  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
             plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id)

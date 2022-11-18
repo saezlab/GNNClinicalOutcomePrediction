@@ -90,7 +90,8 @@ class Explainer:
                 edgeid_to_mask_dict[(node_id1, node_id2)] = m_val.item()
             
             
-            n_of_hops = 2
+            n_of_hops = 2   
+            # TODO: Check if the scores are calculated over the ccs
         
             node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops)
 

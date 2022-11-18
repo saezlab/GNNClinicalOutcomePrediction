@@ -37,7 +37,8 @@ def calculate_all_reg_scores(folder_path_list):
         
     df_results = pd.DataFrame (all_results, columns = header)
     df_results.sort_values(by=["val_r2 score", "test_r2 score"], inplace=True, ascending=False)
-    print(df_results)
+
+    return df_results
 
 
-calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_12-10-2022"])
+# calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_12-10-2022"])
