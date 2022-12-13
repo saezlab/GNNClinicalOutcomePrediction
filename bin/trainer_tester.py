@@ -14,6 +14,7 @@ from evaluation_metrics import r_squared_score, mse, rmse
 import custom_tools as custom_tools
 import csv
 import statistics
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 class trainer_tester:
@@ -32,7 +33,10 @@ class trainer_tester:
 
         self.init_folds()
 
-        self.train_test_loop()
+        if self.parser_args.full_training:
+            self.full_train_loop()
+        else:
+            self.train_test_loop()
 
         # self.save_results()
 
@@ -78,44 +82,73 @@ class trainer_tester:
             self.dataset.data.y = custom_tools.convert_wLT(self.dataset.data.y,self.LT_ToIndex)
 
         self.dataset = self.dataset.shuffle()
-
-        
-
-        self.samplers = custom_tools.k_fold_ttv(self.dataset, 
-            T2VT_ratio=self.setup_args.T2VT_ratio,
-            V2T_ratio=self.setup_args.V2T_ratio)
-
+        print("Dataset:",  self.dataset)
 
         self.fold_dicts = []
-
         deg = -1
 
-        for fold, train_sampler, validation_sampler, test_sampler in self.samplers:
-            train_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= train_sampler)
-            validation_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= validation_sampler)
-            test_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= test_sampler)
-
+        if self.parser_args.full_training:
+            # TODO: Consider bootstrapping 
+            train_sampler = torch.utils.data.SubsetRandomSampler(list(range(len(self.dataset))))
+            train_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, shuffle=True)
+            validation_loader, test_loader = None, None
             if self.parser_args.model == "PNAConv":
-                deg = self.calculate_deg(train_sampler)
-            
+                    deg = self.calculate_deg(train_sampler)
+
             model = self.set_model(deg)
 
             optimizer = torch.optim.Adam(model.parameters(), lr=self.parser_args.lr, weight_decay=self.parser_args.weight_decay)
 
+
             fold_dict = {
-                "fold": fold,
-                "train_loader": train_loader,
-                "validation_loader": validation_loader,
-                "test_loader": test_loader,
-                "deg": deg,
-                "model": model,
-                "optimizer": optimizer
-            }
+                    "fold": 1,
+                    "train_loader": train_loader,
+                    "validation_loader": validation_loader,
+                    "test_loader": test_loader,
+                    "deg": deg,
+                    "model": model,
+                    "optimizer": optimizer
+                }
 
             self.fold_dicts.append(fold_dict)
 
-            if not self.setup_args.use_fold:
-                break
+        
+        else:
+            self.samplers = custom_tools.k_fold_ttv(self.dataset, 
+                T2VT_ratio=self.setup_args.T2VT_ratio,
+                V2T_ratio=self.setup_args.V2T_ratio)
+
+
+            deg = -1
+
+            for fold, train_sampler, validation_sampler, test_sampler in self.samplers:
+                train_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= train_sampler)
+                validation_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= validation_sampler)
+                test_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= test_sampler)
+
+                if self.parser_args.model == "PNAConv":
+                    deg = self.calculate_deg(train_sampler)
+                
+                model = self.set_model(deg)
+
+                optimizer = torch.optim.Adam(model.parameters(), lr=self.parser_args.lr, weight_decay=self.parser_args.weight_decay)
+                # scheduler = ReduceLROnPlateau(optimizer, 'min', factor= self.parser_args.factor, patience=self.parser_args.patience, min_lr=self.parser_args.min_lr, verbose=True)
+
+                fold_dict = {
+                    "fold": fold,
+                    "train_loader": train_loader,
+                    "validation_loader": validation_loader,
+                    "test_loader": test_loader,
+                    "deg": deg,
+                    "model": model,
+                    "optimizer": optimizer,
+                    # "schedular": scheduler
+                }
+
+                self.fold_dicts.append(fold_dict)
+
+                if not self.setup_args.use_fold:
+                    break
 
     def calculate_deg(self,train_sampler):
         """Calcualtes deg, which is necessary for some models
@@ -176,7 +209,6 @@ class trainer_tester:
         #out_list = []
         
         for data in fold_dict["train_loader"]:  # Iterate in batches over the training dataset.
-        
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
             loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
         
@@ -321,9 +353,9 @@ class trainer_tester:
         all_folds_val_df = all_preds_df.loc[(all_preds_df['Fold#-Set'].str[2:] == "validation")]
         all_fold_val_r2_score = r_squared_score(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
     
-        # print("All folds val r2 score:", all_fold_val_r2_score)
+        print("All folds val r2 score:", all_fold_val_r2_score)
     
-        if  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
+        if  (self.label_type == "regression" and all_fold_val_r2_score>0.5):
             plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id)
             all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
             self.save_results()
@@ -332,7 +364,62 @@ class trainer_tester:
                 custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.setup_args.id, mode="SD", path=self.setup_args.MODEL_PATH)
                 if self.parser_args.model == "PNAConv":
                     custom_tools.save_pickle(self.fold_dicts[0]["deg"], f"{self.setup_args.id}_deg.pckl", self.setup_args.MODEL_PATH)
+    
+    def full_train_loop(self):
+        """Training and testing occurs under this function. 
+        """
 
+        self.results =[] 
+        # collect train/val/test predictions of all folds in all_preds_df
+        all_preds_df = []
+        fold_dict = self.fold_dicts[0]    
+        best_val_loss = np.inf
+
+        print(f"Performing full training ...")
+        for epoch in (pbar := tqdm(range(self.parser_args.epoch), disable=True)):
+
+            self.train(fold_dict)
+
+            train_loss = self.test(fold_dict, "train_loader")
+            pbar.set_description(f"Train loss: {train_loss}")
+
+            if (epoch % self.setup_args.print_every_epoch) == 0:
+                print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}')
+
+
+        train_loss, df_train = self.test(fold_dict, "train_loader", "train", self.setup_args.plot_result)
+
+        if self.label_type == "regression":
+            r2_score = r_squared_score(df_train['True Value'], df_train['Predicted'])
+            mse_score = mse(df_train['True Value'], df_train['Predicted'])
+            rmse_score = rmse(df_train['True Value'], df_train['Predicted'])
+
+        elif self.label_type == "classification":
+            accuracy_Score = accuracy_score(df_train["True Value"], df_train['Predicted'])
+            precision_Score = precision_score(df_train["True Value"], df_train['Predicted'],average="micro")   
+            f1_Score = f1_score(df_train["True Value"], df_train['Predicted'],average="micro")    
+
+        all_preds_df = df_train
+        
+        if self.label_type == "regression": 
+            self.results.append([fold_dict['fold'], round(100000, 4), round(100000, 4), round(100000, 4), r2_score, mse_score, rmse_score])
+        
+        elif self.label_type == "classification":
+            self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, accuracy_Score, precision_Score, f1_Score])
+
+
+        # print("All folds val r2 score:", all_fold_val_r2_score)
+    
+        if  (self.label_type == "regression"):
+            plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id, full_training=True)
+            all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
+            self.save_results()
+            custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
+            if not self.parser_args.fold:
+                custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.setup_args.id, mode="SD", path=self.setup_args.MODEL_PATH)
+                if self.parser_args.model == "PNAConv":
+                    custom_tools.save_pickle(self.fold_dicts[0]["deg"], f"{self.setup_args.id}_deg.pckl", self.setup_args.MODEL_PATH)
+                
     
     def save_results(self):
         """Found results are saved into CSV file
@@ -408,3 +495,6 @@ class trainer_tester:
             writer.writerows(means)
 
             writer.writerows(variances)
+
+
+    # python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 200 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth

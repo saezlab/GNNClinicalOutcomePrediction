@@ -28,11 +28,12 @@ def calculate_all_reg_scores(folder_path_list):
 
 
     header = ["experiment name", "job id", "train_r2 score", "train_mse", "val_r2 score", "val_mse", "test_r2 score", "test_mse"]
-
+    all_results = []
     for folder_path in folder_path_list:
-        all_results = []
+        
         for fl in os.listdir(folder_path):
             if fl.endswith(".csv"):
+                
                 all_results.append(calculate_reg_scores_from_preds(folder_path, fl))
         
     df_results = pd.DataFrame (all_results, columns = header)
@@ -41,4 +42,5 @@ def calculate_all_reg_scores(folder_path_list):
     return df_results
 
 
-# calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_12-10-2022"])
+print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_year_30-11-2022"]))
+

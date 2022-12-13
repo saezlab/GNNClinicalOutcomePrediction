@@ -87,22 +87,28 @@ def plot_pred_vs_real_lst(df_lst, x_axis_lst, y_axis_lst, color, order, fl_name)
 
 import matplotlib.lines as mlines
 
-def plot_pred_vs_real(df, exp_name, fl_name):
+def plot_pred_vs_real(df, exp_name, fl_name, full_training=False):
 
     fig, axs = plt.subplots(1,3,figsize=(20,5))
     colors = {'TripleNeg':'red', 'HR+HER2-':'green', 'HR-HER2+':'blue', 'HR+HER2+':'orange'}
     labels = ['TripleNeg', 'HR+HER2-', 'HR-HER2+', 'HR+HER2+']
     colors = ['red', 'green', 'blue', 'orange']
-
-    for idx, val in enumerate(["train", "validation", "test"]):
-
+    
+    tvt_labels = ["train", "validation", "test"]
+    if full_training:
+        tvt_labels = ["train"]
+    for idx, val in enumerate(tvt_labels):
+        
         df_tvt = df.loc[(df['Fold#-Set'].str[2:] == val)]
+        
         for idxlbl, lbl in enumerate(labels):
             # df_temp = df.loc[(df['Train Val Test'] == val) & (df['Clinical Type'] == lbl)]
             df_temp = df_tvt.loc[(df_tvt['Clinical Type'] == lbl)]
+            print(lbl, val)
+            print(df_temp)
             axs[idx].scatter(x=df_temp['True Value'], y=df_temp['Predicted'], color= colors[idxlbl], label=lbl)
-            axs[idx].set_xlim(0, 6)
-            axs[idx].set_ylim(0, 6)
+            axs[idx].set_xlim(0, 8)
+            axs[idx].set_ylim(0, 8)
             axs[idx].set_xlabel('OS Month (log)')
             axs[idx].set_ylabel('Predicted')
             
@@ -162,31 +168,42 @@ def plot_connected_components(test_graph, coordinates_arr, exp_edges_idx, ax, cc
             for node in component:
                 explained_graph.remove_node(node)
     nx.draw_networkx_nodes(explained_graph,  pos=coordinates_arr, node_size=node_size, ax=ax)
-    nx.draw_networkx_labels(original_graph, pos=coordinates_arr, font_size=font_size, ax=ax)
+    # nx.draw_networkx_labels(original_graph, pos=coordinates_arr, font_size=font_size, ax=ax)
     nx.draw_networkx_edges(explained_graph,  pos=coordinates_arr, width=width, ax=ax)
     
     return ax
 
 
-def plot_node_importances(test_graph, coordinates_arr, node_score_dict, ax, node_size=3000, font_size=10, width=8):
+def plot_node_importances(test_graph, coordinates_arr, node_score_dict, ax, quant_thr=None, node_size=3000, font_size=10, width=8):
     original_graph = utils.to_networkx(test_graph)
 
     color_list = []
     for n_id in original_graph.nodes:
         color_list.append(node_score_dict[n_id])
+
+    if quant_thr:
+        node_imp_thr = np.quantile(color_list, quant_thr)
+        color_list = np.array(color_list > node_imp_thr).astype(int)
+
     node_score_str_dict = dict()
     for node_id in node_score_dict.keys():
         node_score_str_dict[node_id] = f"{node_id}_{node_score_dict[node_id]:.2f}"
+        
     nx.draw(original_graph, pos=coordinates_arr, node_color=color_list, node_size=node_size, arrows=False, cmap=plt.cm.afmhot, ax=ax)
-    nx.draw_networkx_labels(original_graph, labels=node_score_str_dict, pos=coordinates_arr, font_size=font_size, ax=ax)
+    # nx.draw_networkx_labels(original_graph, labels=node_score_str_dict, pos=coordinates_arr, font_size=font_size, ax=ax)
+
     nx.draw_networkx_edges(original_graph,  pos=coordinates_arr, arrows=False, width=width, ax=ax)
 
-
-def plot_node_importances_voronoi(test_graph, coordinates_arr, node_score_dict, ax, node_size=3000, font_size=10, width=8):
+# TODO: Rename this function
+def plot_node_importances_voronoi(test_graph, coordinates_arr, node_score_dict, ax, quant_thr=None, title=None, cmap=plt.cm.afmhot, font_size=10, width=8):
     original_graph = utils.to_networkx(test_graph)
     color_list = []
     for n_id in original_graph.nodes:
         color_list.append(node_score_dict[n_id])
+
+    if quant_thr:
+        node_imp_thr = np.quantile(color_list, quant_thr)
+        color_list = np.array(color_list > node_imp_thr).astype(int)
     
     # find min/max values for normalization
     minima = min(color_list)
@@ -199,11 +216,11 @@ def plot_node_importances_voronoi(test_graph, coordinates_arr, node_score_dict, 
     coordinates_arr = np.append(coordinates_arr, [[maxx+10, maxy+10], [minx-10,maxy+10], [maxx+10,miny-10], [minx-10,miny-10]], axis = 0)
 
     vor = Voronoi(coordinates_arr)
-    fig = voronoi_plot_2d(vor, show_vertices=True, line_colors='orange', line_width=1, line_alpha=0.6, point_size=10, ax=ax)
+    fig = voronoi_plot_2d(vor, show_vertices=False, line_colors='orange', line_width=1, line_alpha=0.6, point_size=5, ax=ax)
    
     # normalize chosen colormap
     norm = mpl.colors.Normalize(vmin=minima, vmax=maxima, clip=True)
-    mapper = plt.cm.ScalarMappable(norm=norm, cmap=plt.cm.afmhot)
+    mapper = plt.cm.ScalarMappable(norm=norm, cmap= cmap)
 
     #for r in range(len(vor.point_region)):
     #    region = vor.regions[vor.point_region[r]]
@@ -219,6 +236,9 @@ def plot_node_importances_voronoi(test_graph, coordinates_arr, node_score_dict, 
     
     ax.set_xlim([minx, maxx])
     ax.set_ylim([miny, maxy])
+    if title:
+        ax.set_title(title, fontsize=50)
+
 
 
 
@@ -309,3 +329,32 @@ def plot_all_and_explained_edges(test_graph, path, file_name, coordinates_arr, e
     plt.savefig(os.path.join(path, file_name), dpi = 300)
     plt.clf()
 
+def plot_overall_survibility():
+    dataset = TissueDataset(os.path.join(S_PATH,"../data"))
+    substr_list = ["ll", "ul", "ur", "lr"]
+    img_num_lst = []
+    clinical_tyıe_lst = []
+    osmonth_lst = []
+    for data in dataset:
+        if any(substring in data.img_id for substring in substr_list):
+            if data.img_id[:-2] not in img_num_lst:
+                img_num_lst.append(data.img_id[:-2])
+                clinical_tyıe_lst.append(data.clinical_type)
+                osmonth_lst.append(data.osmonth.item())
+    
+    df = pd.DataFrame(list(zip(clinical_tyıe_lst, osmonth_lst)),
+               columns =['Clinical Type', 'OS-Month'])
+
+            
+    
+
+    sns.set(style="darkgrid")
+    ax = sns.boxplot( x=df["Clinical Type"], y=df["OS-Month"] )
+
+    # adding transparency to colors
+    for patch in ax.artists:
+        r, g, b, a = patch.get_facecolor()
+        patch.set_facecolor((r, g, b, .3))
+    plt.savefig(f"{PLOT_PATH}/generic_plots/survibility_plot")
+
+# plot_overall_survibility()

@@ -11,6 +11,7 @@ import networkx as nx
 from pathlib import Path
 from model import CustomGCN
 from torch_geometric import utils
+from data_preparation import get_basel_zurich_staining_panel
 from sklearn.model_selection import KFold
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
@@ -367,10 +368,7 @@ def general_parser() -> argparse.Namespace:
         # ARBTR Change to something meaningful
         default= ["sum","mean"], # "sum", "mean", "min", "max", "var" and "std".
         metavar='AGR',
-        help= "aggregator list for PNAConv"
-
-    
-    )
+        help= "aggregator list for PNAConv")
 
     parser.add_argument(
         '--scalers',
@@ -389,6 +387,15 @@ def general_parser() -> argparse.Namespace:
         default= True,
         metavar='F',
         help='Perform train/val/test or n-fold x-val (--fold, --no-fold),')
+
+    parser.add_argument(
+        '--full_training',
+        type= bool,
+        action=argparse.BooleanOptionalAction,
+        default= False,
+        metavar='F',
+        help='Perform full_training, default: --no-full_training (--full_training, --no-full_training),')
+
     parser.add_argument(
         '--label',
         type= str,
@@ -460,51 +467,86 @@ def get_khop_node_score(test_graph, node_id, edgeid_to_mask_dict, n_of_hops):
             total_score += edgeid_to_mask_dict[(n1,n2)]
                 # print((n1,n2), edgeid_to_mask_dict[(n1,n2)])
     
-    total_score = total_score/len(explained_edges)
-    return total_score
+    if len(explained_edges)>0:
+        total_score = total_score/len(explained_edges)
+        return total_score
+    else:
+        return 0.0
 
 
 def get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops):
     original_graph = utils.to_networkx(test_graph)
     node_list= original_graph.nodes
     nodeid_score_dict = dict()
-
+    # WARN: There is a strange error in image id 74ul_52
     for node_id in node_list:
-        node_score = get_khop_node_score(test_graph, node_id, edgeid_to_mask_dict, n_of_hops)
-        nodeid_score_dict[node_id] = node_score
+        try:
+            node_score = get_khop_node_score(test_graph, node_id, edgeid_to_mask_dict, n_of_hops)
+            nodeid_score_dict[node_id] = node_score
+        except:
+
+            print("ERROR occured when finding node score!")
+            nodeid_score_dict[node_id] = 0.0
+        
 
     return nodeid_score_dict
 
 
-def convert_graph_to_anndata(graph, node_id_to_importance_dict):
+def convert_graph_to_anndata(graph, node_id_to_importance_dict, imp_quant_thr=0.90):
     adata = None
     positions = np.array(graph.pos)
     features = np.array(graph.x)
+    clinical_type = graph.clinical_type
+    img_id= graph.img_id
+    p_id= graph.p_id
+    tumor_grade= graph.tumor_gradep
+    osmonth= graph.osmonth
+    
     obs = [str(val) for val in list(range(graph.x.shape[0]))]
-    var = get_features()
+    var = get_gene_list()
     node_importance = []
     for item in obs:
         node_importance.append(node_id_to_importance_dict[int(item)])
 
     node_importance = np.array(node_importance)
+    node_imp_thr = np.quantile(node_importance, imp_quant_thr)
 
     adata = sc.AnnData(features)
     adata.obs_names = obs
     adata.var_names = var
-
+    adata.obs["clinical_type"] = clinical_type
+    adata.obs["img_id"] = str(img_id)
+    adata.obs["p_id"] = p_id
+    adata.obs["tumor_grade"] = str(tumor_grade)
+    adata.obs["osmonth"] = float(osmonth)
+    
     adata.obsm["pos"] = positions
     adata.obsm["importance"] = node_importance
 
+    importances_hard = np.array(node_importance > node_imp_thr, dtype="str")
+    # print(importances_hard)
+    importances_hard = pd.Series(importances_hard, dtype="category")
+    # print(importances_hard)
+    adata.obs["importance_hard"] = importances_hard.values
+    # print(adata.obs)
+    sc.tl.rank_genes_groups(adata, groupby="importance_hard", method='wilcoxon', key_added = f"wilcoxon")
+    sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False, key=f"wilcoxon", show=True, groupby="importance_hard", save="important_vs_unimportant")
+
+    # print(adata.obs)
+
+
     adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"{graph.img_id}_{graph.p_id}.h5ad"))
     
-    return adata
+    # return adata
 
 
 def get_hvgs(adata):
     pass
 
 
-def get_features():
+def get_gene_list():
+
+    get_id_to_gene_dict = get_basel_zurich_staining_panel()
     lst_features = ['Intensity_MeanIntensity_FullStack_c12',
        'Intensity_MeanIntensity_FullStack_c13',
        'Intensity_MeanIntensity_FullStack_c14',
@@ -538,7 +580,10 @@ def get_features():
        'Intensity_MeanIntensity_FullStack_c46',
        'Intensity_MeanIntensity_FullStack_c47',
        'Intensity_MeanIntensity_FullStack_c9']
-    return lst_features
+
+    lst_genes = [ get_id_to_gene_dict[int(g_id.split("Intensity_MeanIntensity_FullStack_c")[1])] for g_id in lst_features ]
+    
+    return lst_genes
 
 
 def voronoi_finite_polygons_2d(vor, radius=None):

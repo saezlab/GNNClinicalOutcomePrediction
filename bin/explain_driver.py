@@ -15,11 +15,11 @@ OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 
 
-job_id = "wfgSGARma8PCCjxfKHJWiA"
-args  = custom_tools.load_json(f"../models/PNA_training_12-10-2022/{job_id}.json")
-deg = custom_tools.load_pickle(f"../models/PNA_training_12-10-2022/{job_id}_deg.pckl")
+job_id = "sE3-V1wnbN4AgiUbKeP5oA"
+args  = custom_tools.load_json(f"../models/best_full_training_22-11-2022/{job_id}.json")
+deg = custom_tools.load_pickle(f"../models/best_full_training_22-11-2022/{job_id}_deg.pckl")
 
-model = custom_tools.load_model(f"{job_id}_SD", path = "../models/PNA_training_12-10-2022", model_type = "SD", args = args, deg=deg)
+model = custom_tools.load_model(f"{job_id}_SD", path = "../models/best_full_training_22-11-2022", model_type = "SD", args = args, deg=deg)
 
 
 dataset = TissueDataset(os.path.join(S_PATH,"../data"))
@@ -43,7 +43,7 @@ plotting.plot_khop(test_dataset[0], "../plots/subgraphs", f"{test_graph.img_id}_
 random_seed_list = [42] # , 21, 1, 12, 123, 1234, 2, 23, 234, 2345]
 all_edges_list = []
 for random_seed in random_seed_list:
-    explainer = Explainer(model, test_dataset, seed=random_seed)
+    explainer = Explainer(model, dataset, seed=random_seed)
     """torch.manual_seed(random_seed)
     torch.cuda.manual_seed(random_seed)
     np.random.seed(random_seed)"""

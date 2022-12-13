@@ -12,7 +12,7 @@ d1 = today.strftime("%d-%m-%Y")
 
 
 def generate_generic_job_commands():
-    job_id = f"PNA_training_{d1}"
+    job_id = f"PNA_training_week_{d1}"
 
 
     config = {
@@ -21,15 +21,19 @@ def generate_generic_job_commands():
         "lr": [0.1, 0.01, 0.001, 0.0001],
         "bs": [16, 32, 64],
         "dropout": [0.0, 0.1, 0.2, 0.3],
-        "epoch": [50, 100, 200],
+        "epoch": [100, 200],
         "num_of_gcn_layers": [2,3], # 
         "num_of_ff_layers": [1,2], # 
         "gcn_h": [16, 32, 64, 128],
         "fcl": [64, 128, 256, 512],
         "weight_decay": [0.1, 0.001, 0.0001, 3e-6, 1e-5],
-        "factor": [0.5, 0.8, 0.2],
-        "patience": [5, 10, 20],
-        "min_lr": [0.00002, 0.0001],
+        #hyperparams for schedular
+        # WARNING: Uncomment when schedular is used
+        # "factor": [0.5, 0.8, 0.2],
+        # "patience": [5, 10, 20],
+        # "min_lr": [0.00002, 0.0001],
+        #hyperparams for schedular
+
         "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
         "scalers": ["identity","amplification"], # ARBTR Find references
         "en": [job_id],
@@ -141,4 +145,6 @@ def perform_k_fold_on_best_models(experiment_name, top_n=10):
     job_f.close()
     all_jobs_f.close()
 
-perform_k_fold_on_best_models("best_n_fold", top_n=200)
+# perform_k_fold_on_best_models("best_n_fold", top_n=200)
+
+generate_generic_job_commands()

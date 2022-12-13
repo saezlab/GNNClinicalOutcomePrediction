@@ -280,6 +280,8 @@ class GNNExplainer(torch.nn.Module):
             
             loss.backward()
             optimizer.step()
+            # print(self.edge_mask)
+            # print(loss)
             # scheduler.step(loss)
 
             if self.log:  # pragma: no cover
@@ -287,7 +289,7 @@ class GNNExplainer(torch.nn.Module):
 
         if self.log:  # pragma: no cover
             pbar.close()
-
+        
         node_feat_mask = self.node_feat_mask.detach().sigmoid().squeeze()
         edge_mask = self.edge_mask.detach().sigmoid()
 
@@ -429,8 +431,8 @@ class GNNExplainer(torch.nn.Module):
         import networkx as nx
         import matplotlib.pyplot as plt
 
-        print("edge_mask.size:", edge_mask.size())
-        print("edge_index.size:", edge_index.size())
+        # print("edge_mask.size:", edge_mask.size())
+        # print("edge_index.size:", edge_index.size())
 
         assert edge_mask.size(0) == edge_index.size(1)
 
@@ -448,7 +450,7 @@ class GNNExplainer(torch.nn.Module):
                 num_nodes=None, flow=self.__flow__())
 
         edge_mask = edge_mask[hard_edge_mask]
-        print(edge_mask)
+        # print(edge_mask)
         if threshold is not None:
             edge_mask = (edge_mask >= threshold).to(torch.float)
 
