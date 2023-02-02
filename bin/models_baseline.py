@@ -119,7 +119,7 @@ class Regressors(object):
                 
         
         
-        param_list = list(ParameterSampler(hyperparams, n_iter=10))
+        param_list = list(ParameterSampler(hyperparams, n_iter=100))
         # append default params
         param_list.append({})
         

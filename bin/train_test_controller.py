@@ -30,8 +30,6 @@ setup_args.T2VT_ratio = 4
 setup_args.V2T_ratio = 1
 setup_args.use_fold = parser_args.fold
 
-print(setup_args.use_fold )
-
 
 # This is NOT for sure, loss can change inside the class
 setup_args.criterion = torch.nn.MSELoss()

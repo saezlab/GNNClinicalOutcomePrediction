@@ -11,13 +11,13 @@ today = date.today()
 d1 = today.strftime("%d-%m-%Y")
 
 
-def generate_generic_job_commands():
-    job_id = f"PNA_training_week_{d1}"
+def generate_generic_job_commands(model_name, job_name):
+    job_id = f"{model_name}_{job_name}_{d1}"
 
 
     config = {
         # "model": ["GCN", "GATConv", "TransformerConv", "PNAConv"],
-        "model": ["PNAConv"],
+        "model": [model_name],
         "lr": [0.1, 0.01, 0.001, 0.0001],
         "bs": [16, 32, 64],
         "dropout": [0.0, 0.1, 0.2, 0.3],
@@ -34,11 +34,17 @@ def generate_generic_job_commands():
         # "min_lr": [0.00002, 0.0001],
         #hyperparams for schedular
 
-        "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
-        "scalers": ["identity","amplification"], # ARBTR Find references
+        # "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
+        # "scalers": ["identity","amplification"], # ARBTR Find references
         "en": [job_id],
         "no-fold": [""]
     }
+    if "GAT" in job_id:
+        config["heads"] = [1, 3, 5]
+
+    if "PNA" in job_id:
+        config["aggregators"] =  ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
+        config["scalers"] = ["identity","amplification"], # ARBTR Find references
 
 
 
@@ -60,9 +66,9 @@ def generate_generic_job_commands():
     print(num_of_combs)
     shuffled_experiments = list(range(num_of_combs)) # SHUFFLE THE COMBINATIONS
     random.shuffle(shuffled_experiments)
+    print(len(shuffled_experiments))
 
-
-    number_of_runs = 1000
+    number_of_runs = 500
     count=1
 
     all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p gpu --gres=gpu:1 --mem=2g  -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
@@ -70,7 +76,7 @@ def generate_generic_job_commands():
     job_f.writelines("#!/bin/sh\n")
 
     # #!/bin/sh
-    for i in range(1, 100001):
+    for i in range(1, min(len(shuffled_experiments), 50001)):
         hyper_param_ind = shuffled_experiments[i]
         command_line = "python ../../train_test_controller.py "+ " ".join([f"--{param} "+ str(combinations[hyper_param_ind][allNames.index(param)]) for param in allNames]) # JUST DO THIS
         
@@ -100,7 +106,9 @@ def perform_k_fold_on_best_models(experiment_name, top_n=10):
 
     random.seed = 42
 
-    df_results = calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_12-10-2022"])
+    # df_results = calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_12-10-2022"])
+    df_results = calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_week_07-12-2022"])
+    
 
     number_of_runs = 10
     count=1
@@ -124,7 +132,7 @@ def perform_k_fold_on_best_models(experiment_name, top_n=10):
             print(f"{j_id}.json file does not exist!")
             pass
         hyper_param_dict["en"] = experiment_name
-        exluded_params = {"aggregators", "scalers", "str", "fold", "num_node_features"}
+        exluded_params = {"aggregators", "scalers", "str", "fold", "num_node_features", "full_training"}
         command_line = "python ../../train_test_controller.py "+ " ".join([f"--{param} "+ str(hyper_param_dict[param]) for param in (hyper_param_dict.keys()-exluded_params)]) # JUST DO THIS
         command_line += " --fold"
         if hyper_param_dict["model"]=="PNAConv":
@@ -145,6 +153,6 @@ def perform_k_fold_on_best_models(experiment_name, top_n=10):
     job_f.close()
     all_jobs_f.close()
 
-# perform_k_fold_on_best_models("best_n_fold", top_n=200)
+# perform_k_fold_on_best_models("best_n_fold_week", top_n=100)
 
-generate_generic_job_commands()
+generate_generic_job_commands("GATConv", "os_nolog_large")

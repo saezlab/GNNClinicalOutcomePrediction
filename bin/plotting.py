@@ -104,12 +104,12 @@ def plot_pred_vs_real(df, exp_name, fl_name, full_training=False):
         for idxlbl, lbl in enumerate(labels):
             # df_temp = df.loc[(df['Train Val Test'] == val) & (df['Clinical Type'] == lbl)]
             df_temp = df_tvt.loc[(df_tvt['Clinical Type'] == lbl)]
-            print(lbl, val)
-            print(df_temp)
+            # print(lbl, val)
+            # print(df_temp)
             axs[idx].scatter(x=df_temp['True Value'], y=df_temp['Predicted'], color= colors[idxlbl], label=lbl)
-            axs[idx].set_xlim(0, 8)
-            axs[idx].set_ylim(0, 8)
-            axs[idx].set_xlabel('OS Month (log)')
+            axs[idx].set_xlim(0, 300)
+            axs[idx].set_ylim(0, 300)
+            axs[idx].set_xlabel('OS Week (log)')
             axs[idx].set_ylabel('Predicted')
             
         r2_score = r_squared_score(df_tvt['True Value'], df_tvt['Predicted'])

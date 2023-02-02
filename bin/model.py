@@ -41,7 +41,7 @@ class CustomGCN(torch.nn.Module):
 
         # Recording the parameters
         self.pars = kwargs
-        
+        print(self.pars)
         self.dropout = self.pars["dropout"]
 
 
@@ -67,7 +67,10 @@ class CustomGCN(torch.nn.Module):
         self.ff_hidden_neurons = self.check_Key("ff_hidden_neurons")
         self.aggregators = self.check_Key("aggregators","list")
         self.scalers = self.check_Key("scalers","list")
+        self.heads = self.check_Key("heads")
         self.deg = self.check_Key("deg")
+
+        print("heads", self.heads)
 
         if self.label_type == "regression":
             self.num_ff_final = 1
@@ -91,6 +94,9 @@ class CustomGCN(torch.nn.Module):
             # WORKS
             if type == "GATConv":
                 self.GCN_type_1 = GATConv
+                model_pars_head["heads"] = self.heads
+                model_pars_rest["heads"] = self.heads
+                model_pars_rest["in_channels"] = self.gcn_hidden_neurons*self.heads
 
             # WORKS
             elif type == "TransformerConv":
@@ -131,9 +137,13 @@ class CustomGCN(torch.nn.Module):
         self.ff_batch_norms = ModuleList()
 
         if type == 'GATConv':
-            self.convs_in = GATConv(
+            #self.convs_in = GATConv(
+            #    **model_pars_head,
+            #    )
+            self.convs.append(self.GCN_type_1(
                 **model_pars_head,
-                )
+            ))
+
             self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
             
             for _ in range(self.num_gcn_layers-1):
@@ -144,7 +154,7 @@ class CustomGCN(torch.nn.Module):
 
             if self.num_ff_layers != 0:
                 # Initial ff layer ----
-                self.ff_layers.append(Linear(self.gcn_hidden_neurons, self.ff_hidden_neurons))
+                self.ff_layers.append(Linear(self.gcn_hidden_neurons*self.heads, self.ff_hidden_neurons))
                 self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
                 # Other ff layers
                 for _ in range(self.num_ff_layers-2):
@@ -208,30 +218,31 @@ class CustomGCN(torch.nn.Module):
 
 
     def forward(self, x, edge_index, batch, att=False):
-        
-        if self.type == 'GATConv':
-            if att is True:
-                '''
-                In this implementation just first GAT layers' attention weights have been looked at.
-                '''
-                x, alpha = self.convs_in(x, edge_index, return_attention_weights=att)
-                x = F.relu(x)
+        # print("BURAYA gel")
+        if self.type == 'GATConv' and att is True:
+            # print("BURAYA gel2"
+            '''
+            In this implementation just first GAT layers' attention weights have been looked at.
+            '''
+            x, alpha = self.convs_in(x, edge_index, return_attention_weights=att)
+            x = F.relu(x)
+            x = F.dropout(x, self.dropout, training=self.training)
+
+            for conv in self.convs:
+                x = F.relu(conv(x, edge_index))
                 x = F.dropout(x, self.dropout, training=self.training)
 
-                for conv in self.convs:
-                    x = F.relu(conv(x, edge_index))
-                    x = F.dropout(x, self.dropout, training=self.training)
+            x = global_mean_pool(x, batch)  # [batch_size, gcn_hidden_neurons]
+            for ff_l in self.ff_layers:
+                x = F.relu(ff_l(x))
+                # x = h + x  # residual#
+                x = F.dropout(x, self.dropout, training=self.training)
 
-                x = global_mean_pool(x, batch)  # [batch_size, gcn_hidden_neurons]
-                for ff_l in self.ff_layers:
-                    x = F.relu(ff_l(x))
-                    # x = h + x  # residual#
-                    x = F.dropout(x, self.dropout, training=self.training)
-
-                return x, alpha
+            return x, alpha
 
         else:
             # Conv layers
+            
             for conv in self.convs:
                 x = F.relu(conv(x, edge_index))
                 x = F.dropout(x, self.dropout, training=self.training)

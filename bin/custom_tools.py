@@ -381,6 +381,14 @@ def general_parser() -> argparse.Namespace:
         help='Set of scaling function identifiers,')
 
     parser.add_argument(
+        '--heads',
+        type = int,
+        default=1,
+        metavar="NOH",
+        help='number of heads for GATConv'
+    )
+
+    parser.add_argument(
         '--fold',
         type= bool,
         action=argparse.BooleanOptionalAction,

@@ -82,7 +82,7 @@ class trainer_tester:
             self.dataset.data.y = custom_tools.convert_wLT(self.dataset.data.y,self.LT_ToIndex)
 
         self.dataset = self.dataset.shuffle()
-        print("Dataset:",  self.dataset)
+        # print("Dataset:",  self.dataset)
 
         self.fold_dicts = []
         deg = -1
@@ -188,6 +188,7 @@ class trainer_tester:
                     scalers=self.parser_args.scalers,
                     deg = deg, # Comes from data not hyperparameter
                     num_classes = self.num_classes,
+                    heads = self.parser_args.heads,
                     label_type = self.label_type
                         ).to(self.device)
 
@@ -207,9 +208,17 @@ class trainer_tester:
         pred_list = []
         # WARN Disabled it but IDK what it does
         #out_list = []
-        
+        # print("Model",fold_dict["model"])
         for data in fold_dict["train_loader"]:  # Iterate in batches over the training dataset.
+            # print(data)
+            # print(data.x)
+            # print("data.edge_index", data.edge_index.to(self.device))
+            # print("data.batch",data.batch)
+            # print(data.x)
+            # print(data.x)
+            # print(fold_dict["model"])
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
+            # print(out)
             loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
         
             loss.backward()  # Derive gradients.
@@ -243,7 +252,10 @@ class trainer_tester:
         pid_list, img_list, pred_list, true_list, tumor_grade_list, clinical_type_list, osmonth_list = [], [], [], [], [], [], []
         
         for data in loader:  # Iterate in batches over the training/test dataset.
-            
+            """print(data)
+            print(data.y)
+            print(data.x)
+            print(data.clinical_type)"""
             if data.y.shape[0]>1:
                 out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
                 loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
@@ -355,7 +367,7 @@ class trainer_tester:
     
         print("All folds val r2 score:", all_fold_val_r2_score)
     
-        if  (self.label_type == "regression" and all_fold_val_r2_score>0.5):
+        if  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
             plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id)
             all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
             self.save_results()
@@ -498,3 +510,6 @@ class trainer_tester:
 
 
     # python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 200 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth
+
+    # full_training
+    # python train_test_controller.py --model PNAConv --lr 0.001 --bs 16 --dropout 0.0 --epoch 200 --num_of_gcn_layers 3 --num_of_ff_layers 2 --gcn_h 32 --fcl 512 --en best_full_training_week_15-12-2022 --weight_decay 0.0001 --factor 0.5 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --full_training --label OSMonth

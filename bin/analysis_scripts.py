@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from model import CustomGCN
-from evaluation_metrics import r_squared_score, mse, rmse
+from evaluation_metrics import r_squared_score, mse, rmse, mae
 
 def calculate_reg_scores_from_preds(folder_path, file_name):
     experiment_name = os.path.split(folder_path)[-1]
@@ -27,20 +27,59 @@ def calculate_reg_scores_from_preds(folder_path, file_name):
 def calculate_all_reg_scores(folder_path_list):
 
 
-    header = ["experiment name", "job id", "train_r2 score", "train_mse", "val_r2 score", "val_mse", "test_r2 score", "test_mse"]
+    header = ["experiment name", "job id", "train_r2 score", "train_mse", "train_mae", "val_r2 score", "val_mse", "val_mae", "test_r2 score", "val_mse", "test_mae"]
     all_results = []
     for folder_path in folder_path_list:
         
         for fl in os.listdir(folder_path):
             if fl.endswith(".csv"):
                 
-                all_results.append(calculate_reg_scores_from_preds(folder_path, fl))
+                all_results.append(calculate_mae_scores_from_preds(folder_path, fl))
         
     df_results = pd.DataFrame (all_results, columns = header)
-    df_results.sort_values(by=["val_r2 score", "test_r2 score"], inplace=True, ascending=False)
+    # df_results.sort_values(by=["val_r2 score", "test_r2 score"], inplace=True, ascending=False)
+    df_results.sort_values(by=["val_mae", "test_mae"], inplace=True, ascending=True)
 
     return df_results
 
 
-print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_year_30-11-2022"]))
+def calculate_mae_scores_from_preds(folder_path, file_name):
+    experiment_name = os.path.split(folder_path)[-1]
+    df_results = pd.read_csv(os.path.join(folder_path, file_name), sep=",")
+    job_id = file_name.split(".csv")[0]
+    
+    result_list = [experiment_name, job_id]
+    tvt = True
+    if tvt:
+        for idx, val in enumerate(["train", "validation", "test"]):
 
+            col_name = "True Value"
+            if "OS Month (log)" in df_results.columns:
+                col_name = "OS Month (log)"
+
+            df_tvt = df_results.loc[(df_results['Fold#-Set'].str[2:] == val)]
+
+            r2_score = r_squared_score(df_tvt[col_name], df_tvt['Predicted'])
+            mser = mse(df_tvt[col_name], df_tvt['Predicted'])
+            mean_abs_err = mae(df_tvt[col_name], df_tvt['Predicted'])
+            result_list.extend([r2_score, mser, mean_abs_err])
+    else:
+        col_name = "True Value"
+        if "OS Month (log)" in df_results.columns:
+            col_name = "OS Month (log)"
+
+        r2_score = r_squared_score(df_results[col_name], df_results['Predicted'])
+        mser = mse(df_results[col_name], df_results['Predicted'])
+        mean_abs_err = mae(np.exp(df_results[col_name]), np.exp(df_results['Predicted']))
+        result_list.extend([r2_score, mser, mean_abs_err])
+    
+    return result_list
+
+
+# print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_year_30-11-2022"]))
+# print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_week_07-12-2022"]))
+# print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/best_n_fold_week_14-12-2022"]))
+
+print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/GAT_training_month_nolog_21-12-2022", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_month_nolog_15-12-2022"]))
+
+# print(calculate_mae_scores_from_preds("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/best_full_training_week_15-12-2022", "CETuHyGFgP3ZZ3WwgqlUeA.csv"))
