@@ -507,7 +507,7 @@ def convert_graph_to_anndata(graph, node_id_to_importance_dict, imp_quant_thr=0.
     clinical_type = graph.clinical_type
     img_id= graph.img_id
     p_id= graph.p_id
-    tumor_grade= graph.tumor_gradep
+    tumor_grade= graph.tumor_grade
     osmonth= graph.osmonth
     
     obs = [str(val) for val in list(range(graph.x.shape[0]))]
@@ -538,14 +538,14 @@ def convert_graph_to_anndata(graph, node_id_to_importance_dict, imp_quant_thr=0.
     adata.obs["importance_hard"] = importances_hard.values
     # print(adata.obs)
     sc.tl.rank_genes_groups(adata, groupby="importance_hard", method='wilcoxon', key_added = f"wilcoxon")
-    sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False, key=f"wilcoxon", show=True, groupby="importance_hard", save="important_vs_unimportant")
+    # sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False, key=f"wilcoxon", show=True, groupby="importance_hard", save="important_vs_unimportant")
 
     # print(adata.obs)
 
 
-    adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"{graph.img_id}_{graph.p_id}.h5ad"))
+    # adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"{graph.img_id}_{graph.p_id}.h5ad"))
     
-    # return adata
+    return adata
 
 
 def get_hvgs(adata):

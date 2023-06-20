@@ -34,17 +34,19 @@ def generate_generic_job_commands(model_name, job_name):
         # "min_lr": [0.00002, 0.0001],
         #hyperparams for schedular
 
-        # "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
-        # "scalers": ["identity","amplification"], # ARBTR Find references
+        "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
+        "scalers": ["identity","amplification"], # ARBTR Find references
         "en": [job_id],
         "no-fold": [""]
     }
     if "GAT" in job_id:
-        config["heads"] = [1, 3, 5]
+        config_temp = {"heads": [1, 3, 5]}
+        config.update(config_temp)
 
     if "PNA" in job_id:
-        config["aggregators"] =  ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
-        config["scalers"] = ["identity","amplification"], # ARBTR Find references
+        config_temp = {"aggregators":["min", "max", "sum","mean", "sum max"],
+                        "scalers" : ["identity","amplification"]}
+        config.update(config_temp)
 
 
 
@@ -61,7 +63,7 @@ def generate_generic_job_commands(model_name, job_name):
     allNames = sorted(config)
     print(allNames)
     combinations = list(it.product(*(config[Name] for Name in allNames))) # CREATIGN COMBINATIONS
-    # print(list(combinations)[0])
+    print(list(combinations)[0])
     num_of_combs = len(combinations)
     print(num_of_combs)
     shuffled_experiments = list(range(num_of_combs)) # SHUFFLE THE COMBINATIONS
@@ -156,3 +158,4 @@ def perform_k_fold_on_best_models(experiment_name, top_n=10):
 # perform_k_fold_on_best_models("best_n_fold_week", top_n=100)
 
 generate_generic_job_commands("GATConv", "os_nolog_large")
+generate_generic_job_commands("PNAConv", "os_nolog_large")

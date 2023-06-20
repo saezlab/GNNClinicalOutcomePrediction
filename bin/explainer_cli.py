@@ -104,7 +104,7 @@ class Explainer:
             node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops)
 
             custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict)
-            # adata_concat.append(adata)
+            adata_concat.append(adata)
             
             plt.rcParams['figure.figsize'] = 50, 100
             fig, axs = plt.subplots(9, 4)

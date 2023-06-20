@@ -217,7 +217,7 @@ class CustomGCN(torch.nn.Module):
         return value
 
 
-    def forward(self, x, edge_index, batch, att=False):
+    def forward(self, x, edge_index, batch=torch.tensor([1]), att=False):
         # print("BURAYA gel")
         if self.type == 'GATConv' and att is True:
             # print("BURAYA gel2"

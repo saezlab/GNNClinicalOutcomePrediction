@@ -10,7 +10,7 @@ from tqdm import tqdm
 import pandas as pd
 import os
 from torch_geometric.utils import degree
-from evaluation_metrics import r_squared_score, mse, rmse
+from evaluation_metrics import r_squared_score, mse, rmse, mae
 import custom_tools as custom_tools
 import csv
 import statistics
@@ -364,8 +364,10 @@ class trainer_tester:
         
         all_folds_val_df = all_preds_df.loc[(all_preds_df['Fold#-Set'].str[2:] == "validation")]
         all_fold_val_r2_score = r_squared_score(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
+        all_fold_val_mse_score = mse(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
+        all_fold_val_mae_score = mae(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
     
-        print("All folds val r2 score:", all_fold_val_r2_score)
+        print(f"All folds val - R2 score: {all_fold_val_r2_score}\tMSE: {all_fold_val_mse_score}\tMAE: {all_fold_val_mae_score}")
     
         if  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
             plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id)

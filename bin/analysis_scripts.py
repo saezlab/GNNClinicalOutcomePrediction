@@ -80,6 +80,7 @@ def calculate_mae_scores_from_preds(folder_path, file_name):
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_week_07-12-2022"]))
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/best_n_fold_week_14-12-2022"]))
 
-print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/GAT_training_month_nolog_21-12-2022", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_month_nolog_15-12-2022"]))
+# print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/GAT_training_month_nolog_21-12-2022", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_month_nolog_15-12-2022"]))
+print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/bin/jobs/PNAConv_os_nolog_large_02-02-2023"]))
 
 # print(calculate_mae_scores_from_preds("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/best_full_training_week_15-12-2022", "CETuHyGFgP3ZZ3WwgqlUeA.csv"))

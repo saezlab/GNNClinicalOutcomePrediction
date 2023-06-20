@@ -41,35 +41,111 @@ class Custom_Explainer:
         
         
         gene_list = custom_tools.get_gene_list()
+        adata_concat = []
         count = 0
         for test_graph in tqdm(self.dataset):
 
             explainer = Explainer(
             model=self.model,
             algorithm=GNNExplainer(epochs=200),
-            explanation_type='model',
-            node_mask_type='attributes',
-            edge_mask_type='object',
+            explainer_config = dict(
+                explanation_type='model',
+                node_mask_type='attributes',
+                edge_mask_type='object'),
             model_config=dict(
                 mode='regression',
                 task_level='graph',
-                return_type='raw',  # Model returns log probabilities.
+                return_type='raw', 
             ),
             )
             with open(os.path.join(RAW_DATA_PATH, f'{test_graph.img_id}_{test_graph.p_id}_coordinates.pickle'), 'rb') as handle:
                 coordinates_arr = pickle.load(handle)
         
 
-            # PGExplainer needs to be trained separately since it is a parametric
+            """# PGExplainer needs to be trained separately since it is a parametric
             # explainer i.e it uses a neural network to generate explanations:
             for epoch in range(30):
                 
                 loss = explainer.algorithm.train(epoch, explainer.model, test_graph.x, test_graph.edge_index, target=test_graph.os_month)
                 print(loss)
-
+            """
             # Generate the explanation for a particular graph:
-            explanation = explainer(dataset[0].x, dataset[0].edge_index)
-            print(explanation.edge_mask)
+            explanation = explainer(test_graph.x, test_graph.edge_index)
+            # print("Edge mask:", explanation.edge_mask)
+            # print("Node mask:", explanation.node_mask)
+            edge_value_mask = explanation.edge_mask
+            quant_thr = 0.80
+            
+            genename_to_nodeid_dict = dict()
+
+            for col_ind, gene_name in enumerate(gene_list):
+                genename_to_nodeid_dict[gene_name] = dict()
+                for node_id, val in enumerate(test_graph.x[:,col_ind]):
+                    genename_to_nodeid_dict[gene_name][node_id] = val.item()
+            
+        
+            edge_exp_score_mask_arr = np.array(edge_value_mask.cpu())
+
+
+            edge_thr = np.quantile(np.array(edge_value_mask.cpu()), quant_thr)
+
+            print(f"Edge thr: {edge_thr:.3f}\tMin: {np.min(edge_exp_score_mask_arr)}\tMax: {np.max(edge_exp_score_mask_arr):.3f}\tMin: {np.min(edge_exp_score_mask_arr):.3f}")
+            
+
+            exp_edges_bool = edge_exp_score_mask_arr > edge_thr
+
+            explained_edge_indices = exp_edges_bool.nonzero()[0]
+
+            """for ind, val in enumerate(exp_edges_bool):
+                if val:
+                    print(val, edge_exp_score_mask_arr[ind])"""
+            # print(edge_exp_score_mask_arr)
+            # print(list(set(range(len(edge_value_mask)))- set(explained_edge_indices)))
+            np.put(edge_exp_score_mask_arr, list(set(range(len(edge_value_mask)))- set(explained_edge_indices)), 0.0)
+
+
+            edgeid_to_mask_dict = dict()
+            for ind, m_val in enumerate(edge_exp_score_mask_arr):
+                # print(ind, m_val, exp_edges_bool[ind], edge_value_mask[ind], edge_thr)
+                node_id1, node_id2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
+                edgeid_to_mask_dict[(node_id1, node_id2)] = m_val.item()
+            
+            
+            n_of_hops = 2   
+            # TODO: Check if the scores are calculated over the ccs
+            plt.rcParams['figure.figsize'] = 10, 10
+            node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops)
+
+            adata = custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict)
+            print(adata.X.shape)
+            print("obs_names", adata.obs_names)
+            print("var_names", adata.var_names)
+            adata_concat.append(adata)
+            # print(adata_concat)
+            plt.rcParams['figure.figsize'] = 45, 15
+            fig, axs = plt.subplots(1, 3)
+            plotting.plot_graph(test_graph, coordinates_arr, axs[0], font_size=5,  node_size=100, width=1)
+            plotting.plot_node_importances(test_graph, coordinates_arr, node_to_score_dict,  axs[2], node_size=100, width=1)
+            plotting.plot_node_importances_voronoi(test_graph, coordinates_arr, node_to_score_dict,  axs[1])
+            # plotting.plot_node_importances_voronoi(test_graph, coordinates_arr,  genename_to_nodeid_dict[gene_list[0]],  axs[0][3], title=gene_list[0], cmap=plt.cm.GnBu)
+
+            """cols = 4
+            for ind,val in enumerate(gene_list[1:]):
+                fig_row, fig_col = int(ind/cols), ind%cols
+                plotting.plot_node_importances_voronoi(test_graph, coordinates_arr,  genename_to_nodeid_dict[gene_list[ind+1]],  axs[fig_row+1][fig_col], title=gene_list[ind+1], cmap=plt.cm.GnBu)"""
+
+
+            fig.savefig(f"../plots/subgraphs/{test_graph.img_id}_{test_graph.p_id}_{str(int(test_graph.osmonth))}_{test_graph.clinical_type}")
+            plt.close()
+            count +=1
+
+        
+            if count ==3:
+                break
+
+        
+        adata = adata_concat[0].concat(adata_concat[1:], join='outer')
+        adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"concatenated_explanations.h5ad"))
 
 
 
@@ -139,7 +215,7 @@ class Custom_Explainer:
             plt.rcParams['figure.figsize'] = 10, 10
             node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops)
 
-            custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict)
+            adata = custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict)
             # adata_concat.append(adata)
             
             plt.rcParams['figure.figsize'] = 50, 100
