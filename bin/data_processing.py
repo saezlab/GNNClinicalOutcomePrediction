@@ -9,14 +9,14 @@ import numpy as np
 import os
 
 RAW_DATA_PATH = os.path.join("../data", "raw")
-OUT_DATA_PATH = os.path.join("../data", "out_data")
-PLOT_PATH = os.path.join("../plots")
+OUT_DATA_PATH = os.path.join("../data", "out_data", "new")
+PLOT_PATH = os.path.join("../plots", "graph_voronoi_plots")
 GRAPH_DIV_THR = 2500
 CELL_COUNT_THR = 100
 
 
 def get_dataset_from_csv():
-    return pd.read_csv(os.path.join(RAW_DATA_PATH, "basel_zurich_preprocessed_compact_dataset.csv"))
+    return pd.read_csv(os.path.join("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw", "basel_zurich_preprocessed_compact_dataset.csv"))
 
 
 def get_cell_count_df(cell_count_thr):
@@ -88,7 +88,7 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
         for i, j in large_edges:
             plt.plot(points[[i, j], 0], points[[i, j], 1], 'c--', alpha=0.2, linewidth=1)
 
-        plt.savefig(f"{PLOT_PATH}/{img_num_lbl}_adapt_thr.png")
+        plt.savefig(f"{PLOT_PATH}/{img_num_lbl}_adapt_thr.pdf")
         
         # print(tri.simplices)
 
@@ -102,7 +102,7 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
         plt.figure(dpi=300)
         vor = Voronoi(points)
         fig = voronoi_plot_2d(vor, show_vertices=False, line_colors='orange', line_width=1, line_alpha=0.6, point_size=2)
-        plt.savefig(f"{PLOT_PATH}/{img_num_lbl}_voronoi.png",dpi=300)
+        plt.savefig(f"{PLOT_PATH}/{img_num_lbl}_voronoi.pdf", dpi=300)
         plt.clf()
     
     
@@ -112,10 +112,11 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
     
     assert edge_index_arr.shape[0]==edge_length_arr.shape[0]
 
-    clinical_info_dict = dict()
+    """clinical_info_dict = dict()
     clinical_info_dict["grade"] = df_image["grade"].values[0]
     clinical_info_dict["tumor_size"] = df_image["tumor_size"].values[0]
     clinical_info_dict["treatment"] = df_image["treatment"].values[0]
+    clinical_info_dict["age"] = df_image["age"].values[0]
     clinical_info_dict["DiseaseStage"] = df_image["DiseaseStage"].values[0]
     clinical_info_dict["diseasestatus"] = df_image["diseasestatus"].values[0]
     clinical_info_dict["clinical_type"] = df_image["clinical_type"].values[0]
@@ -142,11 +143,23 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
         pickle.dump(points, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_clinical_info.pickle'), 'wb') as handle:
-        pickle.dump(clinical_info_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(clinical_info_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)"""
 
 
 
 def get_edge_length_dist(cell_count_thr, quant, plot_dist=False):
+    """
+    Calculate the distribution of edge lengths for each image in the dataset.
+
+    Args:
+        cell_count_thr (int): Cell count threshold used to filter the dataset.
+        quant (float): The quantile value to calculate the edge length threshold.
+        plot_dist (bool, optional): Whether to plot and save the edge length distribution for each image.
+                                    Defaults to False.
+
+    Returns:
+        dict: A dictionary containing the image number as key and its corresponding edge length threshold as value.
+    """
     df_dataset = get_dataset_from_csv()
     df_cell_count = get_cell_count_df(cell_count_thr)
     imgnum_edge_thr_dict = dict()
@@ -188,14 +201,14 @@ def get_edge_length_dist(cell_count_thr, quant, plot_dist=False):
 
         edge_thr = np.quantile(edge_length, quant)
         imgnum_edge_thr_dict[img_num] = edge_thr
-
+    
         if plot_dist:
             plt.clf()
             plt.figure(dpi=300)
             edge_dist_plot = sns.displot(data=edge_length, kde=True)
             plt.axvline(x=edge_thr, linestyle='--', color="black")
             # fig = edge_dist_plot.get_figure()
-            plt.savefig(f"{PLOT_PATH}/{img_num}_edge_distribution.png")
+            plt.savefig(f"{PLOT_PATH}/{img_num}_edge_distribution.pdf")
             plt.clf()
         
         
@@ -284,3 +297,6 @@ def check_cell_ids_sequential():
 # check if all cell ids are available 
 # check_cell_ids_sequential()
 
+# get_edge_length_dist(CELL_COUNT_THR, 0.975, plot_dist=True)
+# get_cell_count_df(CELL_COUNT_THR)
+create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True)

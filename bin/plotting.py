@@ -8,7 +8,7 @@ from torch_geometric import utils
 import networkx as nx
 from dataset import TissueDataset
 from scipy.spatial import Voronoi, voronoi_plot_2d
-from evaluation_metrics import r_squared_score, mse, rmse
+from evaluation_metrics import r_squared_score, mse, rmse, mae
 import matplotlib as mpl
 
 S_PATH = os.path.dirname(__file__)
@@ -109,12 +109,13 @@ def plot_pred_vs_real(df, exp_name, fl_name, full_training=False):
             axs[idx].scatter(x=df_temp['True Value'], y=df_temp['Predicted'], color= colors[idxlbl], label=lbl)
             axs[idx].set_xlim(0, 300)
             axs[idx].set_ylim(0, 300)
-            axs[idx].set_xlabel('OS Week (log)')
+            axs[idx].set_xlabel('Overall Survivability')
             axs[idx].set_ylabel('Predicted')
             
         r2_score = r_squared_score(df_tvt['True Value'], df_tvt['Predicted'])
         mser = mse(df_tvt['True Value'], df_tvt['Predicted'])
-        axs[idx].set_title(f"MSE: {mser:.3f}   R2 Score: {r2_score:.3f}")
+        maer = mae(df_tvt['True Value'], df_tvt['Predicted'])
+        axs[idx].set_title(f"MSE: {mser:.3f} - R2 Score: {r2_score:.3f} - MAE: {maer:.3f}")
         axs[idx].legend(loc='lower right')
 
     plt.savefig(os.path.join(PLOT_PATH, exp_name, f"{fl_name}.png"))
@@ -240,8 +241,6 @@ def plot_node_importances_voronoi(test_graph, coordinates_arr, node_score_dict, 
         ax.set_title(title, fontsize=50)
 
 
-
-
 def plot_khop(test_graph, coordinates_arr, edgeid_to_mask_dict, n_of_hops, ax, node_size=3000, font_size=10, width=8):
     # The method returns (1) the nodes involved in the subgraph, (2) the filtered edge_index connectivity, (3) the mapping from node indices in node_idx to their new location, and (4) the edge mask indicating which edges were preserved.
     subset_nodes, subset_edge_index, mapping, edge_mask = utils.k_hop_subgraph(407, n_of_hops, test_graph.edge_index)
@@ -329,32 +328,104 @@ def plot_all_and_explained_edges(test_graph, path, file_name, coordinates_arr, e
     plt.savefig(os.path.join(path, file_name), dpi = 300)
     plt.clf()
 
-def plot_overall_survibility():
-    dataset = TissueDataset(os.path.join(S_PATH,"../data"))
+# Figure 1 - a
+def box_plot_cov(x_col, y_col, fl_path):
+    dataset = TissueDataset(os.path.join(S_PATH,"../data/JacksonFischer", "month"))
     substr_list = ["ll", "ul", "ur", "lr"]
     img_num_lst = []
-    clinical_tyıe_lst = []
-    osmonth_lst = []
+    clinical_type_lst = []
+    out_lst = []
     for data in dataset:
-        if any(substring in data.img_id for substring in substr_list):
-            if data.img_id[:-2] not in img_num_lst:
-                img_num_lst.append(data.img_id[:-2])
-                clinical_tyıe_lst.append(data.clinical_type)
-                osmonth_lst.append(data.osmonth.item())
-    
-    df = pd.DataFrame(list(zip(clinical_tyıe_lst, osmonth_lst)),
-               columns =['Clinical Type', 'OS-Month'])
-
+        if data.clinical_type!="nan":
+            if any(substring in data.img_id for substring in substr_list):
+                if data.img_id[:-2] not in img_num_lst:
+                    img_num_lst.append(data.img_id[:-2])
+                    if y_col=="Age":
+                        out_lst.append(data.age.item())
+                    elif y_col=="OS-Month":
+                        out_lst.append(data.osmonth.item())
+                    else:
+                        raise ValueError("A valid column name should be provided!")
+                    clinical_type_lst.append(data.clinical_type)
+            else:
+                img_num_lst.append(data.img_id)
+                if y_col=="Age":
+                    out_lst.append(data.age.item())
+                elif y_col=="OS-Month":
+                    out_lst.append(data.osmonth.item())
+                else:
+                    raise ValueError("A valid column name should be provided!")
+                clinical_type_lst.append(data.clinical_type)
             
-    
-
+            
+            
+    df = pd.DataFrame(list(zip(img_num_lst, clinical_type_lst, out_lst)),
+               columns =["Image Number", x_col, y_col])
+    print(df)
     sns.set(style="darkgrid")
-    ax = sns.boxplot( x=df["Clinical Type"], y=df["OS-Month"] )
+    print(df["Clinical Type"].unique())
+    my_pal = {"TripleNeg": "b", "HR-HER2+": "y", "HR+HER2-":"g", "HR+HER2+":"r"}
+    ax = sns.boxplot( x=df[x_col], y=df[y_col], palette=my_pal )
 
     # adding transparency to colors
     for patch in ax.artists:
         r, g, b, a = patch.get_facecolor()
         patch.set_facecolor((r, g, b, .3))
-    plt.savefig(f"{PLOT_PATH}/generic_plots/survibility_plot")
+    plt.savefig(fl_path)
+    plt.clf()
 
-# plot_overall_survibility()
+
+
+# box_plot_cov(x_col="Clinical Type", y_col='OS-Month', fl_path=f"{PLOT_PATH}/manuscript_figures/survibility_plot.pdf")
+# box_plot_cov(x_col="Clinical Type", y_col='Age', fl_path=f"{PLOT_PATH}/manuscript_figures/age_plot.pdf")
+
+
+def plot_age_vs_survibility(fl_name="age_vs_survibility"):
+    fig, ax = plt.subplots()
+
+    dataset = TissueDataset(os.path.join(S_PATH,"../data/JacksonFischer", "month"))
+    substr_list = ["ll", "ul", "ur", "lr"]
+    img_num_lst = []
+    clinical_type_lst = []
+    age_lst = []
+    osmonth_lst = []
+
+    for data in dataset:
+        if data.clinical_type!="nan":
+            if any(substring in data.img_id for substring in substr_list):
+                if data.img_id[:-2] not in img_num_lst:
+                    img_num_lst.append(data.img_id[:-2])
+                    age_lst.append(data.age.item())
+                    osmonth_lst.append(data.osmonth.item())
+                    clinical_type_lst.append(data.clinical_type)
+            else:
+                img_num_lst.append(data.img_id)
+                age_lst.append(data.age.item())
+                osmonth_lst.append(data.osmonth.item())
+                clinical_type_lst.append(data.clinical_type)
+
+    
+    df_tvt = pd.DataFrame(list(zip(img_num_lst, clinical_type_lst, osmonth_lst, age_lst)),
+               columns =["Image Number", "Clinical Type", "OS-Month", "Age"])
+    print(df_tvt)
+    # fig, axs = plt.subplots(1,3,figsize=(20,5))
+    # colors = {'TripleNeg':'red', 'HR+HER2-':'green', 'HR-HER2+':'blue', 'HR+HER2+':'orange'}
+    labels = ['TripleNeg', 'HR-HER2+', 'HR+HER2-', 'HR+HER2+']
+    colors = ['b', 'y', 'g', 'r']
+    
+    # print(len(set_img),set_img)
+    for idxlbl, lbl in enumerate(labels):
+        # df_temp = df.loc[(df['Train Val Test'] == val) & (df['Clinical Type'] == lbl)]
+        df_temp = df_tvt.loc[(df_tvt['Clinical Type'] == lbl)]
+        # print(lbl, val)
+        # print(df_temp)
+        ax.scatter(x=df_temp['OS-Month'], y=df_temp['Age'], color= colors[idxlbl], label=lbl)
+        ax.set_xlim(0, 300)
+        ax.set_ylim(0, 100)
+        ax.set_xlabel('OS-Month')
+        ax.set_ylabel('Age')
+        
+
+    plt.savefig(os.path.join(PLOT_PATH, "manuscript_figures", f"{fl_name}.pdf"))
+
+# plot_age_vs_survibility(fl_name="age_vs_survibility")

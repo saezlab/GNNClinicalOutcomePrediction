@@ -41,7 +41,7 @@ class CustomGCN(torch.nn.Module):
 
         # Recording the parameters
         self.pars = kwargs
-        print(self.pars)
+        # print(self.pars)
         self.dropout = self.pars["dropout"]
 
 
@@ -70,7 +70,7 @@ class CustomGCN(torch.nn.Module):
         self.heads = self.check_Key("heads")
         self.deg = self.check_Key("deg")
 
-        print("heads", self.heads)
+        # print("heads", self.heads)
 
         if self.label_type == "regression":
             self.num_ff_final = 1

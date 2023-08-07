@@ -45,12 +45,25 @@ class trainer_tester:
         """
         self.device = custom_tools.get_device()
 
+    def convert_to_month(self, df_col):
+        if self.parser_args.unit=="week":
+            # convert to month
+            return df_col/4.0
+        elif self.parser_args.unit=="month":
+            return df_col
+        elif self.parser_args.unit=="week_lognorm":
+            return np.exp(df_col)/4.0
+        else:
+            raise Exception("Invalid target unit... Should be week,  month, or week_lognorm")
+
     def init_folds(self):
         """Pulls data, creates samplers according to ratios, creates train, test and validation loaders for 
         each fold, saves them under the 'folds_dict' dictionary
         """
         # self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
-        self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
+        # self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data/JacksonFischer/week"), "week")
+        self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data/JacksonFischer", self.parser_args.unit),  self.parser_args.unit)
+        print("Number of samples:", len(self.dataset))
 
         if self.parser_args.label == "OSMonth":
             self.label_type = "regression"
@@ -329,6 +342,13 @@ class trainer_tester:
 
             if self.label_type == "regression":
                 fold_val_r2_score = r_squared_score(df_val['True Value'], df_val['Predicted'])
+                df_train['True Value'] = self.convert_to_month(df_train['True Value'])
+                df_train['Predicted'] = self.convert_to_month(df_train['Predicted'])
+                df_val['True Value'] = self.convert_to_month(df_val['True Value'])
+                df_val['Predicted'] = self.convert_to_month(df_val['Predicted'])
+                df_test['True Value'] = self.convert_to_month(df_test['True Value'])
+                df_test['Predicted'] = self.convert_to_month(df_test['Predicted'])
+
                 fold_val_mse_score = mse(df_val['True Value'], df_val['Predicted'])
                 fold_val_rmse_score = rmse(df_val['True Value'], df_val['Predicted'])
 
@@ -346,7 +366,7 @@ class trainer_tester:
                 all_preds_df = pd.concat([all_preds_df, fold_tvt_preds_df])
 
 
-            
+            # print(all_preds_df)
             print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
             
             if self.label_type == "regression": 

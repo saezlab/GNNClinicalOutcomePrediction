@@ -32,7 +32,14 @@ setup_args.use_fold = parser_args.fold
 
 
 # This is NOT for sure, loss can change inside the class
-setup_args.criterion = torch.nn.MSELoss()
+setup_args.criterion = None
+if parser_args.loss=="MSE":
+    setup_args.criterion = torch.nn.MSELoss()
+elif parser_args.loss=="Huber":
+    setup_args.criterion = torch.nn.HuberLoss()
+else:
+    setup_args.criterion = torch.nn.MSELoss()
+
 setup_args.print_every_epoch = 10
 setup_args.plot_result = True
 

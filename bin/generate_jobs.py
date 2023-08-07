@@ -11,7 +11,7 @@ today = date.today()
 d1 = today.strftime("%d-%m-%Y")
 
 
-def generate_generic_job_commands(model_name, job_name):
+def generate_generic_job_commands(model_name, loss, unit, job_name):
     job_id = f"{model_name}_{job_name}_{d1}"
 
 
@@ -21,7 +21,7 @@ def generate_generic_job_commands(model_name, job_name):
         "lr": [0.1, 0.01, 0.001, 0.0001],
         "bs": [16, 32, 64],
         "dropout": [0.0, 0.1, 0.2, 0.3],
-        "epoch": [100, 200],
+        "epoch": [200, 400],
         "num_of_gcn_layers": [2,3], # 
         "num_of_ff_layers": [1,2], # 
         "gcn_h": [16, 32, 64, 128],
@@ -33,11 +33,12 @@ def generate_generic_job_commands(model_name, job_name):
         # "patience": [5, 10, 20],
         # "min_lr": [0.00002, 0.0001],
         #hyperparams for schedular
-
-        "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
-        "scalers": ["identity","amplification"], # ARBTR Find references
+        # "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
+        # "scalers": ["identity","amplification"], # ARBTR Find references
         "en": [job_id],
-        "no-fold": [""]
+        "no-fold": [""],
+        "loss": [loss],
+        "unit": [unit]
     }
     if "GAT" in job_id:
         config_temp = {"heads": [1, 3, 5]}
@@ -109,9 +110,9 @@ def perform_k_fold_on_best_models(experiment_name, top_n=10):
     random.seed = 42
 
     # df_results = calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_12-10-2022"])
-    df_results = calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_week_07-12-2022"])
-    
-
+    # df_results = calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_week_07-12-2022"])
+    df_results = calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/PNAConv_PNA_MSE_month_30-06-2023"]) 
+    print(df_results)
     number_of_runs = 10
     count=1
 
@@ -155,7 +156,19 @@ def perform_k_fold_on_best_models(experiment_name, top_n=10):
     job_f.close()
     all_jobs_f.close()
 
-# perform_k_fold_on_best_models("best_n_fold_week", top_n=100)
+perform_k_fold_on_best_models("best_n_fold_month_01082023", top_n=100)
 
-generate_generic_job_commands("GATConv", "os_nolog_large")
-generate_generic_job_commands("PNAConv", "os_nolog_large")
+# generate_generic_job_commands("GATConv", "os_nolog_large")
+# generate_generic_job_commands("PNAConv", "os_nolog_large")
+
+# job commands 
+"""generate_generic_job_commands("PNAConv", "MSE", "week", "PNA_MSE_week")
+generate_generic_job_commands("PNAConv", "MSE", "month", "PNA_MSE_month")
+generate_generic_job_commands("PNAConv", "MSE", "week_lognorm", "PNA_MSE_week_lognorm")"""
+
+# generate_generic_job_commands("PNAConv", "Huber", "week", "PNA_Huber_week")
+# generate_generic_job_commands("PNAConv", "Huber", "month", "PNA_Huber_month")
+# generate_generic_job_commands("PNAConv", "Huber", "week_lognorm", "PNA_Huber_week_lognorm")
+
+
+# bash <(head -n200 all_runs.sh)

@@ -38,7 +38,7 @@ def calculate_all_reg_scores(folder_path_list):
         
     df_results = pd.DataFrame (all_results, columns = header)
     # df_results.sort_values(by=["val_r2 score", "test_r2 score"], inplace=True, ascending=False)
-    df_results.sort_values(by=["val_mae", "test_mae"], inplace=True, ascending=True)
+    df_results.sort_values(by=["test_mae", "val_mae"], inplace=True, ascending=True)
 
     return df_results
 
@@ -81,6 +81,11 @@ def calculate_mae_scores_from_preds(folder_path, file_name):
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/best_n_fold_week_14-12-2022"]))
 
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/GAT_training_month_nolog_21-12-2022", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_month_nolog_15-12-2022"]))
-print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/bin/jobs/PNAConv_os_nolog_large_02-02-2023"]))
+# print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/bin/jobs/PNAConv_os_nolog_large_02-02-2023"]))
 
 # print(calculate_mae_scores_from_preds("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/best_full_training_week_15-12-2022", "CETuHyGFgP3ZZ3WwgqlUeA.csv"))
+
+
+# print(calculate_mae_scores_from_preds("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_week_lognorm_30-06-2023", "Vs2a-oNH7FLupUB80hJY9w.csv"))
+
+# print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_os_nolog_large_6-26-2023_h_loss", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_Huber_month_30-06-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_month_30-06-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_week_lognorm_30-06-2023"]))

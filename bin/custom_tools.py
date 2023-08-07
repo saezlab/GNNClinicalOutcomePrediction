@@ -410,8 +410,20 @@ def general_parser() -> argparse.Namespace:
         default= "OSMonth", # "identity", "amplification", "attenuation", "linear" and "inverse_linear"
         metavar='LBL',
         help='Which property of the dataset will be used as label')
-
     
+    parser.add_argument(
+        '--loss',
+        type= str,
+        default= "MSE", # "MSE", "HuberLoss"
+        metavar='LOSS',
+        help='Loss function...')
+
+    parser.add_argument(
+        '--unit',
+        type= str,
+        default= "month", #week, week_lognorm
+        metavar='UN',
+        help='month, week, week_lognorm...')
 
 
     args = parser.parse_args()
