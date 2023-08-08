@@ -344,5 +344,5 @@ def METABRIC_preprocess(visualize = False):
     merged_data.rename(columns=columns_to_rename, inplace=True)
 
     # Save the merged dataframe to a new CSV file
-    merged_data.to_csv('../data/METABRIC/merged_data.csv', index=False)  
+    merged_data.to_csv('../data/METABRIC/raw/merged_data.csv', index=False)  
 
