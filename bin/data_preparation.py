@@ -278,3 +278,71 @@ def create_preprocessed_sc_feature_fl():
     # print(new_dataset)
     df_new_dataset.to_csv(os.path.join(RAW_DATA_PATH,  "basel_zurich_preprocessed_compact_dataset.csv"), index=False)
 
+def generate_clinical_type(row):
+        ER = row['ER Status']
+        HER2 = row['HER2 Status']
+        if ER == "Positive" and HER2 == "Positive":
+            return "HR+HER2+"
+        if ER == "Negative" and HER2 == "Positive":
+            return "HR-HER2+"
+        if ER == "Positive" and HER2 == "Negative":
+            return "HR+HER2-"
+        if ER == "Negative" and HER2 == "Negative":
+            return "TripleNeg"
+        # Check if HER2 is nan
+        if HER2 != "Positive" and HER2 != "Negative":
+            return "HER2-NAN"
+
+def METABRIC_preprocess(visualize = False):
+    # Reads single cell data and clinical data, merges them and saves the compact file
+    # Clinical data: data/METABRIC/brca_metabric_clinical_data.tsv
+    # Single cell data: data/METABRIC/single_cell_data.csv
+
+    # Read clinical data
+    clinical_data = pd.read_csv("../data/METABRIC/brca_metabric_clinical_data.tsv", sep="\t", index_col=False)
+    single_cell_data = pd.read_csv("../data/METABRIC/single_cell_data.csv", index_col=False)
+
+    # Merging the single_cell_data and clinical_data on Patient ID (metabricId)
+    merged_data = pd.merge(single_cell_data, clinical_data, left_on='metabricId', right_on='Patient ID', how='inner')
+
+    # Function to generate clinical_type based on ER and HER2 status
+    
+
+    # Applying the function to create the clinical_type column
+    merged_data['clinical_type'] = merged_data.apply(generate_clinical_type, axis=1)
+
+    # Columns to be renamed
+    mean_ion_count_columns = [
+        'HH3_total', 'CK19', 'CK8_18', 'Twist', 'CD68', 'CK14', 'SMA', 'Vimentin',
+        'c_Myc', 'HER2', 'CD3', 'HH3_ph', 'Erk1_2', 'Slug', 'ER', 'PR', 'p53', 'CD44',
+        'EpCAM', 'CD45', 'GATA3', 'CD20', 'Beta_catenin', 'CAIX', 'E_cadherin', 'Ki67',
+        'EGFR', 'pS6', 'Sox9', 'vWF_CD31', 'pmTOR', 'CK7', 'panCK', 'c_PARP_c_Casp3',
+        'DNA1', 'DNA2', 'H3K27me3', 'CK5', 'Fibronectin'
+    ]
+
+    # Renaming the columns
+    renamed_columns = {col: f'IMFc_{i}' for i, col in enumerate(mean_ion_count_columns)}
+
+    # Applying the renaming to the merged_data DataFrame
+    merged_data.rename(columns=renamed_columns, inplace=True)
+
+    # Rename the other columns
+    columns_to_rename = {
+        'Sample ID': 'PID',
+        'Age at Diagnosis': 'age',
+        'Neoplasm Histologic Grade': 'grade',
+        'Tumor Size': 'tumor_size',
+        'Chemotherapy': 'treatment',
+        'Overall Survival (Months)': 'OSmonth',
+        'Nottingham prognostic index': 'DiseaseStage',
+        'Patient\'s Vital Status': 'diseasestatus',
+        'Relapse Free Status (Months)': 'DFSmonth',
+        'Cancer Type': 'description',
+
+    }
+
+    merged_data.rename(columns=columns_to_rename, inplace=True)
+
+    # Save the merged dataframe to a new CSV file
+    merged_data.to_csv('../data/METABRIC/merged_data.csv', index=False)  
+
