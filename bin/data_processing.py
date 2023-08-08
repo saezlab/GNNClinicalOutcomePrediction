@@ -10,13 +10,13 @@ import os
 
 RAW_DATA_PATH = os.path.join("../data", "raw")
 OUT_DATA_PATH = os.path.join("../data", "out_data", "new")
-PLOT_PATH = os.path.join("../plots", "graph_voronoi_plots")
+PLOT_PATH = os.path.join("../plots", "jackson/graph_voronoi_plots")
 GRAPH_DIV_THR = 2500
 CELL_COUNT_THR = 100
 
 
-def get_dataset_from_csv():
-    return pd.read_csv(os.path.join("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw", "basel_zurich_preprocessed_compact_dataset.csv"))
+def get_dataset_from_csv(path = "../data/JacksonFischer/raw/basel_zurich_preprocessed_compact_dataset.csv"):
+    return pd.read_csv(path)
 
 
 def get_cell_count_df(cell_count_thr):
@@ -27,7 +27,7 @@ def get_cell_count_df(cell_count_thr):
     df_cell_count = df_cell_count.loc[(df_cell_count['Cell Counts'] >= cell_count_thr)]#  & (df_cell_count['Cell Counts'] <= 2000)]
     return df_cell_count
 
-def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid,  pos=None, plot=False):
+def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid,  pos=None, plot=False,PLOT_PATH=PLOT_PATH):
     
     points = df_image[["Location_Center_X", "Location_Center_Y"]].to_numpy()
     # point_labels = list(df_image["ObjectNumber"].values)
@@ -147,7 +147,7 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
 
 
 
-def get_edge_length_dist(cell_count_thr, quant, plot_dist=False):
+def get_edge_length_dist(cell_count_thr, quant, plot_dist=False, PLOT_PATH=PLOT_PATH):
     """
     Calculate the distribution of edge lengths for each image in the dataset.
 
