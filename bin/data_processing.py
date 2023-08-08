@@ -16,7 +16,7 @@ CELL_COUNT_THR = 100
 
 
 def get_dataset_from_csv():
-    return pd.read_csv(os.path.join("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw", "basel_zurich_preprocessed_compact_dataset.csv"))
+    return pd.read_csv(os.path.join("../data/JacksonFischer/raw", "basel_zurich_preprocessed_compact_dataset.csv"))
 
 
 def get_cell_count_df(cell_count_thr):
@@ -299,4 +299,4 @@ def check_cell_ids_sequential():
 
 # get_edge_length_dist(CELL_COUNT_THR, 0.975, plot_dist=True)
 # get_cell_count_df(CELL_COUNT_THR)
-create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True)
+# create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True)

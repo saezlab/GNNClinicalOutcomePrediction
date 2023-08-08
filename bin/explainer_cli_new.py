@@ -18,7 +18,7 @@ import pytorch_lightning as pl
 device = custom_tools.get_device()
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
-RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
+RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer/raw")
 
     
 class Custom_Explainer:
@@ -48,10 +48,9 @@ class Custom_Explainer:
             explainer = Explainer(
             model=self.model,
             algorithm=GNNExplainer(epochs=200),
-            explainer_config = dict(
-                explanation_type='model',
-                node_mask_type='attributes',
-                edge_mask_type='object'),
+            explanation_type='model',
+            node_mask_type='attributes',
+            edge_mask_type='object',
             model_config=dict(
                 mode='regression',
                 task_level='graph',
@@ -144,8 +143,8 @@ class Custom_Explainer:
                 break
 
         
-        adata = adata_concat[0].concat(adata_concat[1:], join='outer')
-        adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"concatenated_explanations.h5ad"))
+        #adata = adata_concat[0].concat(adata_concat[1:], join='outer')
+        #adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"concatenated_explanations.h5ad"))
 
 
 
