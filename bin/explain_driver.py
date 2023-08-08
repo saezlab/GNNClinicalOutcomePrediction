@@ -23,7 +23,7 @@ model = custom_tools.load_model(f"{job_id}_SD", path = "../models/best_full_trai
 """
 
 
-job_id = "Hg20Z3phDR_YtQ7cehIVbA"
+job_id = "VojrEHdFRPUTsJ3zGTiPcQ"
 args  = custom_tools.load_json(f"../models/PNAConv_PNA_MSE_month_30-06-2023/{job_id}.json")
 args["num_node_features"] = 33
 deg = custom_tools.load_pickle(f"../models/PNAConv_PNA_MSE_month_30-06-2023/{job_id}_deg.pckl")
