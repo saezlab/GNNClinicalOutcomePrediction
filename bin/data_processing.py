@@ -1,14 +1,12 @@
-from scipy.spatial import Voronoi, voronoi_plot_2d
-from scipy.spatial import Delaunay
-import matplotlib.pyplot as plt
-from tqdm import tqdm
-import pickle
-import seaborn as sns
-import pandas as pd
-import numpy as np
 import os
+import pickle
 
-
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from scipy.spatial import Delaunay, Voronoi, voronoi_plot_2d
+from tqdm import tqdm
 
 dataset = "JacksonFisher"
 
