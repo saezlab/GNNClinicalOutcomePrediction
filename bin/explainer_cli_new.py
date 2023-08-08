@@ -143,8 +143,8 @@ class Custom_Explainer:
                 break
 
         
-        #adata = adata_concat[0].concat(adata_concat[1:], join='outer')
-        #adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"concatenated_explanations.h5ad"))
+        adata = adata_concat[0].concat(adata_concat[1:], join='outer')
+        adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"concatenated_explanations.h5ad"))
 
 
 
