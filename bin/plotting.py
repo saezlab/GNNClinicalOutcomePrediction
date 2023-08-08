@@ -451,7 +451,7 @@ def visualize_clinical_data(c_data, s_c_data, clinical_type_column_name = "clini
         c_data = custom_tools.type_processor(c_data)
 
     # Define custom order for the plot
-    custom_order = ["TripleNeg", "HR-HER2+", "HR+HER2-", "HR+HER2+", "HER2-NAN"]
+    custom_order = ["TripleNeg", "HR-HER2+", "HR+HER2-", "HR+HER2+"]
 
     # Clinical_type vs Survival candle plot using sns and order the clinical_type
     clinical_type = c_data["clinical_type"]
