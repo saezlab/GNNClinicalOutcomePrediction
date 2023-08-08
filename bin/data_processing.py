@@ -8,19 +8,18 @@ import pandas as pd
 import numpy as np
 import os
 
-RAW_DATA_PATH = os.path.join("../data", "raw")
-OUT_DATA_PATH = os.path.join("../data", "out_data", "new")
+OUT_DATA_PATH = os.path.join("../data", "out_data", "jackson")
 PLOT_PATH = os.path.join("../plots", "jackson/graph_voronoi_plots")
 GRAPH_DIV_THR = 2500
 CELL_COUNT_THR = 100
 
 
-def get_dataset_from_csv():
-    return pd.read_csv(os.path.join("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw", "basel_zurich_preprocessed_compact_dataset.csv"))
+def get_dataset_from_csv(path = "../data/JacksonFischer/raw/basel_zurich_preprocessed_compact_dataset.csv"):
+    return pd.read_csv(path)
 
 
-def get_cell_count_df(cell_count_thr):
-    df_dataset = get_dataset_from_csv()
+def get_cell_count_df(cell_count_thr,path):
+    df_dataset = get_dataset_from_csv(path)
     df_cell_count = df_dataset.groupby(by=["ImageNumber"]).size().reset_index(name='Cell Counts')
 
     # first_quartile value is 705.75
@@ -112,42 +111,8 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
     
     assert edge_index_arr.shape[0]==edge_length_arr.shape[0]
 
-    """clinical_info_dict = dict()
-    clinical_info_dict["grade"] = df_image["grade"].values[0]
-    clinical_info_dict["tumor_size"] = df_image["tumor_size"].values[0]
-    clinical_info_dict["treatment"] = df_image["treatment"].values[0]
-    clinical_info_dict["age"] = df_image["age"].values[0]
-    clinical_info_dict["DiseaseStage"] = df_image["DiseaseStage"].values[0]
-    clinical_info_dict["diseasestatus"] = df_image["diseasestatus"].values[0]
-    clinical_info_dict["clinical_type"] = df_image["clinical_type"].values[0]
-    clinical_info_dict["DFSmonth"] = df_image["DFSmonth"].values[0]
-    clinical_info_dict["OSmonth"] = df_image["OSmonth"].values[0]
-    clinical_info_dict["cell_count"] = len(df_image)
 
-    # save the edge indices and as a list 
-    with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_edge_index_length.pickle'), 'wb') as handle:
-        pickle.dump((edge_index_arr, edge_length_arr), handle, protocol=pickle.HIGHEST_PROTOCOL)
-    
-    nonfeat_cols = []
-    for col in df_image.columns:
-        if "MeanIntensity" not in col:
-            nonfeat_cols.append(col) 
-    # save the feature vector as numpy array, first column is the cell id
-    # "ImageNumber", "ObjectNumber", "Location_Center_X", "Location_Center_Y", "PID", "grade", "tumor_size", "age", "treatment", "DiseaseStage", "diseasestatus", "clinical_type", "DFSmonth", "OSmonth"
-
-    with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_features.pickle'), 'wb') as handle:
-        pickle.dump(np.array(df_image.drop(nonfeat_cols, axis=1)), handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-            # save the feature vector as numpy array, first column is the cell id
-    with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_coordinates.pickle'), 'wb') as handle:
-        pickle.dump(points, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_clinical_info.pickle'), 'wb') as handle:
-        pickle.dump(clinical_info_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)"""
-
-
-
-def get_edge_length_dist(cell_count_thr, quant, plot_dist=False, PLOT_PATH=PLOT_PATH):
+def get_edge_length_dist(data_path,cell_count_thr, quant, plot_dist=False, PLOT_PATH=PLOT_PATH, OUT_DATA_PATH=OUT_DATA_PATH):
     """
     Calculate the distribution of edge lengths for each image in the dataset.
 
@@ -160,8 +125,8 @@ def get_edge_length_dist(cell_count_thr, quant, plot_dist=False, PLOT_PATH=PLOT_
     Returns:
         dict: A dictionary containing the image number as key and its corresponding edge length threshold as value.
     """
-    df_dataset = get_dataset_from_csv()
-    df_cell_count = get_cell_count_df(cell_count_thr)
+    df_dataset = get_dataset_from_csv(data_path)
+    df_cell_count = get_cell_count_df(cell_count_thr,path=data_path)
     imgnum_edge_thr_dict = dict()
     all_edge_count_list = []
     
@@ -220,10 +185,10 @@ def get_edge_length_dist(cell_count_thr, quant, plot_dist=False, PLOT_PATH=PLOT_
     
                 
 
-def create_graphs_delauney_triangulation(cell_count_thr, plot=False):
+def create_graphs_delauney_triangulation(cell_count_thr,data_path, plot=False, OUT_DATA_PATH = OUT_DATA_PATH, PLOT_PATH=PLOT_PATH):
 
-    df_dataset = get_dataset_from_csv()
-    df_cell_count = get_cell_count_df(cell_count_thr)
+    df_dataset = get_dataset_from_csv(data_path)
+    df_cell_count = get_cell_count_df(cell_count_thr,data_path)
     imgnum_edge_thr_dict = dict()
 
     with open(os.path.join(OUT_DATA_PATH, 'edge_thr.pickle'), 'rb') as handle:
@@ -254,14 +219,14 @@ def create_graphs_delauney_triangulation(cell_count_thr, plot=False):
 
             
 
-            generate_graphs_using_points(ll_df_image, imgnum_edge_thr_dict, img_num, pid, "ll", plot)
-            generate_graphs_using_points(ul_df_image, imgnum_edge_thr_dict, img_num, pid, "ul", plot)
-            generate_graphs_using_points(lr_df_image, imgnum_edge_thr_dict, img_num, pid, "lr", plot)
-            generate_graphs_using_points(ur_df_image, imgnum_edge_thr_dict, img_num, pid, "ur", plot)
+            generate_graphs_using_points(ll_df_image, imgnum_edge_thr_dict, img_num, pid, "ll", plot, PLOT_PATH=PLOT_PATH)
+            generate_graphs_using_points(ul_df_image, imgnum_edge_thr_dict, img_num, pid, "ul", plot, PLOT_PATH=PLOT_PATH)
+            generate_graphs_using_points(lr_df_image, imgnum_edge_thr_dict, img_num, pid, "lr", plot, PLOT_PATH=PLOT_PATH)
+            generate_graphs_using_points(ur_df_image, imgnum_edge_thr_dict, img_num, pid, "ur", plot, PLOT_PATH=PLOT_PATH)
 
         else:
             # points = df_image[["Location_Center_X", "Location_Center_Y"]].to_numpy()
-            generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num, pid, pos=None, plot = plot)
+            generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num, pid, pos=None, plot = plot, PLOT_PATH=PLOT_PATH)
 
        
 def check_cell_ids_sequential():
@@ -297,6 +262,8 @@ def check_cell_ids_sequential():
 # check if all cell ids are available 
 # check_cell_ids_sequential()
 
-# get_edge_length_dist(CELL_COUNT_THR, 0.975, plot_dist=True)
-# get_cell_count_df(CELL_COUNT_THR)
-# create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True)
+def data_processing_pipeline(data_path,CELL_COUNT_THR=CELL_COUNT_THR,GRAPH_DIV_THR=GRAPH_DIV_THR,PLOT_PATH=PLOT_PATH, OUT_DATA_PATH=OUT_DATA_PATH):
+    # TODO make this parametric
+    get_edge_length_dist(data_path=data_path,cell_count_thr=CELL_COUNT_THR,quant= 0.975, plot_dist=False,PLOT_PATH=PLOT_PATH, OUT_DATA_PATH=OUT_DATA_PATH)
+    get_cell_count_df(CELL_COUNT_THR, path=data_path)
+    create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True,OUT_DATA_PATH = OUT_DATA_PATH, data_path=data_path, PLOT_PATH=PLOT_PATH)
