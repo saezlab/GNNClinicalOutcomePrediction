@@ -12,7 +12,7 @@ import pickle
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
-RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
+RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer/raw")
 
 
 """
@@ -23,18 +23,18 @@ model = custom_tools.load_model(f"{job_id}_SD", path = "../models/best_full_trai
 """
 
 
-job_id = "prETNOFxZq9OveSL7epFUA"
-args  = custom_tools.load_json(f"../models/PNAConv_os_nolog_large_02-02-2023/{job_id}.json")
+job_id = "Hg20Z3phDR_YtQ7cehIVbA"
+args  = custom_tools.load_json(f"../models/PNAConv_PNA_MSE_month_30-06-2023/{job_id}.json")
 args["num_node_features"] = 33
-deg = custom_tools.load_pickle(f"../models/PNAConv_os_nolog_large_02-02-2023/{job_id}_deg.pckl")
-model = custom_tools.load_model(f"{job_id}_SD", path = "../models/PNAConv_os_nolog_large_02-02-2023", model_type = "SD", args = args, deg=deg)
+deg = custom_tools.load_pickle(f"../models/PNAConv_PNA_MSE_month_30-06-2023/{job_id}_deg.pckl")
+model = custom_tools.load_model(f"{job_id}_SD", path = "../models/PNAConv_PNA_MSE_month_30-06-2023", model_type = "SD", args = args, deg=deg)
 
 
 
 
 
 
-dataset = TissueDataset(os.path.join(S_PATH,"../data"))
+dataset = TissueDataset(os.path.join(S_PATH,"../data/JacksonFischer/basel_zurich_preprocessed_compact_dataset.csv"))
 
 dataset = dataset.shuffle()
 
