@@ -89,3 +89,5 @@ def calculate_mae_scores_from_preds(folder_path, file_name):
 # print(calculate_mae_scores_from_preds("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_week_lognorm_30-06-2023", "Vs2a-oNH7FLupUB80hJY9w.csv"))
 
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_os_nolog_large_6-26-2023_h_loss", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_Huber_month_30-06-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_month_30-06-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_week_lognorm_30-06-2023"]))
+
+print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_month_30-06-2023"]))

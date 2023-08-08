@@ -299,4 +299,4 @@ def check_cell_ids_sequential():
 
 # get_edge_length_dist(CELL_COUNT_THR, 0.975, plot_dist=True)
 # get_cell_count_df(CELL_COUNT_THR)
-create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True)
+# create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True)

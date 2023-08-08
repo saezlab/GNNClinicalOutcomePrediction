@@ -16,17 +16,17 @@ RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
 PREPROSSED_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 PLOT_PATH = os.path.join(S_PATH, "../plots")
 
-def plot_cell_count_distribution():
+def plot_cell_count_distribution(comp_dataset_path):
 
 
-    df_dataset = pd.read_csv(os.path.join(PREPROSSED_DATA_PATH, "basel_zurich_preprocessed_compact_dataset.csv"))
+    df_dataset = pd.read_csv(comp_dataset_path)
     number_of_cells = df_dataset.groupby(by=["ImageNumber"]).size().reset_index(name='Cell Counts')
     
     low_quartile = np.quantile(number_of_cells["Cell Counts"], 0.25)
     
     cell_count_dist_plot = sns.boxplot(data=number_of_cells, x='Cell Counts')
     fig = cell_count_dist_plot.get_figure()
-    fig.savefig(f"{PLOT_PATH}/cell_count_distribution.png")
+    fig.savefig(f"{PLOT_PATH}/cell_count_distribution.pdf")
 
 # plot_cell_count_distribution()
 
@@ -429,3 +429,4 @@ def plot_age_vs_survibility(fl_name="age_vs_survibility"):
     plt.savefig(os.path.join(PLOT_PATH, "manuscript_figures", f"{fl_name}.pdf"))
 
 # plot_age_vs_survibility(fl_name="age_vs_survibility")
+plot_cell_count_distribution("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw/basel_zurich_preprocessed_compact_dataset.csv")
