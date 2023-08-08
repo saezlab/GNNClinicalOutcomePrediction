@@ -688,3 +688,33 @@ def voronoi_finite_polygons_2d(vor, radius=None):
         new_regions.append(new_region.tolist())
 
     return new_regions, np.asarray(new_vertices)
+
+
+def p_correlations(data, dim1, dim2, division_dim):
+    # Calculate pearson correlation
+
+    print("Pearson correlation between age and survival: ", data[dim2].corr(data[dim1]))
+
+    # Calculate pearson correlation for each division
+    for div in data[division_dim].unique():
+        print("Pearson correlation between age and survival for division: ", div, data[data[division_dim] == div][dim2].corr(data[data[division_dim] == div][dim1]))
+
+def type_processor(c_data):
+    def generate_clinical_type(row):
+        ER = row['ER Status']
+        HER2 = row['HER2 Status']
+        if ER == "Positive" and HER2 == "Positive":
+            return "HR+HER2+"
+        if ER == "Negative" and HER2 == "Positive":
+            return "HR-HER2+"
+        if ER == "Positive" and HER2 == "Negative":
+            return "HR+HER2-"
+        if ER == "Negative" and HER2 == "Negative":
+            return "TripleNeg"
+        # Check if HER2 is nan
+        if HER2 != "Positive" and HER2 != "Negative":
+            return "HER2-NAN"
+    
+
+    c_data['clinical_type'] = c_data.apply(generate_clinical_type, axis=1)
+    return c_data
