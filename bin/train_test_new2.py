@@ -15,30 +15,99 @@ import custom_tools as custom_tools
 import csv
 import statistics
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch_geometric.nn import PNAConv 
+import wandb
+import shutil
+from sweep_config import sweep_configuration
+from data_processing import OUT_DATA_PATH
+import pytorch_lightning as pl
+from types import SimpleNamespace
+
+import warnings
+warnings.filterwarnings("ignore")
+
+wandb.login()
+
+def sweep(config = None, project_name = None):
+    r"""
+    Runs a hyperparameter sweep for a given configuration.
+
+    Args:
+        - `config` (dict, optional): A dictionary containing hyperparameters 
+            and their values to be swept. Defaults to `"None"`.
+
+        - `project_name` (str, optional): The name of the project to log 
+            the sweep under. Defaults to `"None"`.
+
+    Returns:
+        `wandb.sweep object`: A sweep object that can be used to start a 
+            sweep run with the specified configuration.
+    """
+    return wandb.sweep(sweep=config, project=project_name)
+
 
 class trainer_tester:
 
 
-    def __init__(self, parser_args, setup_args ) -> None:
+    def __init__(self, setup_args) -> None:
         """Manager of processes under train_tester, main goel is to show the processes squentially
 
         Args:
             parser_args (Namespace): Holds the arguments that came from parsing CLI
             setup_args (Namespace): Holds the arguments that came from setup
         """
-        self.parser_args = parser_args
         self.setup_args = setup_args
         self.set_device()
 
+        
+
+        # self.save_results()
+
+        # Create a new sweep with the specified configuration and project name.
+        sweep_id = sweep(config = sweep_configuration, project_name = 'FUTON')
+
+        # Set the WANDB_CACHE_DIR environment variable to the specified directory path.
+        wand_dir = 'cache/'
+        os.environ['WANDB_CACHE_DIR'] = wand_dir
+
+        # Set the name of the run using the specified convolutional layer and sweep ID.
+        run_name = "{}".format(sweep_id)
+
+        # Initialize a new WandB run with the specified run name and project name, and save the configuration.
+        wand_run = wandb.init(name=run_name, project='FUTON', config=sweep_configuration, dir=wand_dir)
+
+        # Set the path to the directory where the results for the current run will be saved.
+        self.run_folder_name = wandb.run.dir
+
+        # Get the hyperparameters from the configuration.
+
+        self.unit = wand_run.config["parameters"]["unit"]["values"][0]
+        self.label = wand_run.config["parameters"]["label"]["values"][0]
+        self.model = wand_run.config["parameters"]["model"]["values"][0]
+        self.bs = wand_run.config["parameters"]["bs"]["values"][0]
+        self.lr = wand_run.config["parameters"]["lr"]["values"][0]
+        self.weight_decay = wand_run.config["parameters"]["weight_decay"]["values"][0]
+        self.num_of_gcn_layers = wand_run.config["parameters"]["num_of_gcn_layers"]["values"][0]
+        self.num_of_ff_layers = wand_run.config["parameters"]["num_of_ff_layers"]["values"][0]
+        self.gcn_h = wand_run.config["parameters"]["gcn_h"]["values"][0]
+        self.fcl = wand_run.config["parameters"]["fcl"]["values"][0]
+        self.dropout = wand_run.config["parameters"]["dropout"]["values"][0]
+        self.aggregators = wand_run.config["parameters"]["aggregators"]["values"][0]
+        self.scalers = wand_run.config["parameters"]["scalers"]["values"][0]
+        self.heads = wand_run.config["parameters"]["heads"]["values"][0]
+        self.epoch = wand_run.config["parameters"]["epoch"]["values"][0]
+        self.en = wand_run.config["parameters"]["en"]["values"][0]
+        self.full_training = wand_run.config["parameters"]["full_training"]["values"][0]
+        self.fold = wand_run.config["parameters"]["fold"]["values"][0]
+        self.loss = wand_run.config["parameters"]["loss"]["values"][0]
+
         self.init_folds()
 
-        if self.parser_args.full_training:
+        if self.full_training:
             self.full_train_loop()
         else:
             self.train_test_loop()
+    
 
-        # self.save_results()
 
     def set_device(self):
         """Sets up the computation device for the class
@@ -46,12 +115,12 @@ class trainer_tester:
         self.device = custom_tools.get_device()
 
     def convert_to_month(self, df_col):
-        if self.parser_args.unit=="week":
+        if self.unit=="week":
             # convert to month
             return df_col/4.0
-        elif self.parser_args.unit=="month":
+        elif self.unit=="month":
             return df_col
-        elif self.parser_args.unit=="week_lognorm":
+        elif self.unit=="week_lognorm":
             return np.exp(df_col)/4.0
         else:
             raise Exception("Invalid target unit... Should be week,  month, or week_lognorm")
@@ -62,14 +131,15 @@ class trainer_tester:
         """
         # self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
         # self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data/JacksonFischer/week"), "week")
-        self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data/JacksonFischer", self.parser_args.unit),  self.parser_args.unit)
+        print('unit:',self.unit)
+        self.dataset = TissueDataset(os.path.join(getattr(self.setup_args, 'S_PATH', ''), "../data/JacksonFischer", self.unit), self.unit)
         print("Number of samples:", len(self.dataset))
 
-        if self.parser_args.label == "OSMonth":
+        if self.label == "OSMonth":
             self.label_type = "regression"
             self.num_classes = 1
 
-        elif self.parser_args.label == "treatment":
+        elif self.label == "treatment":
             self.label_type = "classification"
             self.setup_args.criterion = torch.nn.CrossEntropyLoss()
             self.dataset.data.y = self.dataset.data.clinical_type
@@ -78,11 +148,11 @@ class trainer_tester:
 
 
         # WARN CURRENTLY DOESN'T PULL THE DATA NOT WORKING
-        elif self.parser_args.label == "DiseaseStage":
+        elif self.label == "DiseaseStage":
             self.label_type = "classification"
             self.setup_args.criterion = torch.nn.CrossEntropyLoss()
 
-        elif self.parser_args.label == "grade":
+        elif self.label == "grade":
             self.label_type = "classification"
             self.setup_args.criterion = torch.nn.CrossEntropyLoss()
             self.dataset.data.y = self.dataset.data.tumor_grade
@@ -95,22 +165,21 @@ class trainer_tester:
             self.dataset.data.y = custom_tools.convert_wLT(self.dataset.data.y,self.LT_ToIndex)
 
         self.dataset = self.dataset.shuffle()
-        # print("Dataset:",  self.dataset)
 
         self.fold_dicts = []
         deg = -1
 
-        if self.parser_args.full_training:
+        if self.full_training:
             # TODO: Consider bootstrapping 
             train_sampler = torch.utils.data.SubsetRandomSampler(list(range(len(self.dataset))))
-            train_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, shuffle=True)
+            train_loader = DataLoader(self.dataset, batch_size=self.bs, shuffle=True)
             validation_loader, test_loader = None, None
-            if self.parser_args.model == "PNAConv" or "MMAConv" or "GMNConv":
+            if self.model == "PNAConv":
                     deg = self.calculate_deg(train_sampler)
 
             model = self.set_model(deg)
 
-            optimizer = torch.optim.Adam(model.parameters(), lr=self.parser_args.lr, weight_decay=self.parser_args.weight_decay)
+            optimizer = torch.optim.Adam(model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
 
             fold_dict = {
@@ -127,6 +196,7 @@ class trainer_tester:
 
         
         else:
+            print('setup:', self.setup_args)
             self.samplers = custom_tools.k_fold_ttv(self.dataset, 
                 T2VT_ratio=self.setup_args.T2VT_ratio,
                 V2T_ratio=self.setup_args.V2T_ratio)
@@ -135,16 +205,16 @@ class trainer_tester:
             deg = -1
 
             for fold, train_sampler, validation_sampler, test_sampler in self.samplers:
-                train_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= train_sampler)
-                validation_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= validation_sampler)
-                test_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= test_sampler)
+                train_loader = DataLoader(self.dataset, batch_size=self.bs, sampler= train_sampler)
+                validation_loader = DataLoader(self.dataset, batch_size=self.bs, sampler= validation_sampler)
+                test_loader = DataLoader(self.dataset, batch_size=self.bs, sampler= test_sampler)
 
-                if self.parser_args.model == "PNAConv" or "MMAConv" or "GMNConv":
+                if self.model == "PNAConv":
                     deg = self.calculate_deg(train_sampler)
                 
                 model = self.set_model(deg)
 
-                optimizer = torch.optim.Adam(model.parameters(), lr=self.parser_args.lr, weight_decay=self.parser_args.weight_decay)
+                optimizer = torch.optim.Adam(model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
                 # scheduler = ReduceLROnPlateau(optimizer, 'min', factor= self.parser_args.factor, patience=self.parser_args.patience, min_lr=self.parser_args.min_lr, verbose=True)
 
                 fold_dict = {
@@ -163,15 +233,23 @@ class trainer_tester:
                 if not self.setup_args.use_fold:
                     break
 
-    def calculate_deg(self, train_sampler):
+    def calculate_deg(self,train_sampler):
         """Calcualtes deg, which is necessary for some models
 
         Args:
             train_sampler (_type_): Training data sampler
         """
         train_dataset = self.dataset[train_sampler.indices]
-        train_loader = DataLoader(train_dataset, batch_size=self.parser_args.bs, shuffle=True)
-        deg = PNAConv.get_degree_histogram(train_loader)
+        max_degree = -1
+        for data in train_dataset:
+            d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+            max_degree = max(max_degree, int(d.max()))
+
+        # Compute the in-degree histogram tensor
+        deg = torch.zeros(max_degree + 1, dtype=torch.long)
+        for data in train_dataset:
+            d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+            deg += torch.bincount(d, minlength=deg.numel())
 
         return deg
 
@@ -182,18 +260,18 @@ class trainer_tester:
             deg (_type_): degree data of the graph
         """
         model = CustomGCN(
-                    type = self.parser_args.model,
+                    type = self.model,
                     num_node_features = self.dataset.num_node_features, ####### LOOOOOOOOK HEREEEEEEEEE
-                    num_gcn_layers=self.parser_args.num_of_gcn_layers, 
-                    num_ff_layers=self.parser_args.num_of_ff_layers, 
-                    gcn_hidden_neurons=self.parser_args.gcn_h, 
-                    ff_hidden_neurons=self.parser_args.fcl, 
-                    dropout=self.parser_args.dropout,
-                    aggregators=self.parser_args.aggregators,
-                    scalers=self.parser_args.scalers,
+                    num_gcn_layers=self.num_of_gcn_layers, 
+                    num_ff_layers=self.num_of_ff_layers, 
+                    gcn_hidden_neurons=self.gcn_h, 
+                    ff_hidden_neurons=self.fcl, 
+                    dropout=self.dropout,
+                    aggregators=self.aggregators,
+                    scalers=self.scalers,
                     deg = deg, # Comes from data not hyperparameter
                     num_classes = self.num_classes,
-                    heads = self.parser_args.heads,
+                    heads = self.heads,
                     label_type = self.label_type
                         ).to(self.device)
 
@@ -208,20 +286,20 @@ class trainer_tester:
         Returns:
             float: Total loss
         """
+
         fold_dict["model"].train()
         total_loss = 0.0
         pred_list = []
         # WARN Disabled it but IDK what it does
         #out_list = []
         for data in fold_dict["train_loader"]:  # Iterate in batches over the training dataset.
-            # print(data)
-            # print(data.x)
-            # print("data.edge_index", data.edge_index.to(self.device))
-            # print("data.batch",data.batch)
-            # print(data.x)
-            # print(data.x)
-            # print(fold_dict["model"])
-            out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
+            
+            print('fold_dict["model"]:', fold_dict["model"])
+            print('(data.x:', data.x.shape)
+
+
+            out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), 
+                                     data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
             # print(out)
             loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
         
@@ -261,7 +339,8 @@ class trainer_tester:
             print(data.x)
             print(data.clinical_type)"""
             if data.y.shape[0]>1:
-                out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
+                out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), 
+                                         data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
                 loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
                 
                 total_loss += float(loss.item())
@@ -293,7 +372,7 @@ class trainer_tester:
         else:
             return total_loss
 
-    def train_test_loop(self):
+    def train_test_loop(self, dataset="FUTON_1"):
         """Training and testing occurs under this function. 
         """
 
@@ -301,13 +380,15 @@ class trainer_tester:
         # collect train/val/test predictions of all folds in all_preds_df
         all_preds_df = []
 
+        best_thresholds = []
+
 
         for fold_dict in self.fold_dicts:
         
             best_val_loss = np.inf
 
             print(f"########## Fold :  {fold_dict['fold']} ########## ")
-            for epoch in (pbar := tqdm(range(self.parser_args.epoch), disable=True)):
+            for epoch in (pbar := tqdm(range(self.epoch), disable=True)):
 
                 self.train(fold_dict)
 
@@ -316,6 +397,11 @@ class trainer_tester:
     
                 validation_loss= self.test(fold_dict, "validation_loader")
                 test_loss = self.test(fold_dict, "test_loader")
+
+                wandb.log({"train_loss": train_loss}, step=epoch)
+                wandb.log({"validation_loss": validation_loss}, step=epoch)
+                wandb.log({"test_loss": test_loss}, step=epoch)
+                wandb.log({"epoch": epoch})
 
                 if validation_loss < best_val_loss:
                     best_val_loss = validation_loss
@@ -331,6 +417,11 @@ class trainer_tester:
             test_loss, df_test = self.test(fold_dict, "test_loader", "test", self.setup_args.plot_result)
             list_ct = list(set(df_train["Clinical Type"]))
 
+            artifact = wandb.Artifact("best_model_{}".format(self.model),
+                                    type="model", metadata=dict(model_name=self.model,
+                                                                dataset="FUTON_1",
+                                                                ))
+
             if self.label_type == "regression":
                 fold_val_r2_score = r_squared_score(df_val['True Value'], df_val['Predicted'])
                 df_train['True Value'] = self.convert_to_month(df_train['True Value'])
@@ -343,10 +434,17 @@ class trainer_tester:
                 fold_val_mse_score = mse(df_val['True Value'], df_val['Predicted'])
                 fold_val_rmse_score = rmse(df_val['True Value'], df_val['Predicted'])
 
+                results_best = {"model": self.model, "fold_val_r2_score": fold_val_r2_score, 
+                                "fold_val_mse_score":fold_val_mse_score,
+                                "fold_val_rmse_score":fold_val_rmse_score}
+
             elif self.label_type == "classification":
                 accuracy_Score = accuracy_score(df_val["True Value"], df_val['Predicted'])
                 precision_Score = precision_score(df_val["True Value"], df_val['Predicted'],average="micro")   
-                f1_Score = f1_score(df_val["True Value"], df_val['Predicted'],average="micro")              
+                f1_Score = f1_score(df_val["True Value"], df_val['Predicted'],average="micro")     
+
+                results_best = {"model": self.model, "accuracy_Score": accuracy_Score, 
+                                "precision_Score":precision_Score, "f1_Score": f1_Score}         
                 
             fold_tvt_preds_df = pd.concat([df_train, df_val, df_test])
 
@@ -380,15 +478,44 @@ class trainer_tester:
     
         print(f"All folds val - R2 score: {all_fold_val_r2_score}\tMSE: {all_fold_val_mse_score}\tMAE: {all_fold_val_mae_score}")
     
+        df_results = pd.DataFrame.from_dict(results_best)
+        if not os.path.exists("results"):
+            os.makedirs("results")
+        df_results.to_csv("results/best_result_{}.csv".format(self.model))
+        artifact.add_file("results/best_result_{}.csv".format(self.model))
+
+        table = wandb.Table(dataframe=df_results)
+        artifact.add(table, "results_{}".format(self.model))
+
+        table2 = wandb.Table(columns=["thresholds"])
+        for i in range(len(best_thresholds)):
+            table2.add_data(best_thresholds[i])
+        artifact.add(table2, "thresholds_{}".format(self.model))
+        artifact.add_file("saved_models/best_model_{}.pt".format(self.model))
+
+        wandb.log_artifact(artifact)
+        wandb.finish()
+
+        original_path = self.run_folder_name
+        dir_name = os.path.dirname(original_path)
+
+        new_path = dir_name + "/"
+        if  (self.label_type == "regression" and all_fold_val_r2_score<0.6):
+            print('Removing bad result logs...')
+            shutil.rmtree(new_path)
+
+        
         if  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
-            plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id)
+            plotting.plot_pred_vs_real(all_preds_df, self.en, self.setup_args.id)
             all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
             self.save_results()
-            custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
-            if not self.parser_args.fold:
+            custom_tools.save_dict_as_json(self.setup_args.id, self.setup_args.MODEL_PATH)
+            if not self.fold:
                 custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.setup_args.id, mode="SD", path=self.setup_args.MODEL_PATH)
-                if self.parser_args.model == "PNAConv":
+                if self.model == "PNAConv":
                     custom_tools.save_pickle(self.fold_dicts[0]["deg"], f"{self.setup_args.id}_deg.pckl", self.setup_args.MODEL_PATH)
+    
+        
     
     def full_train_loop(self):
         """Training and testing occurs under this function. 
@@ -401,7 +528,7 @@ class trainer_tester:
         best_val_loss = np.inf
 
         print(f"Performing full training ...")
-        for epoch in (pbar := tqdm(range(self.parser_args.epoch), disable=True)):
+        for epoch in (pbar := tqdm(range(self.epoch), disable=True)):
 
             self.train(fold_dict)
 
@@ -436,13 +563,13 @@ class trainer_tester:
         # print("All folds val r2 score:", all_fold_val_r2_score)
     
         if  (self.label_type == "regression"):
-            plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id, full_training=True)
+            plotting.plot_pred_vs_real(all_preds_df, self.en, self.setup_args.id, full_training=True)
             all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
             self.save_results()
-            custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
-            if not self.parser_args.fold:
+            custom_tools.save_dict_as_json(self.setup_args.id, self.setup_args.MODEL_PATH)
+            if not self.fold:
                 custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.setup_args.id, mode="SD", path=self.setup_args.MODEL_PATH)
-                if self.parser_args.model == "PNAConv":
+                if self.model == "PNAConv":
                     custom_tools.save_pickle(self.fold_dicts[0]["deg"], f"{self.setup_args.id}_deg.pckl", self.setup_args.MODEL_PATH)
                 
     
@@ -522,7 +649,58 @@ class trainer_tester:
             writer.writerows(variances)
 
 
-    # python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 200 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth
 
-    # full_training
-    # python train_test_controller.py --model PNAConv --lr 0.001 --bs 16 --dropout 0.0 --epoch 200 --num_of_gcn_layers 3 --num_of_ff_layers 2 --gcn_h 32 --fcl 512 --en best_full_training_week_15-12-2022 --weight_decay 0.0001 --factor 0.5 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --full_training --label OSMonth
+pl.seed_everything(42)
+setup_args = SimpleNamespace()
+
+setup_args.id = custom_tools.generate_session_id()
+
+print(f"Session id: {setup_args.id}")
+
+
+tt_instance = trainer_tester(setup_args)
+
+setup_args.S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
+setup_args.OUT_DATA_PATH = os.path.join(setup_args.S_PATH, "../data", "out_data", tt_instance.en)
+setup_args.RESULT_PATH = os.path.join(setup_args.S_PATH, "../results", "idedFiles", tt_instance.en)
+setup_args.PLOT_PATH = os.path.join(setup_args.S_PATH, "../plots", tt_instance.en)
+setup_args.MODEL_PATH = os.path.join(setup_args.S_PATH, "../models", tt_instance.en)
+
+custom_tools.create_directories([setup_args.OUT_DATA_PATH, setup_args.RESULT_PATH, setup_args.PLOT_PATH, setup_args.MODEL_PATH])
+
+setup_args.T2VT_ratio = 4
+setup_args.V2T_ratio = 1
+setup_args.use_fold = tt_instance.fold
+
+
+# This is NOT for sure, loss can change inside the class
+setup_args.criterion = None
+if tt_instance.loss=="MSE":
+    setup_args.criterion = torch.nn.MSELoss()
+elif tt_instance.loss=="Huber":
+    setup_args.criterion = torch.nn.HuberLoss()
+else:
+    setup_args.criterion = torch.nn.MSELoss()
+
+setup_args.print_every_epoch = 10
+setup_args.plot_result = True
+
+device = custom_tools.get_device()
+
+
+# Object can be saved if wanted
+#trainer_tester()
+
+
+sweep_id = sweep(config = sweep_configuration)
+
+#trainer_tester_instance = trainer_tester()
+#run_function = trainer_tester_instance.train_test_loop(dataset="FUTON_1")
+
+def run_function():
+    
+    return trainer_tester(setup_args)
+
+
+wandb.agent(sweep_id, function=run_function, count=1)
+
