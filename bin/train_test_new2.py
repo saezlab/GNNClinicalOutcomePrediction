@@ -63,14 +63,14 @@ class trainer_tester:
         # self.save_results()
 
         # Create a new sweep with the specified configuration and project name.
-        sweep_id = sweep(config = sweep_configuration, project_name = 'FUTON')
+        self.sweep_id = sweep(config = sweep_configuration, project_name = 'FUTON')
 
         # Set the WANDB_CACHE_DIR environment variable to the specified directory path.
         wand_dir = 'cache/'
         os.environ['WANDB_CACHE_DIR'] = wand_dir
 
         # Set the name of the run using the specified convolutional layer and sweep ID.
-        run_name = "{}".format(sweep_id)
+        run_name = "{}".format(self.sweep_id)
 
         # Initialize a new WandB run with the specified run name and project name, and save the configuration.
         wand_run = wandb.init(name=run_name, project='FUTON', config=sweep_configuration, dir=wand_dir)
@@ -99,6 +99,22 @@ class trainer_tester:
         self.full_training = wand_run.config["parameters"]["full_training"]["values"][0]
         self.fold = wand_run.config["parameters"]["fold"]["values"][0]
         self.loss = wand_run.config["parameters"]["loss"]["values"][0]
+        self.use_fold = self.fold
+
+        setup_args = SimpleNamespace()
+
+        en = "test_experiment"
+        fold = None
+
+        self.S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
+        self.OUT_DATA_PATH = os.path.join(self.S_PATH, "../data", "out_data", en)
+        self.RESULT_PATH = os.path.join(self.S_PATH, "../results", "idedFiles", en)
+        self.PLOT_PATH = os.path.join(self.S_PATH, "../plots", en)
+        self.MODEL_PATH = os.path.join(self.S_PATH, "../models", en)
+
+        custom_tools.create_directories([self.OUT_DATA_PATH, self.RESULT_PATH, self.PLOT_PATH, self.MODEL_PATH])
+
+        
 
         self.init_folds()
 
@@ -196,10 +212,9 @@ class trainer_tester:
 
         
         else:
-            print('setup:', self.setup_args)
             self.samplers = custom_tools.k_fold_ttv(self.dataset, 
-                T2VT_ratio=self.setup_args.T2VT_ratio,
-                V2T_ratio=self.setup_args.V2T_ratio)
+                T2VT_ratio=4,
+                V2T_ratio=1)
 
 
             deg = -1
@@ -230,7 +245,7 @@ class trainer_tester:
 
                 self.fold_dicts.append(fold_dict)
 
-                if not self.setup_args.use_fold:
+                if not self.use_fold:
                     break
 
     def calculate_deg(self,train_sampler):
@@ -286,7 +301,7 @@ class trainer_tester:
         Returns:
             float: Total loss
         """
-
+        pl.seed_everything(42)
         fold_dict["model"].train()
         total_loss = 0.0
         pred_list = []
@@ -294,13 +309,10 @@ class trainer_tester:
         #out_list = []
         for data in fold_dict["train_loader"]:  # Iterate in batches over the training dataset.
             
-            print('fold_dict["model"]:', fold_dict["model"])
-            print('(data.x:', data.x.shape)
-
-
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), 
                                      data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
             # print(out)
+            self.setup_args.criterion = torch.nn.MSELoss()
             loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
         
             loss.backward()  # Derive gradients.
@@ -407,11 +419,13 @@ class trainer_tester:
                     best_val_loss = validation_loss
                     best_train_loss = train_loss
                     best_test_loss = test_loss
+
+                self.setup_args.print_every_epoch = 10
                 
                 if (epoch % self.setup_args.print_every_epoch) == 0:
                     print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
 
-
+            self.setup_args.plot_result = True
             train_loss, df_train = self.test(fold_dict, "train_loader", "train", self.setup_args.plot_result)
             validation_loss, df_val= self.test(fold_dict, "validation_loader", "validation", self.setup_args.plot_result)
             test_loss, df_test = self.test(fold_dict, "test_loader", "test", self.setup_args.plot_result)
@@ -477,8 +491,9 @@ class trainer_tester:
         all_fold_val_mae_score = mae(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
     
         print(f"All folds val - R2 score: {all_fold_val_r2_score}\tMSE: {all_fold_val_mse_score}\tMAE: {all_fold_val_mae_score}")
-    
-        df_results = pd.DataFrame.from_dict(results_best)
+
+        print('results_best:', results_best)
+        df_results = pd.DataFrame([results_best])
         if not os.path.exists("results"):
             os.makedirs("results")
         df_results.to_csv("results/best_result_{}.csv".format(self.model))
@@ -491,7 +506,7 @@ class trainer_tester:
         for i in range(len(best_thresholds)):
             table2.add_data(best_thresholds[i])
         artifact.add(table2, "thresholds_{}".format(self.model))
-        artifact.add_file("saved_models/best_model_{}.pt".format(self.model))
+        #artifact.add_file("../models/my_experiment/best_model_{}.pt".format(self.model))
 
         wandb.log_artifact(artifact)
         wandb.finish()
@@ -506,14 +521,14 @@ class trainer_tester:
 
         
         if  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
-            plotting.plot_pred_vs_real(all_preds_df, self.en, self.setup_args.id)
-            all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
+            plotting.plot_pred_vs_real(all_preds_df, self.en, self.sweep_id)
+            all_preds_df.to_csv(os.path.join(self.OUT_DATA_PATH, f"{self.sweep_id}.csv"), index=False)
             self.save_results()
-            custom_tools.save_dict_as_json(self.setup_args.id, self.setup_args.MODEL_PATH)
+            custom_tools.save_dict_as_json(self.sweep_id, self.MODEL_PATH)
             if not self.fold:
-                custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.setup_args.id, mode="SD", path=self.setup_args.MODEL_PATH)
+                custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.sweep_id, mode="SD", path=self.MODEL_PATH)
                 if self.model == "PNAConv":
-                    custom_tools.save_pickle(self.fold_dicts[0]["deg"], f"{self.setup_args.id}_deg.pckl", self.setup_args.MODEL_PATH)
+                    custom_tools.save_pickle(self.fold_dicts[0]["deg"], f"{self.sweep_id}_deg.pckl", self.MODEL_PATH)
     
         
     
@@ -534,11 +549,12 @@ class trainer_tester:
 
             train_loss = self.test(fold_dict, "train_loader")
             pbar.set_description(f"Train loss: {train_loss}")
-
+            
+            self.setup_args.print_every_epoch = 10
             if (epoch % self.setup_args.print_every_epoch) == 0:
                 print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}')
 
-
+        self.setup_args.plot_result = True
         train_loss, df_train = self.test(fold_dict, "train_loader", "train", self.setup_args.plot_result)
 
         if self.label_type == "regression":
@@ -563,14 +579,15 @@ class trainer_tester:
         # print("All folds val r2 score:", all_fold_val_r2_score)
     
         if  (self.label_type == "regression"):
-            plotting.plot_pred_vs_real(all_preds_df, self.en, self.setup_args.id, full_training=True)
-            all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
+            print('self.sweep_id:', self.setup_args)
+            plotting.plot_pred_vs_real(all_preds_df, self.en, self.sweep_id, full_training=True)
+            all_preds_df.to_csv(os.path.join(self.OUT_DATA_PATH, f"{self.sweep_id}.csv"), index=False)
             self.save_results()
-            custom_tools.save_dict_as_json(self.setup_args.id, self.setup_args.MODEL_PATH)
+            custom_tools.save_dict_as_json(self.sweep_id, self.MODEL_PATH)
             if not self.fold:
-                custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.setup_args.id, mode="SD", path=self.setup_args.MODEL_PATH)
+                custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.sweep_id, mode="SD", path=self.MODEL_PATH)
                 if self.model == "PNAConv":
-                    custom_tools.save_pickle(self.fold_dicts[0]["deg"], f"{self.setup_args.id}_deg.pckl", self.setup_args.MODEL_PATH)
+                    custom_tools.save_pickle(self.fold_dicts[0]["deg"], f"{self.sweep_id}_deg.pckl", self.MODEL_PATH)
                 
     
     def save_results(self):
@@ -613,7 +630,7 @@ class trainer_tester:
 
             header = ["fold_number","train","validation","test","r2","mse","rmse"]
 
-            if self.setup_args.use_fold:
+            if self.use_fold:
                 means = [["Mean", round(statistics.mean(train_results), 4), round(statistics.mean(valid_results), 4), round(statistics.mean(test_results), 4), statistics.mean(r2_results), statistics.mean(mse_results),statistics.mean(rmse_results)]]
                 variances = [["Variance", round(statistics.variance(train_results), 4) ,round(statistics.variance(valid_results), 4), round(statistics.variance(test_results), 4), statistics.variance(r2_results),statistics.variance(mse_results),statistics.variance(rmse_results)]]
 
@@ -625,7 +642,7 @@ class trainer_tester:
         elif self.label_type == "classification":
 
             header = ["fold_number","train","validation","accuracy","precision","f1"]
-            if self.setup_args.use_fold:
+            if self.use_fold:
                 means = [["Mean", round(statistics.mean(train_results), 4), round(statistics.mean(valid_results), 4), round(statistics.mean(test_results), 4), statistics.mean(accuracy_results), statistics.mean(precision_results), statistics.mean(f1_results)]]
                 variances = [["Variance", round(statistics.variance(train_results), 4) ,round(statistics.variance(valid_results), 4), round(statistics.variance(test_results), 4), statistics.variance(accuracy_results), statistics.mean(precision_results), statistics.mean(f1_results)]]
 
@@ -634,10 +651,10 @@ class trainer_tester:
                 means = [["Mean", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4),accuracy_results[0],precision_results[0],f1_results[0]]]
                 variances = [["Variance", round(train_results[0], 4), round(valid_results[0], 4), round(test_results[0], 4), accuracy_results[0],precision_results[0],f1_results[0]]]
 
-        ff = open(os.path.join(self.setup_args.RESULT_PATH, f"{str(self.setup_args.id)}.csv"), 'w')
+        ff = open(os.path.join(self.RESULT_PATH, f"{str(self.sweep_id)}.csv"), 'w')
         ff.close()
 
-        with open(os.path.join(self.setup_args.RESULT_PATH, f"{str(self.setup_args.id)}.csv"), 'w', encoding="UTF8", newline='') as f:
+        with open(os.path.join(self.RESULT_PATH, f"{str(self.sweep_id)}.csv"), 'w', encoding="UTF8", newline='') as f:
             writer = csv.writer(f)
 
             writer.writerow(header)
@@ -650,34 +667,33 @@ class trainer_tester:
 
 
 
-pl.seed_everything(42)
+
+parser_args = custom_tools.general_parser()
 setup_args = SimpleNamespace()
 
-setup_args.id = custom_tools.generate_session_id()
-
-print(f"Session id: {setup_args.id}")
 
 
-tt_instance = trainer_tester(setup_args)
+en = "test_experiment"
+fold = None
 
 setup_args.S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
-setup_args.OUT_DATA_PATH = os.path.join(setup_args.S_PATH, "../data", "out_data", tt_instance.en)
-setup_args.RESULT_PATH = os.path.join(setup_args.S_PATH, "../results", "idedFiles", tt_instance.en)
-setup_args.PLOT_PATH = os.path.join(setup_args.S_PATH, "../plots", tt_instance.en)
-setup_args.MODEL_PATH = os.path.join(setup_args.S_PATH, "../models", tt_instance.en)
+setup_args.OUT_DATA_PATH = os.path.join(setup_args.S_PATH, "../data", "out_data", en)
+setup_args.RESULT_PATH = os.path.join(setup_args.S_PATH, "../results", "idedFiles", en)
+setup_args.PLOT_PATH = os.path.join(setup_args.S_PATH, "../plots", en)
+setup_args.MODEL_PATH = os.path.join(setup_args.S_PATH, "../models", en)
 
 custom_tools.create_directories([setup_args.OUT_DATA_PATH, setup_args.RESULT_PATH, setup_args.PLOT_PATH, setup_args.MODEL_PATH])
 
-setup_args.T2VT_ratio = 4
+'''setup_args.T2VT_ratio = 4
 setup_args.V2T_ratio = 1
-setup_args.use_fold = tt_instance.fold
+setup_args.use_fold = fold'''
 
 
 # This is NOT for sure, loss can change inside the class
 setup_args.criterion = None
-if tt_instance.loss=="MSE":
+if parser_args.loss=="MSE":
     setup_args.criterion = torch.nn.MSELoss()
-elif tt_instance.loss=="Huber":
+elif parser_args.loss=="Huber":
     setup_args.criterion = torch.nn.HuberLoss()
 else:
     setup_args.criterion = torch.nn.MSELoss()
