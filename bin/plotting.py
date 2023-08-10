@@ -13,7 +13,7 @@ import matplotlib as mpl
 
 S_PATH = os.path.dirname(__file__)
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
-PREPROSSED_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
+PREPROSSED_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer", "raw")
 PLOT_PATH = os.path.join(S_PATH, "../plots")
 
 def plot_cell_count_distribution(comp_dataset_path):

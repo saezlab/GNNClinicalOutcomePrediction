@@ -12,6 +12,7 @@ from torch_geometric.explain import Explainer, GNNExplainer
 import largest_connected_component
 from data_processing import OUT_DATA_PATH
 import networkx as nx
+import anndata as ad
 import pytorch_lightning as pl
 
 
@@ -143,7 +144,7 @@ class Custom_Explainer:
                 break
 
         
-        adata = adata_concat[0].concat(adata_concat[1:], join='outer')
+        adata = ad.concat(adata_concat)
         adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"concatenated_explanations.h5ad"))
 
 
