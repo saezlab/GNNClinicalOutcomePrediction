@@ -437,9 +437,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import custom_tools
 
-def visualize_clinical_data(c_data, s_c_data, clinical_type_column_name = "clinical_type"):
+def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_name = "clinical_type", fl_path = "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/plots/manuscript_figures"):
+    c_data  = pd.read_csv("../data/METABRIC/brca_metabric_clinical_data.tsv", sep="\t", index_col=False)
+    s_c_data = pd.read_csv("../data/METABRIC/single_cell_data.csv", index_col=False)
     c_data.columns = c_data.columns.str.strip()
-
     # Print columns
     print("Clinical data columns: ", c_data.columns)
     print("Single cell data columns: ", s_c_data.columns)
@@ -452,30 +453,46 @@ def visualize_clinical_data(c_data, s_c_data, clinical_type_column_name = "clini
 
     # Define custom order for the plot
     custom_order = ["TripleNeg", "HR-HER2+", "HR+HER2-", "HR+HER2+"]
+    my_pal = {"TripleNeg": "b", "HR-HER2+": "y", "HR+HER2-":"g", "HR+HER2+":"r"}
 
     # Clinical_type vs Survival candle plot using sns and order the clinical_type
     clinical_type = c_data["clinical_type"]
     survival = c_data["Overall Survival (Months)"]
-    ax = sns.boxplot(x=clinical_type, y=survival, order=custom_order)
+    ax = sns.boxplot(x=clinical_type, y=survival, order=custom_order, palette= my_pal)
     ax.set(xlabel="Clinical Type", ylabel="Overall Survival (Months)")
-    plt.show()
+    # plt.show()
+    # adding transparency to colors
+    for patch in ax.artists:
+        r, g, b, a = patch.get_facecolor()
+        patch.set_facecolor((r, g, b, .3))
+    plt.savefig(os.path.join(fl_path, "METABRIC_clinical_type_vs_survival.pdf"))
+    plt.clf()
+
 
     clinical_type = c_data["clinical_type"]
     age = c_data["Age at Diagnosis"]
-    ax = sns.boxplot(x=clinical_type, y=age, order=custom_order)
+    ax = sns.boxplot(x=clinical_type, y=age, order=custom_order, palette= my_pal)
     ax.set(xlabel="Clinical Type", ylabel="Age at Diagnosis")
-    plt.show()
+    for patch in ax.artists:
+        r, g, b, a = patch.get_facecolor()
+        patch.set_facecolor((r, g, b, .3))
+
+    plt.savefig(os.path.join(fl_path, "METABRIC_clinical_type_vs_age.pdf"))
+    plt.clf()
+    # plt.show()
 
     
-    # Age vs Survival scatter plot,
-
+    # Age vs Survival scatter plot, color by clinical_type
     
-    ax = sns.scatterplot(x=age, y=survival, hue=clinical_type, hue_order=custom_order)
-    ax.set(xlabel="Age at Diagnosis", ylabel="Overall Survival (Months)")
-    plt.show()
+    ax = sns.scatterplot(x=survival, y=age, hue=clinical_type, hue_order=custom_order)
+    ax.set(xlabel="Overall Survival (Months)", ylabel="Age at Diagnosis")
+    plt.savefig(os.path.join(PLOT_PATH, "manuscript_figures", "METABRIC_age_vs_survibility.pdf"))
 
     
     # HER2-NAN count
     print("HER2-NAN count: ", len(c_data[c_data["clinical_type"] == "HER2-NAN"]))
     # Total count   
     print("Total count: ", len(c_data))
+
+
+visualize_clinical_data()
