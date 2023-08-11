@@ -283,6 +283,6 @@ class CustomGCN(torch.nn.Module):
                 x = F.relu(ff_l(x))
                 # x = h + x  # residual#
                 x = F.dropout(x, self.dropout, training=self.training)
-
+            
             return x
 

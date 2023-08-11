@@ -10,6 +10,11 @@ from dataset import TissueDataset
 from scipy.spatial import Voronoi, voronoi_plot_2d
 from evaluation_metrics import r_squared_score, mse, rmse, mae
 import matplotlib as mpl
+import torch
+import umap
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 S_PATH = os.path.dirname(__file__)
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
@@ -494,5 +499,62 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     # Total count   
     print("Total count: ", len(c_data))
 
+def UMAP_plot(embeddings, related_data, attribute_name):
+    emd512 = embeddings
+    # Convert the embeddings tensor to a numpy array
+    emd_array = emd512.numpy()
 
-visualize_clinical_data()
+    def handle_types(data):
+        if isinstance(data, list):
+            return data[0]
+        # if tensor
+        elif isinstance(data, torch.Tensor):
+            return data.item()
+
+    # Extract the attribute values from the related_data list
+    attributes = [handle_types(getattr(data_batch, attribute_name)) for data_batch in related_data]
+
+    # Get unique attribute values and create a colormap
+    unique_attributes = list(set(attributes))
+    num_attributes = len(unique_attributes)
+
+    if num_attributes <= 10:
+        color_map = plt.get_cmap('tab10', num_attributes)
+        attribute_color = {attr: color_map(i) for i, attr in enumerate(unique_attributes)}
+        legend_type = 'class'
+    else:
+        attribute_color = {attr: plt.cm.get_cmap('viridis')(i/num_attributes) for i, attr in enumerate(unique_attributes)}
+        legend_type = 'value'
+
+    # Convert attributes to colors based on the colormap
+    attribute_colors = [attribute_color[attr] for attr in attributes]
+
+    # Create a UMAP reducer
+    reducer = umap.UMAP()
+
+    # Apply UMAP transformation
+    umap_result = reducer.fit_transform(emd_array)
+
+    # Plot the UMAP results with colored attributes and legend
+    plt.figure(figsize=(10, 8))
+
+    # Create scatter plot for each attribute with corresponding color
+    for attr, color in attribute_color.items():
+        mask = np.array(attributes) == attr
+        plt.scatter(umap_result[mask, 0], umap_result[mask, 1], c=[color], label=str(attr), s=10)
+
+    # Add legend with appropriate title and min/max value entries
+    legend = plt.legend(title=f'Legend ({legend_type})')
+
+    if legend_type == 'value':
+        min_attr = min(unique_attributes)
+        max_attr = max(unique_attributes)
+        legend_elements = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=attribute_color[min_attr], markersize=10, label=f'Min: {min_attr:.2f}'),
+                        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=attribute_color[max_attr], markersize=10, label=f'Max: {max_attr:.2f}')]
+        plt.legend(handles=legend_elements, title=f'Legend ({legend_type})')
+    else:
+        plt.legend(title=f'Legend ({legend_type})')
+
+        
+    plt.title('UMAP Projection with Colored Attributes and Legend')
+    plt.show()
