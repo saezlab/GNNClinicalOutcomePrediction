@@ -3,20 +3,18 @@ from turtle import hideturtle
 import torch
 from torch.nn import Linear
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv, GATConv, TransformerConv, GINConv, PNAConv, GATv2Conv
+from torch_geometric.nn import GCNConv, GATConv, TransformerConv, GINConv, PNAConv
 from torch_geometric.nn import global_mean_pool
 from torch.nn import BatchNorm1d
 from torch.nn import ModuleList
 import pytorch_lightning as pl
-from mma_conv import MMAConv
-from gmn_conv import GMNConv
 
 SEED = 42
 
 # ORIGINAL NAME WAS model_dgermen changed to model, can cause import porblems # WARN
 
 class CustomGCN(torch.nn.Module):
-    """Customizable GCN class, currectly supporting GATConv, TransformerConv
+    """Customizable GCN class, currectly supporting GATConv,s TransformerConv
     GINConv, PNAConv
 
 
@@ -99,12 +97,6 @@ class CustomGCN(torch.nn.Module):
                 model_pars_head["heads"] = self.heads
                 model_pars_rest["heads"] = self.heads
                 model_pars_rest["in_channels"] = self.gcn_hidden_neurons*self.heads
-            
-            elif type == "GATV2":
-                self.GCN_type_1 = GATv2Conv
-                model_pars_head["heads"] = self.heads
-                model_pars_rest["heads"] = self.heads
-                model_pars_rest["in_channels"] = self.gcn_hidden_neurons*self.heads
 
             # WORKS
             elif type == "TransformerConv":
@@ -119,26 +111,6 @@ class CustomGCN(torch.nn.Module):
             # WORKS
             elif type == "PNAConv":
                 self.GCN_type_1 = PNAConv
-                model_pars_head["aggregators"] = self.aggregators
-                model_pars_head["scalers"] = self.scalers
-                model_pars_head["deg"] = self.deg
-                
-                model_pars_rest["aggregators"] = self.aggregators
-                model_pars_rest["scalers"] = self.scalers
-                model_pars_rest["deg"] = self.deg
-
-            elif type == "MMAConv":
-                self.GCN_type_1 = MMAConv
-                model_pars_head["aggregators"] = self.aggregators
-                model_pars_head["scalers"] = self.scalers
-                model_pars_head["deg"] = self.deg
-                
-                model_pars_rest["aggregators"] = self.aggregators
-                model_pars_rest["scalers"] = self.scalers
-                model_pars_rest["deg"] = self.deg
-
-            elif type == "GMNConv":
-                self.GCN_type_1 = GMNConv
                 model_pars_head["aggregators"] = self.aggregators
                 model_pars_head["scalers"] = self.scalers
                 model_pars_head["deg"] = self.deg
@@ -164,7 +136,7 @@ class CustomGCN(torch.nn.Module):
         self.ff_layers = ModuleList()
         self.ff_batch_norms = ModuleList()
 
-        if type == 'GATConv' or 'GATV2':
+        if type == 'GATConv':
             #self.convs_in = GATConv(
             #    **model_pars_head,
             #    )
@@ -283,6 +255,5 @@ class CustomGCN(torch.nn.Module):
                 x = F.relu(ff_l(x))
                 # x = h + x  # residual#
                 x = F.dropout(x, self.dropout, training=self.training)
-            
-            return x
 
+            return x

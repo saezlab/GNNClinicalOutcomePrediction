@@ -6,7 +6,7 @@ from torch_geometric.nn import GCNConv
 from torch_geometric.utils import embedding
 
 # Extract embeddings for a given model and dataset
-def get_intermediate_embeddings_for_dataset(model, dataset, batch_size=1):
+def get_intermediate_embeddings_for_dataset(model, dataset, batch_size=1, mode="FC", agg_method="mean"):
     intermediate_embeddings_list = []
 
     model.eval()  # Set the model to evaluation mode
@@ -16,13 +16,23 @@ def get_intermediate_embeddings_for_dataset(model, dataset, batch_size=1):
 
     related_data =[] 
 
+
     with torch.no_grad():
         for batch in dataloader:
             x = batch.x
             edge_index = batch.edge_index
 
             # Get intermediate embeddings using the provided function
-            intermediate_embeddings = get_embeddings(model, x=x, edge_index=edge_index, batch=batch.batch)
+            if mode == "FC":
+                intermediate_embeddings = get_embeddings(model, x=x, edge_index=edge_index, batch=batch.batch)
+            elif mode == "CNV":
+                intermediate_embeddings = embedding.get_embeddings(model, x=x, edge_index=edge_index, batch=batch.batch)
+                for indx, embed in enumerate(intermediate_embeddings):
+                    if agg_method == "mean":
+                        embed = torch.mean(embed, dim=0)
+                        embed = embed.unsqueeze(0)
+                    # Fill intermediate embeddings with the aggregated embeddings
+                    intermediate_embeddings[indx] = embed
 
             # Append the intermediate embeddings to the list
             intermediate_embeddings_list.append(intermediate_embeddings)
@@ -34,10 +44,12 @@ def get_intermediate_embeddings_for_dataset(model, dataset, batch_size=1):
     layer_result_tensor_list = []
     for layer in range(len(intermediate_embeddings)):
         layer_result_list = [item[layer] for item in intermediate_embeddings_list]
-        layer_result_tensor = torch.cat(layer_result_list)
+        # Concatenate along the batch dimension
+        layer_result_tensor = torch.cat(layer_result_list, dim=0)
         layer_result_tensor_list.append(layer_result_tensor)
 
     return layer_result_tensor_list, related_data
+
 
 import warnings
 from typing import Any, List

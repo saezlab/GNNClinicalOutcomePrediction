@@ -557,4 +557,6 @@ def UMAP_plot(embeddings, related_data, attribute_name):
 
         
     plt.title('UMAP Projection with Colored Attributes and Legend')
-    plt.show()
+
+    # Save the plot as pdf
+    plt.savefig(os.path.join(PLOT_PATH, "UMAP_plot.pdf"))
