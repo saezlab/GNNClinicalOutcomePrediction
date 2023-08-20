@@ -499,10 +499,24 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     # Total count   
     print("Total count: ", len(c_data))
 
-def UMAP_plot(embeddings, related_data, attribute_name):
+def UMAP_plot(embeddings, related_data, attribute_name, attributes = np.empty(0)):
+    """Creates 2D UMAP plot for given embeddings and related data.
+    It assumes both data are in the same order.
+
+    Args:
+        embeddings (_type_): Embeddings of the data
+        related_data (_type_): Clinical variables about the embeddings
+        attribute_name (_type_): In which attribute the embeddings are colored
+        attributes (numpy.array): If the attribute values are already given, they can be passed as a numpy array
+
+    Returns:
+        Outputs UMAP plot and saves it as pdf
+    """
     emd512 = embeddings
+    emd_array = emd512
     # Convert the embeddings tensor to a numpy array
-    emd_array = emd512.numpy()
+    if type(emd512) != np.ndarray:
+        emd_array = emd512.numpy()
 
     def handle_types(data):
         if isinstance(data, list):
@@ -512,8 +526,9 @@ def UMAP_plot(embeddings, related_data, attribute_name):
             return data.item()
 
     # Extract the attribute values from the related_data list
-    attributes = [handle_types(getattr(data_batch, attribute_name)) for data_batch in related_data]
-
+    if attributes.size == np.empty(0).size:
+        attributes = [handle_types(getattr(data_batch, attribute_name)) for data_batch in related_data]
+    
     # Get unique attribute values and create a colormap
     unique_attributes = list(set(attributes))
     num_attributes = len(unique_attributes)
