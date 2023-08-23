@@ -5,6 +5,10 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.nn import GCNConv
 from torch_geometric.utils import embedding
 
+import config
+
+seed = config.seed
+
 # Extract embeddings for a given model and dataset
 def get_intermediate_embeddings_for_dataset(model, dataset, batch_size=1, mode="FC", agg_method="mean"):
     intermediate_embeddings_list = []

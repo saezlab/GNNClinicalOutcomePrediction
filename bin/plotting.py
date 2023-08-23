@@ -16,6 +16,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
+import config
+
+seed = config.seed
+
+
 S_PATH = os.path.dirname(__file__)
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
 PREPROSSED_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer", "raw")
@@ -460,6 +465,8 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     custom_order = ["TripleNeg", "HR-HER2+", "HR+HER2-", "HR+HER2+"]
     my_pal = {"TripleNeg": "b", "HR-HER2+": "y", "HR+HER2-":"g", "HR+HER2+":"r"}
 
+    
+
     # Clinical_type vs Survival candle plot using sns and order the clinical_type
     clinical_type = c_data["clinical_type"]
     survival = c_data["Overall Survival (Months)"]
@@ -473,6 +480,15 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     plt.savefig(os.path.join(fl_path, "METABRIC_clinical_type_vs_survival.pdf"))
     plt.clf()
 
+    # plot tumor_stage vs survival box plot
+    tumor_stage = c_data["Tumor Stage"]
+    # Remove nan values
+    tumor_stage = tumor_stage[tumor_stage.notnull()]
+    # Remove 0
+    tumor_stage = tumor_stage[tumor_stage != 0]
+    ax = sns.boxplot(x=tumor_stage, y=survival)
+    ax.set(xlabel="Tumor Stage", ylabel="Overall Survival (Months)")
+    plt.savefig(os.path.join(PLOT_PATH, "manuscript_figures", "METABRIC_tumor_stage_vs_survival.pdf"))
 
     clinical_type = c_data["clinical_type"]
     age = c_data["Age at Diagnosis"]
@@ -494,6 +510,8 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     plt.savefig(os.path.join(PLOT_PATH, "manuscript_figures", "METABRIC_age_vs_survibility.pdf"))
 
     
+
+
     # HER2-NAN count
     print("HER2-NAN count: ", len(c_data[c_data["clinical_type"] == "HER2-NAN"]))
     # Total count   
@@ -545,7 +563,7 @@ def UMAP_plot(embeddings, related_data, attribute_name, attributes = np.empty(0)
     attribute_colors = [attribute_color[attr] for attr in attributes]
 
     # Create a UMAP reducer
-    reducer = umap.UMAP()
+    reducer = umap.UMAP(random_state=42)
 
     # Apply UMAP transformation
     umap_result = reducer.fit_transform(emd_array)
