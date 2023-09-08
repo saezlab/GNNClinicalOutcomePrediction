@@ -10,6 +10,16 @@ from dataset import TissueDataset
 from scipy.spatial import Voronoi, voronoi_plot_2d
 from evaluation_metrics import r_squared_score, mse, rmse, mae
 import matplotlib as mpl
+import torch
+import umap
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+
+import config
+
+seed = config.seed
+
 
 S_PATH = os.path.dirname(__file__)
 RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer")
@@ -455,6 +465,8 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     custom_order = ["TripleNeg", "HR-HER2+", "HR+HER2-", "HR+HER2+"]
     my_pal = {"TripleNeg": "b", "HR-HER2+": "y", "HR+HER2-":"g", "HR+HER2+":"r"}
 
+    
+
     # Clinical_type vs Survival candle plot using sns and order the clinical_type
     clinical_type = c_data["clinical_type"]
     survival = c_data["Overall Survival (Months)"]
@@ -468,6 +480,15 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     plt.savefig(os.path.join(fl_path, "METABRIC_clinical_type_vs_survival.pdf"))
     plt.clf()
 
+    # plot tumor_stage vs survival box plot
+    tumor_stage = c_data["Tumor Stage"]
+    # Remove nan values
+    tumor_stage = tumor_stage[tumor_stage.notnull()]
+    # Remove 0
+    tumor_stage = tumor_stage[tumor_stage != 0]
+    ax = sns.boxplot(x=tumor_stage, y=survival)
+    ax.set(xlabel="Tumor Stage", ylabel="Overall Survival (Months)")
+    plt.savefig(os.path.join(PLOT_PATH, "manuscript_figures", "METABRIC_tumor_stage_vs_survival.pdf"))
 
     clinical_type = c_data["clinical_type"]
     age = c_data["Age at Diagnosis"]
@@ -489,10 +510,87 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     plt.savefig(os.path.join(PLOT_PATH, "manuscript_figures", "METABRIC_age_vs_survibility.pdf"))
 
     
+
+
     # HER2-NAN count
     print("HER2-NAN count: ", len(c_data[c_data["clinical_type"] == "HER2-NAN"]))
     # Total count   
     print("Total count: ", len(c_data))
 
+def UMAP_plot(embeddings, related_data, attribute_name, attributes = np.empty(0)):
+    """Creates 2D UMAP plot for given embeddings and related data.
+    It assumes both data are in the same order.
+
+    Args:
+        embeddings (_type_): Embeddings of the data
+        related_data (_type_): Clinical variables about the embeddings
+        attribute_name (_type_): In which attribute the embeddings are colored
+        attributes (numpy.array): If the attribute values are already given, they can be passed as a numpy array
+
+    Returns:
+        Outputs UMAP plot and saves it as pdf
+    """
+    emd512 = embeddings
+    emd_array = emd512
+    # Convert the embeddings tensor to a numpy array
+    if type(emd512) != np.ndarray:
+        emd_array = emd512.numpy()
+
+    def handle_types(data):
+        if isinstance(data, list):
+            return data[0]
+        # if tensor
+        elif isinstance(data, torch.Tensor):
+            return data.item()
+
+    # Extract the attribute values from the related_data list
+    if attributes.size == np.empty(0).size:
+        attributes = [handle_types(getattr(data_batch, attribute_name)) for data_batch in related_data]
+    
+    # Get unique attribute values and create a colormap
+    unique_attributes = list(set(attributes))
+    num_attributes = len(unique_attributes)
+
+    if num_attributes <= 10:
+        color_map = plt.get_cmap('tab10', num_attributes)
+        attribute_color = {attr: color_map(i) for i, attr in enumerate(unique_attributes)}
+        legend_type = 'class'
+    else:
+        attribute_color = {attr: plt.cm.get_cmap('viridis')(i/num_attributes) for i, attr in enumerate(unique_attributes)}
+        legend_type = 'value'
+
+    # Convert attributes to colors based on the colormap
+    attribute_colors = [attribute_color[attr] for attr in attributes]
+
+    # Create a UMAP reducer
+    reducer = umap.UMAP(random_state=42)
+
+    # Apply UMAP transformation
+    umap_result = reducer.fit_transform(emd_array)
+
+    # Plot the UMAP results with colored attributes and legend
+    plt.figure(figsize=(10, 8))
+
+    # Create scatter plot for each attribute with corresponding color
+    for attr, color in attribute_color.items():
+        mask = np.array(attributes) == attr
+        plt.scatter(umap_result[mask, 0], umap_result[mask, 1], c=[color], label=str(attr), s=10)
+
+    # Add legend with appropriate title and min/max value entries
+    legend = plt.legend(title=f'Legend ({legend_type})')
+
+    if legend_type == 'value':
+        min_attr = min(unique_attributes)
+        max_attr = max(unique_attributes)
+        legend_elements = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=attribute_color[min_attr], markersize=10, label=f'Min: {min_attr:.2f}'),
+                        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=attribute_color[max_attr], markersize=10, label=f'Max: {max_attr:.2f}')]
+        plt.legend(handles=legend_elements, title=f'Legend ({legend_type})')
+    else:
+        plt.legend(title=f'Legend ({legend_type})')
+
+        
+    plt.title('UMAP Projection with Colored Attributes and Legend')
 
 # visualize_clinical_data()
+    # Save the plot as pdf
+    plt.savefig(os.path.join(PLOT_PATH, "UMAP_plot.pdf"))

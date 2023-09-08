@@ -8,7 +8,7 @@ import seaborn as sns
 from scipy.spatial import Delaunay, Voronoi, voronoi_plot_2d
 from tqdm import tqdm
 
-dataset = "JacksonFisher"
+dataset = "METABRIC"
 
 RAW_DATA_PATH = os.path.join("../data",dataset,"raw")
 OUT_DATA_PATH = os.path.join("../data", "out_data", dataset)

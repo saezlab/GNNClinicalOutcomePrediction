@@ -14,7 +14,7 @@ SEED = 42
 # ORIGINAL NAME WAS model_dgermen changed to model, can cause import porblems # WARN
 
 class CustomGCN(torch.nn.Module):
-    """Customizable GCN class, currectly supporting GATConv, TransformerConv
+    """Customizable GCN class, currectly supporting GATConv,s TransformerConv
     GINConv, PNAConv
 
 
@@ -98,12 +98,13 @@ class CustomGCN(torch.nn.Module):
                 model_pars_rest["heads"] = self.heads
                 model_pars_rest["in_channels"] = self.gcn_hidden_neurons*self.heads
 
+
             elif type == "GATV2":
                 self.GCN_type_1 = GATv2Conv
                 model_pars_head["heads"] = self.heads
                 model_pars_rest["heads"] = self.heads
                 model_pars_rest["in_channels"] = self.gcn_hidden_neurons*self.heads
-
+            
             # WORKS
             elif type == "TransformerConv":
                 self.GCN_type_1 = TransformerConv
