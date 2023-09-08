@@ -8,8 +8,6 @@ from torch_geometric.nn import global_mean_pool
 from torch.nn import BatchNorm1d
 from torch.nn import ModuleList
 import pytorch_lightning as pl
-from mma_conv import MMAConv
-from gmn_conv import GMNConv
 
 SEED = 42
 
@@ -99,7 +97,7 @@ class CustomGCN(torch.nn.Module):
                 model_pars_head["heads"] = self.heads
                 model_pars_rest["heads"] = self.heads
                 model_pars_rest["in_channels"] = self.gcn_hidden_neurons*self.heads
-            
+
             elif type == "GATV2":
                 self.GCN_type_1 = GATv2Conv
                 model_pars_head["heads"] = self.heads
@@ -119,26 +117,6 @@ class CustomGCN(torch.nn.Module):
             # WORKS
             elif type == "PNAConv":
                 self.GCN_type_1 = PNAConv
-                model_pars_head["aggregators"] = self.aggregators
-                model_pars_head["scalers"] = self.scalers
-                model_pars_head["deg"] = self.deg
-                
-                model_pars_rest["aggregators"] = self.aggregators
-                model_pars_rest["scalers"] = self.scalers
-                model_pars_rest["deg"] = self.deg
-
-            elif type == "MMAConv":
-                self.GCN_type_1 = MMAConv
-                model_pars_head["aggregators"] = self.aggregators
-                model_pars_head["scalers"] = self.scalers
-                model_pars_head["deg"] = self.deg
-                
-                model_pars_rest["aggregators"] = self.aggregators
-                model_pars_rest["scalers"] = self.scalers
-                model_pars_rest["deg"] = self.deg
-
-            elif type == "GMNConv":
-                self.GCN_type_1 = GMNConv
                 model_pars_head["aggregators"] = self.aggregators
                 model_pars_head["scalers"] = self.scalers
                 model_pars_head["deg"] = self.deg
@@ -285,4 +263,3 @@ class CustomGCN(torch.nn.Module):
                 x = F.dropout(x, self.dropout, training=self.training)
 
             return x
-

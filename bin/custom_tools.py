@@ -21,7 +21,7 @@ RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 # K-Fold cross validation index creator function
 # Dataset idices and ratios must be supplied
 # Return triplet of samplers for amount of wanted fold
-def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False):
+def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False, split_tvt_by_group = True):
     """Splits dataset into Train, Validation and Test sets
 
     Args:
@@ -30,12 +30,24 @@ def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False):
         V2T_ratio (int): Valid / Test
     """
 
-    fold_T2VT=KFold(n_splits=T2VT_ratio+1)
-    fold_V2T =KFold(n_splits=V2T_ratio+1)
+
 
     # List to save sampler triplet
     samplers = []
 
+    if split_tvt_by_group:
+        fold_count = 1
+        train_idx, valid_idx, test_idx = split_by_group(dataset)
+        samplers.append((
+                (fold_count),
+                (torch.utils.data.SubsetRandomSampler(train_idx)),
+                (torch.utils.data.SubsetRandomSampler(valid_idx)),
+                (torch.utils.data.SubsetRandomSampler(test_idx))))
+        
+        return samplers
+
+    fold_T2VT=KFold(n_splits=T2VT_ratio+1)
+    fold_V2T =KFold(n_splits=V2T_ratio+1)
     # Fold count init
     fold_count = 0
 
@@ -52,8 +64,8 @@ def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False):
             samplers.append((
                 (fold_count),
                 (torch.utils.data.SubsetRandomSampler(train_idx)),
-                (torch.utils.data.SubsetRandomSampler(test_idx)),
-                (torch.utils.data.SubsetRandomSampler(valid_idx))))
+                (torch.utils.data.SubsetRandomSampler(valid_idx)),
+                (torch.utils.data.SubsetRandomSampler(test_idx))))
 
             if not shuffle_VT:
                 break
@@ -120,7 +132,7 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
     Returns:
         CustomGCN: Ready model
     """
-
+    print(args)
     path_model = os.path.join(path, fileName + ".mdl")
     path_hyp = os.path.join(path, fileName + ".hyp")
 
@@ -144,7 +156,7 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
                     scalers=args["scalers"],
                     deg = deg
                         )
-
+        print(model)
         model.load_state_dict(torch.load(path_model, map_location=get_device()))
         model.eval()
 
@@ -171,7 +183,7 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
                     scalers=args["scalers"],
                     deg = args["deg"] 
                         )
-
+        print(model)
         model.load_state_dict(torch.load(path_model))
         model.eval()
 
@@ -718,3 +730,30 @@ def type_processor(c_data):
 
     c_data['clinical_type'] = c_data.apply(generate_clinical_type, axis=1)
     return c_data
+
+
+def split_by_group(dataset):
+    import pandas as pd
+    from sklearn.model_selection import GroupShuffleSplit 
+
+    lst_groups = []
+    for item in dataset:
+        lst_groups.append([item.p_id, item.img_id, item.clinical_type, item.tumor_grade, item.osmonth])
+    df_dataset = pd.DataFrame(lst_groups, columns=["p_id", "img_id", "clinical_type", "tumor_grade", "osmonth"])
+    
+    splitter = GroupShuffleSplit(test_size=.10, n_splits=2, random_state = 7)
+    split = splitter.split(df_dataset, groups=df_dataset['p_id'])
+    trainval_inds, test_inds = next(split)
+    print(trainval_inds)
+    trainval = df_dataset.iloc[trainval_inds]
+    test = df_dataset.iloc[test_inds]
+    
+    splitter2 = GroupShuffleSplit(test_size=.10, n_splits=2, random_state = 7)
+    split2 = splitter2.split(trainval, groups=trainval['p_id'])
+    train_inds, val_inds = next(split2)
+
+    train = trainval.iloc[train_inds]
+    validation = trainval.iloc[val_inds]
+
+    return train_inds, val_inds, test_inds
+ 

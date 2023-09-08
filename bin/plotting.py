@@ -495,4 +495,4 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     print("Total count: ", len(c_data))
 
 
-visualize_clinical_data()
+# visualize_clinical_data()

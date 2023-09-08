@@ -131,7 +131,7 @@ class trainer_tester:
                 T2VT_ratio=self.setup_args.T2VT_ratio,
                 V2T_ratio=self.setup_args.V2T_ratio)
 
-
+            print("samplers",   self.samplers)
             deg = -1
 
             for fold, train_sampler, validation_sampler, test_sampler in self.samplers:
@@ -380,7 +380,7 @@ class trainer_tester:
     
         print(f"All folds val - R2 score: {all_fold_val_r2_score}\tMSE: {all_fold_val_mse_score}\tMAE: {all_fold_val_mae_score}")
     
-        if  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
+        if  (self.label_type == "regression" and all_fold_val_r2_score>0.6) or True:
             plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id)
             all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
             self.save_results()

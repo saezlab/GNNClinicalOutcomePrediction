@@ -288,7 +288,7 @@ def check_cell_ids_sequential():
         max_val = max(point_labels)
         # print(max_val)
         #print(list(range(1,max_val+1)))
-        print(point_labels)
+        # print(point_labels)
         print(list(range(1,max_val+1)))
         assert point_labels==list(range(1,max_val+1))
 
