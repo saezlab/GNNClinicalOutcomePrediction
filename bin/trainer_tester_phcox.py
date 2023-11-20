@@ -14,7 +14,6 @@ from evaluation_metrics import r_squared_score, mse, rmse, mae
 import custom_tools as custom_tools
 import csv
 import statistics
-from eval import concordance_index
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.nn import PNAConv 
 
@@ -66,7 +65,7 @@ class trainer_tester:
         self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data/JacksonFischer", self.parser_args.unit),  self.parser_args.unit)
         print("Number of samples:", len(self.dataset))
 
-        if self.parser_args.label == "OSMonth" or self.parser_args.loss == "CoxPHLoss":
+        if self.parser_args.label == "OSMonth":
             self.label_type = "regression"
             self.num_classes = 1
 
@@ -215,20 +214,23 @@ class trainer_tester:
         # WARN Disabled it but IDK what it does
         #out_list = []
         for data in fold_dict["train_loader"]:  # Iterate in batches over the training dataset.
-
+            # print(data)
+            # print(data.x)
+            # print("data.edge_index", data.edge_index.to(self.device))
+            # print("data.batch",data.batch)
+            # print(data.x)
+            # print(data.x)
+            # print(fold_dict["model"])
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
-
-            loss = None
-            if self.parser_args.loss == "CoxPHLoss":
-                loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device), data.is_censored.to(self.device))  # Compute the loss.    
-            else:
-                loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
-            
+            # print(out)
+            # change this
+            loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
+        
             loss.backward()  # Derive gradients.
             #out_list.extend([val.item() for val in out.squeeze()])
             
-            pred_list.extend([val.item() for val in out.squeeze()])
-            print("pred_list", out)
+            pred_list.extend([val.item() for val in data.y])
+
             total_loss += float(loss.item())
             fold_dict["optimizer"].step()  # Update parameters based on gradients.
             fold_dict["optimizer"].zero_grad()  # Clear gradients
@@ -237,7 +239,6 @@ class trainer_tester:
 
     def test(self, fold_dict, test_on: str,label=None, plot_pred=False):
         """Tests the model on wanted loader
-
 
         Args:
             fold_dict (dict): Holds data about the used fold
@@ -253,42 +254,41 @@ class trainer_tester:
         fold_dict["model"].eval()
 
         total_loss = 0.0
-        pid_list, img_list, pred_list, true_list, tumor_grade_list, clinical_type_list, osmonth_list, censorship_list = [], [], [], [], [], [], [], []
+        pid_list, img_list, pred_list, true_list, tumor_grade_list, clinical_type_list, osmonth_list = [], [], [], [], [], [], []
         
         for data in loader:  # Iterate in batches over the training/test dataset.
+            """print(data)
+            print(data.y)
+            print(data.x)
+            print(data.clinical_type)"""
             if data.y.shape[0]>1:
                 out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
-
-                loss = None
-                if self.parser_args.loss == "CoxPHLoss":
-                    loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device), data.is_censored.to(self.device))  # Compute the loss.    
-                else:
-                    loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
-
+                loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
+                
                 total_loss += float(loss.item())
-
+                # print("test", data.y)
+                # print("test out", out.squeeze())
                 true_list.extend([round(val.item(),6) for val in data.y])
                 # WARN Correct usage of "max" ?
                 if self.label_type == "regression":
                     pred_list.extend([val.item() for val in out.squeeze()])
                 else:
                     pred_list.extend([custom_tools.argmax(val) for val in out.squeeze()])
-                
                 #pred_list.extend([val.item() for val in data.y])
                 tumor_grade_list.extend([val.item() for val in data.tumor_grade])
                 clinical_type_list.extend([val for val in data.clinical_type])
                 osmonth_list.extend([val.item() for val in data.osmonth])
-                censorship_list.extend([val for val in data.is_censored])
                 pid_list.extend([val for val in data.p_id])
                 img_list.extend([val for val in data.img_id])
             else:
                 pass
         
         if plot_pred:
+            #plotting.plot_pred_vs_real(df, 'OS Month (log)', 'Predicted', "Clinical Type", fl_name)
             
             label_list = [str(fold_dict["fold"]) + "-" + label]*len(clinical_type_list)
-            df = pd.DataFrame(list(zip(pid_list, img_list, true_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, censorship_list, label_list)),
-                columns =["Patient ID","Image Number", 'True Value', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Censored", "Fold#-Set"])
+            df = pd.DataFrame(list(zip(pid_list, img_list, true_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, label_list)),
+                columns =["Patient ID","Image Number", 'True Value', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Fold#-Set"])
             
             return total_loss, df
         else:
@@ -297,6 +297,7 @@ class trainer_tester:
     def train_test_loop(self):
         """Training and testing occurs under this function. 
         """
+
         self.results =[] 
         # collect train/val/test predictions of all folds in all_preds_df
         all_preds_df = []
@@ -330,16 +331,17 @@ class trainer_tester:
             test_loss, df_test = self.test(fold_dict, "test_loader", "test", self.setup_args.plot_result)
             list_ct = list(set(df_train["Clinical Type"]))
 
-            if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
-                fold_val_ci_score = concordance_index(df_val['OS Month'], df_val['Predicted'], df_val["Censored"])
-                                
-            elif self.label_type == "regression":
+            if self.label_type == "regression":
                 fold_val_r2_score = r_squared_score(df_val['True Value'], df_val['Predicted'])
+                df_train['True Value'] = self.convert_to_month(df_train['True Value'])
+                df_train['Predicted'] = self.convert_to_month(df_train['Predicted'])
+                df_val['True Value'] = self.convert_to_month(df_val['True Value'])
+                df_val['Predicted'] = self.convert_to_month(df_val['Predicted'])
+                df_test['True Value'] = self.convert_to_month(df_test['True Value'])
+                df_test['Predicted'] = self.convert_to_month(df_test['Predicted'])
+
                 fold_val_mse_score = mse(df_val['True Value'], df_val['Predicted'])
                 fold_val_rmse_score = rmse(df_val['True Value'], df_val['Predicted'])
-                df_train['True Value'], df_train['Predicted'] = self.convert_to_month(df_train['True Value']), self.convert_to_month(df_train['Predicted'])
-                df_val['True Value'],  df_val['Predicted'] = self.convert_to_month(df_val['True Value']), self.convert_to_month(df_val['Predicted'])
-                df_test['True Value'], df_test['Predicted'] = self.convert_to_month(df_test['True Value']), self.convert_to_month(df_test['Predicted'])
 
             elif self.label_type == "classification":
                 accuracy_Score = accuracy_score(df_val["True Value"], df_val['Predicted'])
@@ -358,32 +360,27 @@ class trainer_tester:
             # print(all_preds_df)
             print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
             
-            if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
-                self.results.append([fold_dict['fold'], round(best_train_loss, 4), round(best_val_loss, 4), round(best_test_loss, 4), fold_val_ci_score])
-
-            elif self.label_type == "regression":
+            if self.label_type == "regression": 
+                # self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, r2_score, mse_score, rmse_score])
                 self.results.append([fold_dict['fold'], round(best_train_loss, 4), round(best_val_loss, 4), round(best_test_loss, 4), fold_val_r2_score, fold_val_mse_score, fold_val_rmse_score])
+                # val_r2_score = r_squared_score(all_folds_val_df['True Value'], val_df['Predicted'])
+            
 
             elif self.label_type == "classification":
                 self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, accuracy_Score, precision_Score, f1_Score])
+                val_r2_score = 0
+
+
+            
         
         all_folds_val_df = all_preds_df.loc[(all_preds_df['Fold#-Set'].str[2:] == "validation")]
-        
-        if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
-            all_fold_val_ci_score = concordance_index(all_folds_val_df['OS Month'], all_folds_val_df['Predicted'], all_folds_val_df["Censored"])
-            print(all_folds_val_df)
-            print(f"All folds C index: {all_fold_val_ci_score}")
-
-        elif self.label_type == "regression":
-            all_fold_val_r2_score = r_squared_score(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
-            all_fold_val_mse_score = mse(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
-            all_fold_val_mae_score = mae(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
-            print(f"All folds val - R2 score: {all_fold_val_r2_score}\tMSE: {all_fold_val_mse_score}\tMAE: {all_fold_val_mae_score}")
-        
-        if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
-            all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
-
-        elif  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
+        all_fold_val_r2_score = r_squared_score(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
+        all_fold_val_mse_score = mse(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
+        all_fold_val_mae_score = mae(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
+    
+        print(f"All folds val - R2 score: {all_fold_val_r2_score}\tMSE: {all_fold_val_mse_score}\tMAE: {all_fold_val_mae_score}")
+    
+        if  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
             plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id)
             all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
             self.save_results()
@@ -452,13 +449,12 @@ class trainer_tester:
     def save_results(self):
         """Found results are saved into CSV file
         """
-        # header = ["fold number", "best train loss", "best val loss", "best test loss", "fold val r2 score", "fold val mse", "fold val rmse"]
+        header = ["fold number", "best train loss", "best val loss", "best test loss", "fold val r2 score", "fold val mse", "fold val rmse"]
         
 
         train_results = []
         valid_results = []
         test_results = []
-        ci_results = []
         r2_results = []
         mse_results = []
         rmse_results = []
@@ -466,19 +462,12 @@ class trainer_tester:
         precision_results =[] 
         f1_results =[] 
 
-        
-        if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
-            for _,train,valid,test, cindex in self.results:
-                train_results.append(train)
-                valid_results.append(valid)
-                test_results.append(test)
-                ci_results.append(cindex)
-
-        elif self.label_type == "regression":
+        if self.label_type == "regression":
             for _,train,valid,test,r2,mse,rmse in self.results:
                 train_results.append(train)
                 valid_results.append(valid)
                 test_results.append(test)
+
                 r2_results.append(r2)
                 mse_results.append(mse)
                 rmse_results.append(rmse)
@@ -523,13 +512,17 @@ class trainer_tester:
 
         with open(os.path.join(self.setup_args.RESULT_PATH, f"{str(self.setup_args.id)}.csv"), 'w', encoding="UTF8", newline='') as f:
             writer = csv.writer(f)
+
             writer.writerow(header)
+
             writer.writerows(self.results)
+
             writer.writerows(means)
+
             writer.writerows(variances)
 
 
-    # python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 200 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth --loss CoxPHLoss
+    # python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 200 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth
 
     # full_training
-    # python train_test_controller.py --model PNAConv --lr 0.001 --bs 16 --dropout 0.0 --epoch 200 --num_of_gcn_layers 3 --num_of_ff_layers 2 --gcn_h 32 --fcl 512 --en best_full_training_week_15-12-2022 --weight_decay 0.0001 --factor 0.5 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --full_training --label OSMonth
+    # python train_test_controller.py --model PNAConv --lr 0.001 --bs 16 --dropout 0.0 --epoch 200 --num_of_gcn_layers 3 --num_of_ff_layers 2 --gcn_h 32 --fcl 512 --en best_full_training_week_15-12-2022 --weight_decay 0.0001 --factor 0.5 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --full_training --label OSMonthahmet asdka jdash ehetm rifai oglu ne zaman burata angename ? ahmet rifaioglu_ce ahe et

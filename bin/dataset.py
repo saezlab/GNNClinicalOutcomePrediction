@@ -76,11 +76,12 @@ class TissueDataset(InMemoryDataset):
                 img, pid = fl.split("_")[:2]
                 with open(os.path.join(self.root, "..", "raw", f'{img}_{pid}_clinical_info.pickle'), 'rb') as handle:
                     clinical_info_dict = pickle.load(handle)
-
+                
                 # the criteria to select the
                 if (clinical_info_dict["grade"]==3 or  clinical_info_dict["grade"]==2 or  clinical_info_dict["grade"]==1) and pd.notna(clinical_info_dict["OSmonth"]) and clinical_info_dict["diseasestatus"]=="tumor": # and pd.notna(clinical_info_dict["clinical_type"]):
                 # if (clinical_info_dict["grade"]==3 or  clinical_info_dict["grade"]==2) and pd.notna(clinical_info_dict["OSmonth"]) and clinical_info_dict["diseasestatus"]=="tumor" and pd.notna(clinical_info_dict["clinical_type"]):
                     # print(clinical_info_dict["grade"])
+                    censored = 0 if clinical_info_dict["Patientstatus"].lower().startswith("death") else 1
                     with open(os.path.join(self.root, "..", "raw", f'{img}_{pid}_features.pickle'), 'rb') as handle:
                         feature_arr = pickle.load(handle)
                         feature_arr = np.array(feature_arr)
@@ -101,13 +102,14 @@ class TissueDataset(InMemoryDataset):
                                 y_val = np.log(clinical_info_dict["OSmonth"]*4+1.1)
                             elif self.unit == "week":
                                 y_val = clinical_info_dict["OSmonth"]*4+1.1
-
+                            
+                            
                             # print(clinical_info_dict)
-                            data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=y_val, osmonth=clinical_info_dict["OSmonth"], clinical_type=str(clinical_info_dict["clinical_type"]), treatment=clinical_info_dict["treatment"], disease_stage=clinical_info_dict["DiseaseStage"],  tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["diseasestatus"], dfs_month=clinical_info_dict["DFSmonth"]) # ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["disease_status"], dfs_month=clinical_info_dict["DFSmonth"]
+                            data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=y_val, osmonth=clinical_info_dict["OSmonth"], clinical_type=str(clinical_info_dict["clinical_type"]), treatment=clinical_info_dict["treatment"], disease_stage=clinical_info_dict["DiseaseStage"],  tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["diseasestatus"], dfs_month=clinical_info_dict["DFSmonth"], censored=censored) # ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["disease_status"], dfs_month=clinical_info_dict["DFSmonth"]
                             # data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]*4+1.1), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid)
                             # data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=round(clinical_info_dict["OSmonth"]/12.0,3), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid)
                         else:
-                            data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=clinical_info_dict[self.wanted_label], osmonth=clinical_info_dict["OSmonth"], clinical_type=str(clinical_info_dict["clinical_type"]), treatment=clinical_info_dict["treatment"], disease_stage=clinical_info_dict["DiseaseStage"],  tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["diseasestatus"], dfs_month=clinical_info_dict["DFSmonth"]) # ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["disease_status"], dfs_month=clinical_info_dict["DFSmonth"]
+                            data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=clinical_info_dict[self.wanted_label], osmonth=clinical_info_dict["OSmonth"], clinical_type=str(clinical_info_dict["clinical_type"]), treatment=clinical_info_dict["treatment"], disease_stage=clinical_info_dict["DiseaseStage"],  tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["diseasestatus"], dfs_month=clinical_info_dict["DFSmonth"], censored=censored) # ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["disease_status"], dfs_month=clinical_info_dict["DFSmonth"]
                     
                     data_list.append(data)
                     count+=1
@@ -121,68 +123,3 @@ class TissueDataset(InMemoryDataset):
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
-
-        """for img, pid in img_pid_set:
-            try:
-
-                with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_clinical_info.pickle'), 'rb') as handle:
-                    clinical_info_dict = pickle.load(handle)
-
-                # the criteria to select the
-                if (clinical_info_dict["grade"]==3 or  clinical_info_dict["grade"]==2) and pd.notna(clinical_info_dict["OSmonth"]) and clinical_info_dict["diseasestatus"]=="tumor" and pd.notna(clinical_info_dict["clinical_type"]):
-                    with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_features.pickle'), 'rb') as handle:
-                        feature_arr = pickle.load(handle)
-                        feature_arr = np.array(feature_arr)
-
-                    with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_edge_index_length.pickle'), 'rb') as handle:
-                        edge_index_arr, edge_length_arr = pickle.load(handle)
-                        edge_index_arr = np.array(edge_index_arr)
-
-                    with open(os.path.join(RAW_DATA_PATH, f'{img}_{pid}_coordinates.pickle'), 'rb') as handle:
-                        coordinates_arr = pickle.load(handle)
-                        coordinates_arr = np.array(coordinates_arr)
-
-                    data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]+0.1), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"] )
-                    data_list.append(data)
-                    count+=1
-
-            except:
-                pass
-
-        print(count)
-
-
-
-
-
-        if self.pre_filter is not None:
-            data_list = [data for data in data_list if self.pre_filter(data)]
-
-        if self.pre_transform is not None:
-            data_list = [self.pre_transform(data) for data in data_list]
-
-        data, slices = self.collate(data_list)
-        torch.save((data, slices), self.processed_paths[0])"""
-
-
-
-
-
-"""with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_edge_index_length.pickle'), 'wb') as handle:
-            pickle.dump((edge_index_arr, edge_length_arr), handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-        nonfeat_cols = []
-        for col in df_image.columns:
-            if "MeanIntensity" not in col:
-                nonfeat_cols.append(col)
-        # save the feature vector as numpy array, first column is the cell id
-        # "ImageNumber", "ObjectNumber", "Location_Center_X", "Location_Center_Y", "PID", "grade", "tumor_size", "age", "treatment", "DiseaseStage", "diseasestatus", "clinical_type", "DFSmonth", "OSmonth"
-
-        with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_features.pickle'), 'wb') as handle:
-            pickle.dump(np.array(df_image.drop(nonfeat_cols, axis=1)), handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-                # save the feature vector as numpy array, first column is the cell id
-        with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_coordinates.pickle'), 'wb') as handle:
-            pickle.dump(points, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-        with open(os.path.join(RAW_DATA_PATH, f'{img_num}_{pid}_clinical_info.pickle'), 'wb') as handle:"""

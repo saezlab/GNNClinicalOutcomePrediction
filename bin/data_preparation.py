@@ -6,7 +6,7 @@ import re
 RAW_DATA_PATH = os.path.join("../data", "JacksonFischer")
 
 
-def read_basel_patient_meta_data():
+def read_basel_patient_meta_data(RAW_DATA_PATH=RAW_DATA_PATH):
     """
     Create a pattern dictionary for mapping the patients, images and features
 
@@ -36,6 +36,7 @@ def read_basel_patient_meta_data():
         clinical_type = row["clinical_type"]
         dfsmonth = row["DFSmonth"]
         osmonth = row["OSmonth"]
+        patientstatus = row["Patientstatus"]
         # response = row["response"]
 
         # get the required fields from "FileName_FullStack" column
@@ -50,12 +51,12 @@ def read_basel_patient_meta_data():
         
         # create pattern
         pattern = re.compile(f"^({first_part})_[0-9]+_({second_part})_*")
-        dict_basel_patterns[fl_name] = (pattern, p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth) # , response)
+        dict_basel_patterns[fl_name] = (pattern, p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth, patientstatus) # , response)
         
 
     return dict_basel_patterns
 
-def read_zurich_patient_meta_data():
+def read_zurich_patient_meta_data(RAW_DATA_PATH=RAW_DATA_PATH):
     """
     Create a pattern dictionary for mapping the patients, images and features
 
@@ -85,6 +86,7 @@ def read_zurich_patient_meta_data():
         clinical_type = row["clinical_type"]
         dfsmonth = row["DFSmonth"]
         osmonth = row["OSmonth"]
+        patientstatus = row["Patientstatus"]
         
         # response = row["response"]
 
@@ -108,7 +110,7 @@ def read_zurich_patient_meta_data():
         # "B[0-9]{2}\\.[0-9]+_
         # create pattern
         pattern = re.compile(f"^({first_part})_B[0-9][0-9]\.[0-9]+_({second_part})_*")
-        dict_zurich_patterns[fl_name] = (pattern, p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type,  dfsmonth, osmonth)# , response)
+        dict_zurich_patterns[fl_name] = (pattern, p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type,  dfsmonth, osmonth, patientstatus)# , response)
         
 
     return dict_zurich_patterns
@@ -147,15 +149,15 @@ def get_imgnumber_pid_flname_mapping_dict():
         # if fl_name.startswith("ZTMA"):
         pattern_found = False
         for cohort_fl_name, pattern_pid in pattern_dict.items():
-            pattern, p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth= pattern_pid
+            pattern, p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth, patientstatus = pattern_pid
             is_match = pattern.findall(fl_name)
             # print(fl_name, is_match)
             if is_match!=[]:
                 if pattern_found:
                     print("Something is weird! Pattern found more than once!")
                 pattern_found = True
-                dict_flname_imgnumber_pid[cohort_fl_name] = (fl_name, img_number,  p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth)
-                dict_imgnumber_pid[img_number] = (fl_name, img_number,  p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth)
+                dict_flname_imgnumber_pid[cohort_fl_name] = (fl_name, img_number,  p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth, patientstatus)
+                dict_imgnumber_pid[img_number] = (fl_name, img_number,  p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type, dfsmonth, osmonth, patientstatus)
         
         ignore_warnings = True
         # print warning message if pattern cannot be found at all!    
@@ -230,14 +232,15 @@ def create_preprocessed_sc_feature_fl():
             print(f"Prossesing chunk #{i}... Chunk size: {ch_size}")
             chunks.append(chunk[cols_to_be_selected])
 
-            print(chunks)
+            # print(chunks)
             # remove the rows with cells from unwanted images
             chunks[-1]  = chunks[-1][~chunks[-1].ImageNumber.isin(img_numbers_to_be_ignored)]
-            p_id_lst, grade_lst, tumor_size_lst, age_lst, treatment_lst, diseasestage_lst, diseasestatus_lst, clinical_type_lst, dfsmonth_lst, osmonth_lst = [], [], [], [], [], [], [], [], [], [] 
-            
+            p_id_lst, grade_lst, tumor_size_lst, age_lst, treatment_lst, diseasestage_lst, diseasestatus_lst, clinical_type_lst, dfsmonth_lst, osmonth_lst, patientstatus_lst = [], [], [], [], [], [], [], [], [], [], [] 
+            fl_name_lst, img_number_lst = [], []
             
             for _, row in chunks[-1].iterrows():
-                fl_name, img_number,  p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type,  dfsmonth, osmonth = dict_imgnumber_pid[int(row["ImageNumber"])]
+                fl_name, img_number,  p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type,  dfsmonth, osmonth, patientstatus = dict_imgnumber_pid[int(row["ImageNumber"])]
+                p_id = str(p_id)+"-basel" if fl_name.startswith("Basel") else str(p_id)+"-zurich"
                 p_id_lst.append(p_id)
                 grade_lst.append(grade)
                 tumor_size_lst.append(tumor_size)
@@ -248,6 +251,8 @@ def create_preprocessed_sc_feature_fl():
                 clinical_type_lst.append(clinical_type)
                 dfsmonth_lst.append(dfsmonth)#  = row["DFSmonth"]
                 osmonth_lst.append(osmonth)# = row["OSmonth"]
+                patientstatus_lst.append(patientstatus)# = row["OSmonth"]
+                fl_name_lst.append(fl_name)
 
             
             chunks[-1]["PID"] = p_id_lst
@@ -260,6 +265,8 @@ def create_preprocessed_sc_feature_fl():
             chunks[-1]["clinical_type"] = clinical_type_lst
             chunks[-1]["DFSmonth"] = dfsmonth_lst
             chunks[-1]["OSmonth"] = osmonth_lst
+            chunks[-1]["Patientstatus"] = patientstatus_lst
+            chunks[-1]["fl_name"] = fl_name_lst
             
             i += 1
     
@@ -267,16 +274,19 @@ def create_preprocessed_sc_feature_fl():
     df_new_dataset = pd.concat(chunks)
     # print(df_new_dataset)
     df_new_dataset.dropna(subset = df_new_dataset.columns[:37], how="any",  inplace=True)
-    df_new_dataset[['PID', 'ObjectNumber', "ImageNumber"]] = df_new_dataset[['PID', 'ObjectNumber', "ImageNumber"]].astype(integer, )
+    df_new_dataset[['ObjectNumber', "ImageNumber"]] = df_new_dataset[['ObjectNumber', "ImageNumber"]].astype(integer, )
 
-
+    print(df_new_dataset)
 
 
     # print(new_dataset.count())
     # print(new_dataset.size)  
     # print(new_dataset.columns)
     # print(new_dataset)
-    df_new_dataset.to_csv(os.path.join(RAW_DATA_PATH,  "basel_zurich_preprocessed_compact_dataset.csv"), index=False)
+    print("Saving the compact dataset to ", os.path.join(RAW_DATA_PATH, "raw", "basel_zurich_preprocessed_compact_dataset.csv"))
+    df_new_dataset.to_csv(os.path.join(RAW_DATA_PATH, "raw", "basel_zurich_preprocessed_compact_dataset.csv"), index=False)
+
+# create_preprocessed_sc_feature_fl()
 
 def generate_clinical_type(row):
         ER = row['ER Status']

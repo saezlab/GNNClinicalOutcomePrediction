@@ -9,6 +9,7 @@ from scipy.spatial import Delaunay, Voronoi, voronoi_plot_2d
 from tqdm import tqdm
 
 dataset = "METABRIC"
+dataset = "JacksonFischer"
 
 RAW_DATA_PATH = os.path.join("../data",dataset,"raw")
 OUT_DATA_PATH = os.path.join("../data", "out_data", dataset)
@@ -21,10 +22,11 @@ CELL_COUNT_THR = 100
 
 def get_dataset_from_csv(path="a"):
     path = None
-    if dataset == "JacksonFisher":
+    if dataset == "JacksonFischer":
         path = "../data/JacksonFischer/raw/basel_zurich_preprocessed_compact_dataset.csv"
     elif dataset == "METABRIC":
         path = "../data/METABRIC/raw/merged_data.csv"
+
     return pd.read_csv(path)
 
 
@@ -97,7 +99,7 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
         for i, j in large_edges:
             plt.plot(points[[i, j], 0], points[[i, j], 1], 'c--', alpha=0.2, linewidth=1)
 
-        plt.savefig(f"{PLOT_PATH}/{img_num_lbl}_adapt_thr.pdf")
+        plt.savefig(f"{PLOT_PATH}/{img_num_lbl}_{pid}_adapt_thr.pdf")
         
         # print(tri.simplices)
 
@@ -111,7 +113,7 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
         plt.figure(dpi=300)
         vor = Voronoi(points)
         fig = voronoi_plot_2d(vor, show_vertices=False, line_colors='orange', line_width=1, line_alpha=0.6, point_size=2)
-        plt.savefig(f"{PLOT_PATH}/{img_num_lbl}_voronoi.pdf", dpi=300)
+        plt.savefig(f"{PLOT_PATH}/{img_num_lbl}_{pid}_voronoi.pdf", dpi=300)
         plt.clf()
     
     
@@ -131,6 +133,7 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
     clinical_info_dict["clinical_type"] = df_image["clinical_type"].values[0]
     clinical_info_dict["DFSmonth"] = df_image["DFSmonth"].values[0]
     clinical_info_dict["OSmonth"] = df_image["OSmonth"].values[0]
+    clinical_info_dict["Patientstatus"] = df_image["Patientstatus"].values[0]
     clinical_info_dict["cell_count"] = len(df_image)
 
     # save the edge indices and as a list 
@@ -154,7 +157,7 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
     with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_clinical_info.pickle'), 'wb') as handle:
         pickle.dump(clinical_info_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-def get_edge_length_dist(data_path,cell_count_thr, quant, plot_dist=False, PLOT_PATH=PLOT_PATH, OUT_DATA_PATH=OUT_DATA_PATH):
+def get_edge_length_dist(data_path,cell_count_thr, quant, plot_dist=False, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH):
     """
     Calculate the distribution of edge lengths for each image in the dataset.
 
@@ -222,18 +225,20 @@ def get_edge_length_dist(data_path,cell_count_thr, quant, plot_dist=False, PLOT_
         # edge_length
         all_edge_count_list.append(edge_length)
     
-    with open(os.path.join(OUT_DATA_PATH, 'edge_thr.pickle'), 'wb') as handle:
+    with open(os.path.join(RAW_DATA_PATH, 'edge_thr.pickle'), 'wb') as handle:
         pickle.dump(imgnum_edge_thr_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
                 
 
-def create_graphs_delauney_triangulation(cell_count_thr,data_path, plot=False, OUT_DATA_PATH = OUT_DATA_PATH, PLOT_PATH=PLOT_PATH,RAW_DATA_PATH=RAW_DATA_PATH):
+def create_graphs_delauney_triangulation(data_path, cell_count_thr=CELL_COUNT_THR, GRAPH_DIV_THR=GRAPH_DIV_THR, plot=False, RAW_DATA_PATH = RAW_DATA_PATH, PLOT_PATH=PLOT_PATH):
 
     df_dataset = get_dataset_from_csv(data_path)
     df_cell_count = get_cell_count_df(cell_count_thr,data_path)
     imgnum_edge_thr_dict = dict()
 
-    with open(os.path.join(OUT_DATA_PATH, 'edge_thr.pickle'), 'rb') as handle:
+    print(df_dataset["PID"])
+
+    with open(os.path.join(RAW_DATA_PATH, 'edge_thr.pickle'), 'rb') as handle:
             imgnum_edge_thr_dict = pickle.load(handle)
 
     for ind, row in tqdm(df_cell_count.iterrows(), total=len(df_cell_count)):
@@ -242,10 +247,11 @@ def create_graphs_delauney_triangulation(cell_count_thr,data_path, plot=False, O
         cell_count = row["Cell Counts"]
         df_image = df_dataset[df_dataset["ImageNumber"]==img_num]
         pid = df_image["PID"].values[0]
+    
         new_cell_ids = list(range(len(df_image)))
         
         # TODO: make this parametric 
-        if cell_count > GRAPH_DIV_THR:
+        if cell_count >= GRAPH_DIV_THR:
             # find the center of the cells
             x_center, y_center = df_image[["Location_Center_X", "Location_Center_Y"]].describe().loc["mean"]["Location_Center_X"], df_image[["Location_Center_X", "Location_Center_Y"]].describe().loc["mean"]["Location_Center_Y"]
             # ll lower-left  ul upper-left lr lower right points 
@@ -304,8 +310,18 @@ def check_cell_ids_sequential():
 # check if all cell ids are available 
 # check_cell_ids_sequential()
 
-def data_processing_pipeline(data_path,CELL_COUNT_THR=CELL_COUNT_THR,GRAPH_DIV_THR=GRAPH_DIV_THR,PLOT_PATH=PLOT_PATH, OUT_DATA_PATH=OUT_DATA_PATH,RAW_DATA_PATH=RAW_DATA_PATH):
+def data_processing_pipeline(data_path, CELL_COUNT_THR=CELL_COUNT_THR, GRAPH_DIV_THR=GRAPH_DIV_THR, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH):
     # TODO make this parametric
-    get_edge_length_dist(data_path=data_path,cell_count_thr=CELL_COUNT_THR,quant= 0.975, plot_dist=False,PLOT_PATH=PLOT_PATH, OUT_DATA_PATH=OUT_DATA_PATH)
-    get_cell_count_df(CELL_COUNT_THR, path=data_path)
-    create_graphs_delauney_triangulation(CELL_COUNT_THR, plot=True,OUT_DATA_PATH = OUT_DATA_PATH, data_path=data_path, PLOT_PATH=PLOT_PATH,RAW_DATA_PATH=RAW_DATA_PATH)
+    from data_preparation import create_preprocessed_sc_feature_fl
+    print("Creating compact dataset...")
+    create_preprocessed_sc_feature_fl()
+    print("Calculating edge length distribution....")
+    get_edge_length_dist(data_path=data_path, cell_count_thr=CELL_COUNT_THR, quant= 0.975, plot_dist=False, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH)
+    print("Calculating cell count distribution....")
+    df_cell_count = get_cell_count_df(CELL_COUNT_THR, path=data_path)
+    third_quartile = int(np.quantile(df_cell_count["Cell Counts"], 0.75))
+
+    print("Creating graphs...")
+    create_graphs_delauney_triangulation(cell_count_thr=CELL_COUNT_THR, GRAPH_DIV_THR=third_quartile, plot=True,RAW_DATA_PATH = RAW_DATA_PATH, data_path=data_path, PLOT_PATH=PLOT_PATH)
+
+# data_processing_pipeline("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw/basel_zurich_preprocessed_compact_dataset.csv")

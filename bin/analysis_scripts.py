@@ -33,8 +33,13 @@ def calculate_all_reg_scores(folder_path_list):
         
         for fl in os.listdir(folder_path):
             if fl.endswith(".csv"):
+                try:
+
                 
-                all_results.append(calculate_mae_scores_from_preds(folder_path, fl))
+                    all_results.append(calculate_mae_scores_from_preds(folder_path, fl))
+                except:
+                    print(f"{fl} is not proper!")
+                    pass
         
     df_results = pd.DataFrame (all_results, columns = header)
     # df_results.sort_values(by=["val_r2 score", "test_r2 score"], inplace=True, ascending=False)
@@ -90,4 +95,7 @@ def calculate_mae_scores_from_preds(folder_path, file_name):
 
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_os_nolog_large_6-26-2023_h_loss", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_Huber_month_30-06-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_month_30-06-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_week_lognorm_30-06-2023"]))
 
-print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_month_30-06-2023"]))
+
+# print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_Huber_month_30-06-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_week_lognorm_30-06-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_month_30-06-2023"]))
+
+# print(calculate_all_reg_scores([]))

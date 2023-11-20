@@ -38,6 +38,9 @@ def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False, split_tvt_by_gr
     if split_tvt_by_group:
         fold_count = 1
         train_idx, valid_idx, test_idx = split_by_group(dataset)
+        print("set(train_idx)&set(valid_idx)", set(train_idx)&set(valid_idx))
+        print("set(train_idx)&set(test_idx)", set(train_idx)&set(test_idx))
+
         samplers.append((
                 (fold_count),
                 (torch.utils.data.SubsetRandomSampler(train_idx)),
@@ -744,7 +747,7 @@ def split_by_group(dataset):
     splitter = GroupShuffleSplit(test_size=.10, n_splits=2, random_state = 7)
     split = splitter.split(df_dataset, groups=df_dataset['p_id'])
     trainval_inds, test_inds = next(split)
-    print(trainval_inds)
+    # print(trainval_inds)
     trainval = df_dataset.iloc[trainval_inds]
     test = df_dataset.iloc[test_inds]
     
@@ -755,5 +758,24 @@ def split_by_group(dataset):
     train = trainval.iloc[train_inds]
     validation = trainval.iloc[val_inds]
 
-    return train_inds, val_inds, test_inds
+    """print(train)
+    print(validation)
+    print(test)
+    print(set(train["p_id"]))
+    print(set(validation["p_id"]))
+    print(set(test["p_id"]))
+    print(set(train["p_id"])&set(validation["p_id"]))
+    print(set(test["p_id"])&set(validation["p_id"]))
+    print(set(test["p_id"])&set(validation["p_id"]))
+    print("Split by group", set(train_inds)&set(test_inds), set(train_inds)&set(val_inds))"""
+
+    # print(train.index)
+    # print(validation.index)
+    # print(test.index)
+
+    # print("Split by group dataframe", set(train.index)&set(validation.index), set(train.index)&set(test.index))
+    assert len(set(train["p_id"])&set(validation["p_id"]))==0 and len(set(train["p_id"])&set(test["p_id"]))==0 and len(set(test["p_id"])&set(validation["p_id"]))==0
+
+
+    return list(train.index), list(validation.index), list(test.index)
  

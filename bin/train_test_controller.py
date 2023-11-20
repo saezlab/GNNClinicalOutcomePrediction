@@ -5,6 +5,7 @@ import os
 import pytorch_lightning as pl
 import custom_tools as custom_tools
 from types import SimpleNamespace
+from loss import CoxPHLoss
 from trainer_tester import trainer_tester
 
 
@@ -37,6 +38,8 @@ if parser_args.loss=="MSE":
     setup_args.criterion = torch.nn.MSELoss()
 elif parser_args.loss=="Huber":
     setup_args.criterion = torch.nn.HuberLoss()
+elif parser_args.loss == "CoxPHLoss":
+    setup_args.criterion = CoxPHLoss()
 else:
     setup_args.criterion = torch.nn.MSELoss()
 

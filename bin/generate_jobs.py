@@ -11,7 +11,7 @@ today = date.today()
 d1 = today.strftime("%d-%m-%Y")
 
 
-def generate_generic_job_commands(model_name, loss, unit, job_name):
+def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu"):
     job_id = f"{model_name}_{job_name}_{d1}"
 
 
@@ -73,8 +73,8 @@ def generate_generic_job_commands(model_name, loss, unit, job_name):
 
     number_of_runs = 500
     count=1
-
-    all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p gpu --gres=gpu:1 --mem=2g  -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
+    # gpusaez
+    all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p {queue} --gres=gpu:1 --mem=2g  -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
     job_f = open(f"{out_path}/{count}_{number_of_runs}.sh", "w")
     job_f.writelines("#!/bin/sh\n")
 
@@ -86,7 +86,7 @@ def generate_generic_job_commands(model_name, loss, unit, job_name):
         if i%number_of_runs == 0:
             count+=1
             job_f.close()
-            all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p gpu --gres=gpu:1 --mem=2g -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
+            all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p {queue} --gres=gpu:1 --mem=2g -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
             job_f = open(f"{out_path}/{count}_{number_of_runs}.sh", "w")
             job_f.write("#!/bin/sh\n")
             job_f.write(command_line+"\n")
@@ -156,7 +156,7 @@ def perform_k_fold_on_best_models(experiment_name, top_n=10):
     job_f.close()
     all_jobs_f.close()
 
-perform_k_fold_on_best_models("best_n_fold_month_01082023", top_n=100)
+# perform_k_fold_on_best_models("best_n_fold_month_01082023", top_n=100)
 
 # generate_generic_job_commands("GATConv", "os_nolog_large")
 # generate_generic_job_commands("PNAConv", "os_nolog_large")
@@ -172,3 +172,7 @@ generate_generic_job_commands("PNAConv", "MSE", "week_lognorm", "PNA_MSE_week_lo
 
 
 # bash <(head -n200 all_runs.sh)
+
+
+generate_generic_job_commands("PNAConv", "MSE", "month", "MSE_month", "gpusaez")
+# generate_generic_job_commands("GATV2", "MSE", "month", "MSE_month")
