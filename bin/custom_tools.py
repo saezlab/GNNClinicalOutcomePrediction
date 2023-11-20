@@ -6,12 +6,12 @@ import secrets
 import argparse
 import numpy as np
 import pandas as pd
-import scanpy as sc
+# import scanpy as sc
 import networkx as nx
 from pathlib import Path
 from model import CustomGCN
 from torch_geometric import utils
-from data_preparation import get_basel_zurich_staining_panel
+# from data_preparation import get_basel_zurich_staining_panel
 from sklearn.model_selection import KFold
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])

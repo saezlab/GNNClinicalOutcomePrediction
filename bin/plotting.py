@@ -11,7 +11,7 @@ from scipy.spatial import Voronoi, voronoi_plot_2d
 from evaluation_metrics import r_squared_score, mse, rmse, mae
 import matplotlib as mpl
 import torch
-import umap
+# import umap
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap

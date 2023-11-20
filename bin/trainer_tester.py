@@ -220,6 +220,7 @@ class trainer_tester:
 
             loss = None
             if self.parser_args.loss == "CoxPHLoss":
+                print("CoxPHLoss: ", data.y)
                 loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device), data.is_censored.to(self.device))  # Compute the loss.    
             else:
                 loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
