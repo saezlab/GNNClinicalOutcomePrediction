@@ -21,7 +21,7 @@ def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu",
         "lr": [0.1, 0.01, 0.001, 0.0001],
         "bs": [16, 32, 64],
         "dropout": [0.0, 0.1, 0.2, 0.3],
-        "epoch": [200, 400],
+        "epoch": [1000],
         "num_of_gcn_layers": [2,3], # 
         "num_of_ff_layers": [1,2], # 
         "gcn_h": [16, 32, 64, 128],
@@ -29,9 +29,9 @@ def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu",
         "weight_decay": [0.1, 0.001, 0.0001, 3e-6, 1e-5],
         #hyperparams for schedular
         # WARNING: Uncomment when schedular is used
-        # "factor": [0.5, 0.8, 0.2],
-        # "patience": [5, 10, 20],
-        # "min_lr": [0.00002, 0.0001],
+        "factor": [0.5, 0.8, 0.2],
+        "patience": [5, 10, 20],
+        "min_lr": [0.00002, 0.0001],
         #hyperparams for schedular
         # "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
         # "scalers": ["identity","amplification"], # ARBTR Find references
@@ -63,16 +63,16 @@ def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu",
     random.seed = 42
     # my_dict={'A':['D','E'],'B':['F','G','H'],'C':['I','J']}
     allNames = sorted(config)
-    print(allNames)
+    print("allNames", allNames)
     combinations = list(it.product(*(config[Name] for Name in allNames))) # CREATIGN COMBINATIONS
     print(list(combinations)[0])
     num_of_combs = len(combinations)
-    print(num_of_combs)
+    print("num_of_combs", num_of_combs)
     shuffled_experiments = list(range(num_of_combs)) # SHUFFLE THE COMBINATIONS
     random.shuffle(shuffled_experiments)
-    print(len(shuffled_experiments))
+    # print(len(shuffled_experiments))
 
-    number_of_runs = 500
+    number_of_runs = 10000
     count=1
     # gpusaez
     all_jobs_f.write(f"sbatch --job-name={job_id}_{count} -p {queue} --gres=gpu:1 --mem=2g  -n 1 --time=7-00:00:00 --output=results/output_{count} \"{count}_{number_of_runs}.sh\"\nsleep 1\n")
@@ -80,7 +80,7 @@ def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu",
     job_f.writelines("#!/bin/sh\n")
 
     # #!/bin/sh
-    for i in range(1, min(len(shuffled_experiments), 50001)):
+    for i in range(1, min(len(shuffled_experiments), 500001)):
         hyper_param_ind = shuffled_experiments[i]
         command_line = "python ../../train_test_controller.py "+ " ".join([f"--{param} "+ str(combinations[hyper_param_ind][allNames.index(param)]) for param in allNames]) # JUST DO THIS
         
@@ -175,7 +175,7 @@ generate_generic_job_commands("PNAConv", "MSE", "week_lognorm", "PNA_MSE_week_lo
 # bash <(head -n200 all_runs.sh)
 
 
-generate_generic_job_commands("PNAConv", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
-generate_generic_job_commands("GATV2", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
+generate_generic_job_commands("PNAConv", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez", gpu_id=1)
+# generate_generic_job_commands("GATV2", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
 # generate_generic_job_commands("GATV2", "MSE", "month", "MSE_month")
 # python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 20 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth --loss CoxPHLoss

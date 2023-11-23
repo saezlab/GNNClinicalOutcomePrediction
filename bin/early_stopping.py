@@ -50,7 +50,7 @@ class EarlyStopping:
         '''Saves model when validation loss decrease.'''
         self.val_loss_min = val_loss
         if self.verbose:
-            self.trace_func(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
+            self.trace_func(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving checkpoint model ...')
         
         custom_tools.save_model(model=model, fileName=id_file_name, mode="SD", path=self.path)
         if deg!=None:

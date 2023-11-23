@@ -311,9 +311,9 @@ class trainer_tester:
         all_preds_df = []
     
         for fold_dict in self.fold_dicts:
-        
+            print(fold_dict["model"])
             best_val_loss = np.inf
-            early_stopping = EarlyStopping(patience=25, verbose=True, model_path=self.setup_args.MODEL_PATH)
+            early_stopping = EarlyStopping(patience=15, verbose=True, model_path=self.setup_args.MODEL_PATH)
 
             print(f"########## Fold :  {fold_dict['fold']} ########## ")
             for epoch in (pbar := tqdm(range(self.parser_args.epoch), disable=False)):
@@ -324,14 +324,14 @@ class trainer_tester:
                 test_loss = self.test(fold_dict["model"], fold_dict["test_loader"],  fold_dict["fold"])
                 """validation_loss= self.test(fold_dict, "validation_loader")
                 test_loss = self.test(fold_dict, "test_loader")"""
-                fold_dict["scheduler"].step(validation_loss)
+                # fold_dict["scheduler"].step(validation_loss)
                 early_stopping(validation_loss, fold_dict["model"], id_file_name=self.setup_args.id, deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None)
                 
                 pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Test loss: {test_loss:.2f} Patience: {early_stopping.counter}")
 
                 if early_stopping.early_stop:
                     print("Early stopping the training...")
-                    # break
+                    break
 
                 """if validation_loss < best_val_loss:
                     best_val_loss = validation_loss
@@ -343,7 +343,7 @@ class trainer_tester:
             # l(f"{job_id}_SD", path = "../models/best_full_training_22-11-2022", model_type = "SD", args = args, deg=deg)
             
             
-            best_model = custom_tools.load_model(f"{self.setup_args.id}_SD", path = self.setup_args.MODEL_PATH, model_type = "SD", args = vars(self.parser_args), deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None).to(self.device)
+            best_model = custom_tools.load_model(f"{self.setup_args.id}_SD", path = self.setup_args.MODEL_PATH, model_type = "SD", args = vars(self.parser_args), deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None, device=self.device).to(self.device)
             
             best_train_loss, df_train = self.test(best_model, fold_dict["train_loader"], fold_dict["fold"], "train", self.setup_args.plot_result)  # type: ignore
             best_val_loss, df_val= self.test(best_model, fold_dict["validation_loader"], fold_dict["fold"], "validation", self.setup_args.plot_result)  # type: ignore

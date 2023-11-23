@@ -121,7 +121,7 @@ def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curd
     print(f"Model saved with session id: {fileName}!")
 
 
-def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args: dict = {}, deg = None, gpu_id=None):
+def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args: dict = {}, deg = None, gpu_id=None, device=None):
     """Models the specified model and returns it
 
     Args:
@@ -137,17 +137,31 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
     Returns:
         CustomGCN: Ready model
     """
-    print(args)
+    # print(args)
     path_model = os.path.join(path, fileName + ".mdl")
     path_hyp = os.path.join(path, fileName + ".hyp")
 
     mode = fileName.rsplit("_",1)[-1]
-
+    
     if mode == "SD":
         if model_type == "NONE":
             raise ValueError("For SD mode, model_type must be properly defined!")
         if args == {}:
             raise ValueError("For SD mode, args must be supplied properly!")
+
+        """model = CustomGCN(
+                    type = args["model"],
+                    num_node_features = args["num_node_features"], 
+                    num_gcn_layers= args["num_of_gcn_layers"], 
+                    num_ff_layers=args["num_of_ff_layers"], 
+                    gcn_hidden_neurons=args["gcn_h"], 
+                    ff_hidden_neurons=args["fcl"], 
+                    dropout=args["dropout"],
+                    aggregators=args["aggregators"],
+                    scalers=args["scalers"],
+                    deg = deg
+                        )"""
+        print(args)
 
         model = CustomGCN(
                     type = args["model"],
@@ -159,10 +173,13 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
                     dropout=args["dropout"],
                     aggregators=args["aggregators"],
                     scalers=args["scalers"],
-                    deg = deg
+                    deg = deg, # Comes from data not hyperparameter
+                    # num_classes = args["num_classes"],
+                    heads = args["heads"],
+                    label_type = args["label"]
                         )
-        print(model)
-        model.load_state_dict(torch.load(path_model, map_location=get_device(gpu_id)))
+
+        model.load_state_dict(torch.load(path_model, map_location=device))
         model.eval()
 
         return model
@@ -188,7 +205,7 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
                     scalers=args["scalers"],
                     deg = args["deg"] 
                         )
-        print(model)
+        # print(model)
         model.load_state_dict(torch.load(path_model))
         model.eval()
 
