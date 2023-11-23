@@ -11,7 +11,7 @@ today = date.today()
 d1 = today.strftime("%d-%m-%Y")
 
 
-def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu"):
+def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu", gpu_id=0):
     job_id = f"{model_name}_{job_name}_{d1}"
 
 
@@ -38,7 +38,8 @@ def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu")
         "en": [job_id],
         "no-fold": [""],
         "loss": [loss],
-        "unit": [unit]
+        "unit": [unit],
+        "gpu_id": [gpu_id]
     }
     if "GAT" in job_id:
         config_temp = {"heads": [1, 3, 5]}
@@ -174,5 +175,7 @@ generate_generic_job_commands("PNAConv", "MSE", "week_lognorm", "PNA_MSE_week_lo
 # bash <(head -n200 all_runs.sh)
 
 
-generate_generic_job_commands("PNAConv", "MSE", "month", "MSE_month", "gpusaez")
+generate_generic_job_commands("PNAConv", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
+generate_generic_job_commands("GATV2", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
 # generate_generic_job_commands("GATV2", "MSE", "month", "MSE_month")
+# python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 20 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth --loss CoxPHLoss

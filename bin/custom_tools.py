@@ -2,10 +2,12 @@ import os
 import torch
 import json
 import pickle
+import shutil
 import secrets
 import argparse
 import numpy as np
 import pandas as pd
+import pathlib
 # import scanpy as sc
 import networkx as nx
 from pathlib import Path
@@ -119,7 +121,7 @@ def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curd
     print(f"Model saved with session id: {fileName}!")
 
 
-def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args: dict = {}, deg = None):
+def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args: dict = {}, deg = None, gpu_id=None):
     """Models the specified model and returns it
 
     Args:
@@ -160,7 +162,7 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
                     deg = deg
                         )
         print(model)
-        model.load_state_dict(torch.load(path_model, map_location=get_device()))
+        model.load_state_dict(torch.load(path_model, map_location=get_device(gpu_id)))
         model.eval()
 
         return model
@@ -201,7 +203,7 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
         return model
 
 
-def get_device():
+def get_device(gpu_id=None):
     """Returns the available device, default priority is "cuda"
 
     Returns:
@@ -211,9 +213,11 @@ def get_device():
     use_gpu = torch.cuda.is_available()
 
     device = "cpu"
-
+    
     if use_gpu:
         device = "cuda"
+        if gpu_id:
+            device=f"cuda:{gpu_id}"
         print("GPU is available on this device!")
     else:
         print("CPU is available on this device!")
@@ -439,6 +443,12 @@ def general_parser() -> argparse.Namespace:
         default= "month", #week, week_lognorm
         metavar='UN',
         help='month, week, week_lognorm...')
+    
+    parser.add_argument(
+        '--gpu_id',
+        type= int,
+        default= 0, #week, week_lognorm
+        help='0, 1')
 
 
     args = parser.parse_args()
@@ -779,3 +789,12 @@ def split_by_group(dataset):
 
     return list(train.index), list(validation.index), list(test.index)
  
+
+def clean_session_files(result_fold_path, model_fold_path, model_id, gnn_layer):
+    pathlib.Path.unlink(os.path.join(model_fold_path, f"{model_id}_SD.mdl"))
+    if gnn_layer=="PNAConv":
+        pathlib.Path.unlink(os.path.join(model_fold_path, f"{model_id}_deg.pckl"))
+    pathlib.Path.unlink(os.path.join(result_fold_path, f"{model_id}.csv"))
+    
+    
+    

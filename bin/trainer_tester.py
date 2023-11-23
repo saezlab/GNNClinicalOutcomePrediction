@@ -33,6 +33,8 @@ class trainer_tester:
         self.setup_args = setup_args
         self.set_device()
 
+        print(self.device)
+
         self.init_folds()
 
         if self.parser_args.full_training:
@@ -45,7 +47,7 @@ class trainer_tester:
     def set_device(self):
         """Sets up the computation device for the class
         """
-        self.device = custom_tools.get_device()
+        self.device = custom_tools.get_device(self.parser_args.gpu_id)
 
     def convert_to_month(self, df_col):
         if self.parser_args.unit=="week":
@@ -122,7 +124,8 @@ class trainer_tester:
                     "test_loader": test_loader,
                     "deg": deg,
                     "model": model,
-                    "optimizer": optimizer
+                    "optimizer": optimizer,
+                    "scheduler": scheduler
                 }
 
             self.fold_dicts.append(fold_dict)
@@ -156,7 +159,7 @@ class trainer_tester:
                     "deg": deg,
                     "model": model,
                     "optimizer": optimizer,
-                    "schedular": scheduler
+                    "scheduler": scheduler
                 }
 
                 self.fold_dicts.append(fold_dict)
@@ -316,20 +319,19 @@ class trainer_tester:
             for epoch in (pbar := tqdm(range(self.parser_args.epoch), disable=False)):
 
                 self.train(fold_dict)
-
                 train_loss = self.test(fold_dict["model"], fold_dict["train_loader"],  fold_dict["fold"])
                 validation_loss = self.test(fold_dict["model"], fold_dict["validation_loader"],  fold_dict["fold"])
                 test_loss = self.test(fold_dict["model"], fold_dict["test_loader"],  fold_dict["fold"])
                 """validation_loss= self.test(fold_dict, "validation_loader")
                 test_loss = self.test(fold_dict, "test_loader")"""
-
+                fold_dict["scheduler"].step(validation_loss)
                 early_stopping(validation_loss, fold_dict["model"], id_file_name=self.setup_args.id, deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None)
                 
                 pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Test loss: {test_loss:.2f} Patience: {early_stopping.counter}")
 
                 if early_stopping.early_stop:
                     print("Early stopping the training...")
-                    break
+                    # break
 
                 """if validation_loss < best_val_loss:
                     best_val_loss = validation_loss
@@ -356,12 +358,22 @@ class trainer_tester:
                 print(fold_train_ci_score, fold_val_ci_score, fold_test_ci_score)
 
             fold_tvt_preds_df = pd.concat([df_train, df_val, df_test])
+            
             all_preds_df = None
             # populate all_preds_df with the first fold predictions
             if fold_dict["fold"] == 1:
                 all_preds_df = fold_tvt_preds_df
             else:
                 all_preds_df = pd.concat([all_preds_df, fold_tvt_preds_df])
+            all_preds_df.to_csv(os.path.join(self.setup_args.RESULT_PATH, f"{self.setup_args.id}.csv"), index=False)
+            
+            if fold_val_ci_score > 0.60:
+                all_preds_df.to_csv(os.path.join(self.setup_args.RESULT_PATH, f"{self.setup_args.id}.csv"), index=False)
+            else:
+                # clean the bad performing models  
+                custom_tools.clean_session_files(result_fold_path=self.setup_args.RESULT_PATH, model_fold_path = self.setup_args.MODEL_PATH, model_id =self.setup_args.id, gnn_layer=self.parser_args.model)
+                
+            
                                 
             """elif self.label_type == "regression":
                 fold_val_r2_score = r_squared_score(df_val['True Value'], df_val['Predicted'])
