@@ -857,3 +857,4 @@ bin041122/processed/pre_filter.pt
 bin041122/processed/pre_transform.pt
 bin041122/processed/test_data.pt
 bin041122/processed/train_data.pt
+bin/checkpoint.pt

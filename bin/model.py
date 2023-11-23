@@ -38,7 +38,6 @@ class CustomGCN(torch.nn.Module):
         super(CustomGCN, self).__init__()
         pl.seed_everything(SEED)
 
-
         # Recording the parameters
         self.pars = kwargs
         # print(self.pars)
@@ -69,8 +68,8 @@ class CustomGCN(torch.nn.Module):
         self.scalers = self.check_Key("scalers","list")
         self.heads = self.check_Key("heads")
         self.deg = self.check_Key("deg")
+    
 
-        # print("heads", self.heads)
 
         if self.label_type == "regression":
             self.num_ff_final = 1
@@ -136,14 +135,14 @@ class CustomGCN(torch.nn.Module):
         # Creating the layers
 
         
-
+        
         # Module lists
         self.convs = ModuleList()
         self.batch_norms = ModuleList()
         self.ff_layers = ModuleList()
         self.ff_batch_norms = ModuleList()
 
-        if type == 'GATConv' or 'GATV2':
+        if type == 'GATConv' or type == 'GATV2':
             #self.convs_in = GATConv(
             #    **model_pars_head,
             #    )
@@ -160,6 +159,7 @@ class CustomGCN(torch.nn.Module):
                 self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
 
             if self.num_ff_layers != 0:
+                
                 # Initial ff layer ----
                 self.ff_layers.append(Linear(self.gcn_hidden_neurons*self.heads, self.ff_hidden_neurons))
                 self.ff_batch_norms.append(BatchNorm1d(self.ff_hidden_neurons))
@@ -184,7 +184,7 @@ class CustomGCN(torch.nn.Module):
                     **model_pars_rest,
                     ))
                 self.batch_norms.append(BatchNorm1d(self.gcn_hidden_neurons))
-
+            
             
             if self.num_ff_layers != 0:
                 # Initial ff layer ----
@@ -258,9 +258,9 @@ class CustomGCN(torch.nn.Module):
             x = global_mean_pool(x, batch)  # [batch_size, gcn_hidden_neurons]
 
             # Classification according to ppoling
-            for ff_l in self.ff_layers:
+            for ff_l in self.ff_layers[:-1]:
                 x = F.relu(ff_l(x))
                 # x = h + x  # residual#
                 x = F.dropout(x, self.dropout, training=self.training)
-
+            x = self.ff_layers[-1](x)
             return x

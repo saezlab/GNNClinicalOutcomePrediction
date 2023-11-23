@@ -5,7 +5,7 @@ import os
 import pytorch_lightning as pl
 import custom_tools as custom_tools
 from types import SimpleNamespace
-from loss import CoxPHLoss
+from loss import CoxPHLoss, NegativeLogLikelihood
 from trainer_tester import trainer_tester
 
 
@@ -40,6 +40,7 @@ elif parser_args.loss=="Huber":
     setup_args.criterion = torch.nn.HuberLoss()
 elif parser_args.loss == "CoxPHLoss":
     setup_args.criterion = CoxPHLoss()
+    # setup_args.criterion = NegativeLogLikelihood()
 else:
     setup_args.criterion = torch.nn.MSELoss()
 

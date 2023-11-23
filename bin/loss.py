@@ -47,7 +47,7 @@ class CoxPHLoss(torch.nn.Module):
     We just compute a cumulative sum, and not the true Risk sets. This is a
     limitation, but simple and fast.
     """
-    def forward(self, log_h: Tensor, durations: Tensor, events: Tensor) -> Tensor:
+    def forward(self, log_h: Tensor, durations: Tensor, events: Tensor, device="cuda") -> Tensor:
         return cox_ph_loss(log_h, durations, events)
 
 
@@ -57,8 +57,8 @@ class NegativeLogLikelihood(torch.nn.Module):
         # self.L2_reg = config['l2_reg']
         # self.reg = Regularization(order=2, weight_decay=self.L2_reg)
 
-    def forward(self, risk_pred, y, e):
-        mask = torch.ones(y.shape[0], y.shape[0])
+    def forward(self, risk_pred, y, e, device="cuda"):
+        mask = torch.ones(y.shape[0], y.shape[0]).to(device)
         mask[(y.T - y) > 0] = 0
         log_loss = torch.exp(risk_pred) * mask
         log_loss = torch.sum(log_loss, dim=0) / torch.sum(mask, dim=0)
@@ -66,4 +66,4 @@ class NegativeLogLikelihood(torch.nn.Module):
         neg_log_loss = -torch.sum((risk_pred-log_loss) * e) / torch.sum(e)
         # l2_loss = self.reg(model)
         # return neg_log_loss + l2_loss
-        return neg_log_loss + l2_loss
+        return neg_log_loss#  + l2_loss
