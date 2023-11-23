@@ -311,7 +311,7 @@ class trainer_tester:
         all_preds_df = []
     
         for fold_dict in self.fold_dicts:
-            print(fold_dict["model"])
+            # print(fold_dict["model"])
             best_val_loss = np.inf
             early_stopping = EarlyStopping(patience=15, verbose=True, model_path=self.setup_args.MODEL_PATH)
 
