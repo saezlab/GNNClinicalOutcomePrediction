@@ -174,7 +174,7 @@ generate_generic_job_commands("PNAConv", "MSE", "week_lognorm", "PNA_MSE_week_lo
 
 # bash <(head -n200 all_runs.sh)
 
-
+generate_generic_job_commands("GATV2", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
 generate_generic_job_commands("PNAConv", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez", gpu_id=1)
 # generate_generic_job_commands("GATV2", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
 # generate_generic_job_commands("GATV2", "MSE", "month", "MSE_month")

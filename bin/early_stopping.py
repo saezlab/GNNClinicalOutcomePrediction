@@ -28,13 +28,13 @@ class EarlyStopping:
         self.path = model_path
         self.trace_func = trace_func
         # self.best_model = None
-    def __call__(self, val_loss, model, id_file_name, deg=None):
+    def __call__(self, val_loss, model, hyperparams, id_file_name, deg=None):
 
         score = -val_loss
 
         if self.best_score is None:
             self.best_score = score
-            self.save_model(val_loss, model, id_file_name, deg)
+            self.save_model(val_loss, model, hyperparams, id_file_name, deg)
         elif score < self.best_score + self.delta:
             self.counter += 1
             # self.trace_func(f'Patience: {self.counter} out of {self.patience}')
@@ -42,16 +42,17 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             self.best_score = score
-            self.save_model(val_loss, model, id_file_name, deg)
+            self.save_model(val_loss, model, hyperparams, id_file_name, deg)
             self.counter = 0
     
     # (model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curdir, "..", "models")
-    def save_model(self, val_loss, model, id_file_name, deg):
+    def save_model(self, val_loss, model, hyperparams, id_file_name, deg):
         '''Saves model when validation loss decrease.'''
         self.val_loss_min = val_loss
         if self.verbose:
-            self.trace_func(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving checkpoint model ...')
-        
+            self.trace_func(f'Validation loss decreased ({self.val_loss_min:.2f} --> {val_loss:.2f}).  Saving checkpoint model ...')
+        # vars(self.parser_args)
+        custom_tools.save_dict_as_json(hyperparams, id_file_name, self.path)
         custom_tools.save_model(model=model, fileName=id_file_name, mode="SD", path=self.path)
         if deg!=None:
             

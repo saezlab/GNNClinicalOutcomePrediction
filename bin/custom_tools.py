@@ -40,8 +40,8 @@ def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False, split_tvt_by_gr
     if split_tvt_by_group:
         fold_count = 1
         train_idx, valid_idx, test_idx = split_by_group(dataset)
-        print("set(train_idx)&set(valid_idx)", set(train_idx)&set(valid_idx))
-        print("set(train_idx)&set(test_idx)", set(train_idx)&set(test_idx))
+        # print("set(train_idx)&set(valid_idx)", set(train_idx)&set(valid_idx))
+        # print("set(train_idx)&set(test_idx)", set(train_idx)&set(test_idx))
 
         samplers.append((
                 (fold_count),
@@ -161,8 +161,6 @@ def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args:
                     scalers=args["scalers"],
                     deg = deg
                         )"""
-        print(args)
-
         model = CustomGCN(
                     type = args["model"],
                     num_node_features = args["num_node_features"], 
@@ -809,6 +807,7 @@ def split_by_group(dataset):
 
 def clean_session_files(result_fold_path, model_fold_path, model_id, gnn_layer):
     pathlib.Path.unlink(os.path.join(model_fold_path, f"{model_id}_SD.mdl"))
+    pathlib.Path.unlink(os.path.join(model_fold_path, f"{model_id}.json"))
     if gnn_layer=="PNAConv":
         pathlib.Path.unlink(os.path.join(model_fold_path, f"{model_id}_deg.pckl"))
     pathlib.Path.unlink(os.path.join(result_fold_path, f"{model_id}.csv"))

@@ -32,9 +32,6 @@ class trainer_tester:
         self.parser_args = parser_args
         self.setup_args = setup_args
         self.set_device()
-
-        print(self.device)
-
         self.init_folds()
 
         if self.parser_args.full_training:
@@ -241,7 +238,7 @@ class trainer_tester:
 
         return total_loss
 
-    def test(self, model, loader, fold, label=None, plot_pred=False):
+    def test(self, model, loader, fold, label=None, save_res=False):
         """Tests the model on wanted loader
 
 
@@ -282,17 +279,17 @@ class trainer_tester:
                     pred_list.extend([custom_tools.argmax(val) for val in out.squeeze()])
                 
                 #pred_list.extend([val.item() for val in data.y])
-                tumor_grade_list.extend([val.item() for val in data.tumor_grade])
-                clinical_type_list.extend([val for val in data.clinical_type])
-                osmonth_list.extend([val.item() for val in data.osmonth])
-                censorship_list.extend([val for val in data.is_censored])
-                pid_list.extend([val for val in data.p_id])
-                img_list.extend([val for val in data.img_id])
+                if save_res:
+                    tumor_grade_list.extend([val.item() for val in data.tumor_grade])
+                    clinical_type_list.extend([val for val in data.clinical_type])
+                    osmonth_list.extend([val.item() for val in data.osmonth])
+                    censorship_list.extend([val.item() for val in data.is_censored])
+                    pid_list.extend([val for val in data.p_id])
+                    img_list.extend([val for val in data.img_id])
             else:
                 pass
         
-        
-        if plot_pred:
+        if save_res:
             
             # label_list = [str(fold_dict["fold"]) + "-" + label]*len(clinical_type_list)
             label_list = [str(fold) + "-" + label]*len(clinical_type_list) # 
@@ -325,7 +322,7 @@ class trainer_tester:
                 """validation_loss= self.test(fold_dict, "validation_loader")
                 test_loss = self.test(fold_dict, "test_loader")"""
                 # fold_dict["scheduler"].step(validation_loss)
-                early_stopping(validation_loss, fold_dict["model"], id_file_name=self.setup_args.id, deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None)
+                early_stopping(validation_loss, fold_dict["model"], vars(self.parser_args), id_file_name=self.setup_args.id, deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None)
                 
                 pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Test loss: {test_loss:.2f} Patience: {early_stopping.counter}")
 
@@ -350,12 +347,14 @@ class trainer_tester:
             best_test_loss, df_test = self.test(best_model, fold_dict["test_loader"], fold_dict["fold"], "test", self.setup_args.plot_result) # type: ignore
 
             
-
+            scores_dict = dict()
             if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
                 fold_train_ci_score = concordance_index(df_train['OS Month'], df_train['Predicted'], df_train["Censored"])
                 fold_val_ci_score = concordance_index(df_val['OS Month'], df_val['Predicted'], df_val["Censored"])
                 fold_test_ci_score = concordance_index(df_test['OS Month'], df_test['Predicted'], df_test["Censored"])
-                print(fold_train_ci_score, fold_val_ci_score, fold_test_ci_score)
+                scores_dict["fold_train_ci_score"] = fold_train_ci_score
+                scores_dict["fold_val_ci_score"] = fold_val_ci_score
+                scores_dict["fold_test_ci_score"] = fold_test_ci_score
 
             fold_tvt_preds_df = pd.concat([df_train, df_val, df_test])
             
@@ -365,9 +364,11 @@ class trainer_tester:
                 all_preds_df = fold_tvt_preds_df
             else:
                 all_preds_df = pd.concat([all_preds_df, fold_tvt_preds_df])
+
             all_preds_df.to_csv(os.path.join(self.setup_args.RESULT_PATH, f"{self.setup_args.id}.csv"), index=False)
             
-            if fold_val_ci_score > 0.60:
+            if scores_dict["fold_val_ci_score"] > 0.60:
+                custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
                 all_preds_df.to_csv(os.path.join(self.setup_args.RESULT_PATH, f"{self.setup_args.id}.csv"), index=False)
             else:
                 # clean the bad performing models  
