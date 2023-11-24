@@ -30,7 +30,7 @@ def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu",
         #hyperparams for schedular
         # WARNING: Uncomment when schedular is used
         "factor": [0.5, 0.8, 0.2],
-        "patience": [5, 10, 20],
+        "patience": [5, 10],
         "min_lr": [0.00002, 0.0001],
         #hyperparams for schedular
         # "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
