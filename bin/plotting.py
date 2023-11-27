@@ -11,7 +11,8 @@ from scipy.spatial import Voronoi, voronoi_plot_2d
 from evaluation_metrics import r_squared_score, mse, rmse, mae
 import matplotlib as mpl
 import torch
-# import umap
+import umap
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -517,7 +518,7 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     # Total count   
     print("Total count: ", len(c_data))
 
-def UMAP_plot(embeddings, related_data, attribute_name, attributes = np.empty(0)):
+def UMAP_plot(embeddings, emb_id, related_data, attribute_name, experiment_name=None, job_id=None, mode="FC", attributes = np.empty(0)):
     """Creates 2D UMAP plot for given embeddings and related data.
     It assumes both data are in the same order.
 
@@ -542,7 +543,6 @@ def UMAP_plot(embeddings, related_data, attribute_name, attributes = np.empty(0)
         # if tensor
         elif isinstance(data, torch.Tensor):
             return data.item()
-
     # Extract the attribute values from the related_data list
     if attributes.size == np.empty(0).size:
         attributes = [handle_types(getattr(data_batch, attribute_name)) for data_batch in related_data]
@@ -589,8 +589,9 @@ def UMAP_plot(embeddings, related_data, attribute_name, attributes = np.empty(0)
         plt.legend(title=f'Legend ({legend_type})')
 
         
-    plt.title('UMAP Projection with Colored Attributes and Legend')
+    plt.title(f'UMAP Projection with Colored Attributes and Legend: {attribute_name}')
 
-# visualize_clinical_data()
-    # Save the plot as pdf
-    plt.savefig(os.path.join(PLOT_PATH, "UMAP_plot.pdf"))
+    out_path = os.path.join(PLOT_PATH, experiment_name, job_id)
+    Path(out_path).mkdir(parents=True, exist_ok=True)
+    print("Saving plot here:", out_path)
+    plt.savefig(os.path.join(out_path, f"{attribute_name}_{emb_id}.pdf"))

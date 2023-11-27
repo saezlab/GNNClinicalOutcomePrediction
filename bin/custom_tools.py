@@ -8,12 +8,12 @@ import argparse
 import numpy as np
 import pandas as pd
 import pathlib
-# import scanpy as sc
+import scanpy as sc
 import networkx as nx
 from pathlib import Path
 from model import CustomGCN
 from torch_geometric import utils
-# from data_preparation import get_basel_zurich_staining_panel
+from data_preparation import get_basel_zurich_staining_panel
 from sklearn.model_selection import KFold
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
@@ -806,11 +806,11 @@ def split_by_group(dataset):
  
 
 def clean_session_files(result_fold_path, model_fold_path, model_id, gnn_layer):
-    pathlib.Path.unlink(os.path.join(model_fold_path, f"{model_id}_SD.mdl"))
-    pathlib.Path.unlink(os.path.join(model_fold_path, f"{model_id}.json"))
+    pathlib.Path.unlink( Path(os.path.join(model_fold_path, f"{model_id}_SD.mdl")))
+    pathlib.Path.unlink(Path(os.path.join(model_fold_path, f"{model_id}.json")))
     if gnn_layer=="PNAConv":
-        pathlib.Path.unlink(os.path.join(model_fold_path, f"{model_id}_deg.pckl"))
-    pathlib.Path.unlink(os.path.join(result_fold_path, f"{model_id}.csv"))
+        pathlib.Path.unlink(Path(os.path.join(model_fold_path, f"{model_id}_deg.pckl")))
+    pathlib.Path.unlink(Path(os.path.join(result_fold_path, f"{model_id}.csv")))
     
     
     

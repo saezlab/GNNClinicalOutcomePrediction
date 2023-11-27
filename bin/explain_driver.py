@@ -23,18 +23,26 @@ model = custom_tools.load_model(f"{job_id}_SD", path = "../models/best_full_trai
 """
 
 
-job_id = "VojrEHdFRPUTsJ3zGTiPcQ"
+"""job_id = "VojrEHdFRPUTsJ3zGTiPcQ"
 args  = custom_tools.load_json(f"../models/PNAConv_PNA_MSE_month_30-06-2023/{job_id}.json")
 args["num_node_features"] = 33
 deg = custom_tools.load_pickle(f"../models/PNAConv_PNA_MSE_month_30-06-2023/{job_id}_deg.pckl")
-model = custom_tools.load_model(f"{job_id}_SD", path = "../models/PNAConv_PNA_MSE_month_30-06-2023", model_type = "SD", args = args, deg=deg)
+model = custom_tools.load_model(f"{job_id}_SD", path = "../models/PNAConv_PNA_MSE_month_30-06-2023", model_type = "SD", args = args, deg=deg)"""
 
 
+# Read json file
+job_id = "5rBzqSUcY3fkBsmCtnU3Mw"
+device =  custom_tools.get_device()
+args  = custom_tools.load_json(f"../models/PNAConv_CoxPHLoss_month_24-11-2023/{job_id}.json")
+# args["num_node_features"] = 33
+deg = custom_tools.load_pickle(f"../models/PNAConv_CoxPHLoss_month_24-11-2023/{job_id}_deg.pckl")
+model = custom_tools.load_model(f"{job_id}_SD", path = "../models/PNAConv_CoxPHLoss_month_24-11-2023", model_type = "SD", args = args, deg=deg, device=device)
 
 
+dataset = TissueDataset(os.path.join("../data/JacksonFischer", "month"),  "month")
+print(dataset)
 
-
-dataset = TissueDataset(os.path.join(S_PATH,"../data/JacksonFischer/basel_zurich_preprocessed_compact_dataset.csv"))
+# dataset = TissueDataset(os.path.join(S_PATH,"../data/JacksonFischer/basel_zurich_preprocessed_compact_dataset.csv"))
 
 dataset = dataset.shuffle()
 

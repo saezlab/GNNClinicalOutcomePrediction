@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from model import CustomGCN
 from evaluation_metrics import r_squared_score, mse, rmse, mae
+from eval import concordance_index
 
 def calculate_reg_scores_from_preds(folder_path, file_name):
     experiment_name = os.path.split(folder_path)[-1]
@@ -81,6 +82,56 @@ def calculate_mae_scores_from_preds(folder_path, file_name):
     return result_list
 
 
+def calculate_cindex_scores_from_preds(folder_path, file_name):
+    experiment_name = os.path.split(folder_path)[-1]
+    df_results = pd.read_csv(os.path.join(folder_path, file_name), sep=",")
+    job_id = file_name.split(".csv")[0]
+    
+    result_list = [experiment_name, job_id]
+    tvt = True
+    
+    if tvt:
+        for idx, val in enumerate(["train", "validation", "test"]):
+
+            true_val = "True Value"
+            censor_val = "Censored"
+
+            df_tvt = df_results.loc[(df_results['Fold#-Set'].str[2:] == val)]
+
+            c_index = concordance_index(df_tvt[true_val], df_tvt['Predicted'], df_tvt[censor_val])
+            
+            result_list.extend([c_index])
+    
+    return result_list
+
+
+def calculate_all_cindex_scores(folder_path_list):
+
+
+    header = ["experiment name", "job id", "train_cindex", "val_cindex", "test_cindex"]
+    all_results = []
+    for folder_path in folder_path_list:
+        
+        for fl in os.listdir(folder_path):
+            if fl.endswith(".csv"):
+                try:
+
+                
+                    all_results.append(calculate_cindex_scores_from_preds(folder_path, fl))
+                except:
+                    print(f"{fl} is not proper!")
+                    pass
+        
+    df_results = pd.DataFrame (all_results, columns = header)
+    # df_results.sort_values(by=["val_r2 score", "test_r2 score"], inplace=True, ascending=False)
+    df_results.sort_values(by=["train_cindex", "test_cindex"], inplace=True, ascending=True)
+
+    return df_results
+
+
+# calculate_cindex_scores_from_preds("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_CoxPHLoss_month_24-11-2023", "4vzHDHJhBEhzvI91la51HQ.csv")
+df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_CoxPHLoss_month_24-11-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/PNAConv_CoxPHLoss_month_24-11-2023"])
+print(df)
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_year_30-11-2022"]))
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_week_07-12-2022"]))
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/best_n_fold_week_14-12-2022"]))
