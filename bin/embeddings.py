@@ -5,9 +5,10 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.nn import GCNConv
 from torch_geometric.utils import embedding
 
-import config
+# import config
 
-seed = config.seed
+# TODO: refactor this
+seed = 42
 
 # Extract embeddings for a given model and dataset
 def get_intermediate_embeddings_for_dataset(model, dataset, batch_size=1, mode="FC", agg_method="mean"):
@@ -25,12 +26,13 @@ def get_intermediate_embeddings_for_dataset(model, dataset, batch_size=1, mode="
         for batch in dataloader:
             x = batch.x
             edge_index = batch.edge_index
-
             # Get intermediate embeddings using the provided function
             if mode == "FC":
                 intermediate_embeddings = get_embeddings(model, x=x, edge_index=edge_index, batch=batch.batch)
             elif mode == "CNV":
                 intermediate_embeddings = embedding.get_embeddings(model, x=x, edge_index=edge_index, batch=batch.batch)
+
+                # print("intermediate_embeddings", len(intermediate_embeddings))
                 for indx, embed in enumerate(intermediate_embeddings):
                     if agg_method == "mean":
                         embed = torch.mean(embed, dim=0)

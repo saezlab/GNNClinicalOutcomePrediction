@@ -2,17 +2,32 @@
 import torch
 from data_processing import OUT_DATA_PATH
 import os
+import argparse
 import pytorch_lightning as pl
 import custom_tools as custom_tools
 from types import SimpleNamespace
 from loss import CoxPHLoss, NegativeLogLikelihood
 from trainer_tester import trainer_tester
+import json
 
 
+parser = argparse.ArgumentParser()
 
+custom_tools.set_seeds(seed=42)
+"""parser_args = custom_tools.general_parser()
+setup_args = SimpleNamespace()
+args = parser.parse_args()"""
 
-pl.seed_everything(42)
-parser_args = custom_tools.general_parser()
+# WCSTZwu7iVXlw-_9NvOqIw
+t_args = argparse.Namespace()
+json_fl = open("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/GATV2_NegativeLogLikelihood_month_04-12-2023/YyroGgMa_H4xn_ctP3C5Zw.json")
+json_fl = open("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/GATV2_NegativeLogLikelihood_month_04-12-2023/FaAGmroaSN1zzkKthzk-cQ.json")
+json_fl = open("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/GATV2_NegativeLogLikelihood_month_04-12-2023/WCSTZwu7iVXlw-_9NvOqIw.json")
+json_fl = open("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/GATV2_NegativeLogLikelihood_fixed_dataset_13-12-2023/V05lYbfqzxjRjenrPbsplg.json")
+json_fl = open("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/GATV2_NegativeLogLikelihood_month_04-12-2023/YyroGgMa_H4xn_ctP3C5Zw.json")
+t_args.__dict__.update(json.load(json_fl))
+parser_args = parser.parse_args(namespace=t_args)
+
 setup_args = SimpleNamespace()
 
 setup_args.id = custom_tools.generate_session_id()
@@ -31,7 +46,6 @@ setup_args.T2VT_ratio = 4
 setup_args.V2T_ratio = 1
 setup_args.use_fold = parser_args.fold
 
-
 # This is NOT for sure, loss can change inside the class
 setup_args.criterion = None
 if parser_args.loss=="MSE":
@@ -49,12 +63,10 @@ else:
 setup_args.print_every_epoch = 10
 setup_args.plot_result = True
 
+# parser_args.full_training = True
+parser_args.patience = 10
+parser_args.dataset_name = "JacksonFischer"
+# parser_args.epoch = 36
+print(parser_args)
 # Object can be saved if wanted
 trainer_tester(parser_args, setup_args)
-
-
-
-
-
-
-

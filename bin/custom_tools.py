@@ -3,6 +3,7 @@ import torch
 import json
 import pickle
 import shutil
+import random
 import secrets
 import argparse
 import numpy as np
@@ -12,8 +13,10 @@ import scanpy as sc
 import networkx as nx
 from pathlib import Path
 from model import CustomGCN
+import pytorch_lightning as pl
 from torch_geometric import utils
 from data_preparation import get_basel_zurich_staining_panel
+from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import KFold
 
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
@@ -23,7 +26,7 @@ RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 # K-Fold cross validation index creator function
 # Dataset idices and ratios must be supplied
 # Return triplet of samplers for amount of wanted fold
-def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False, split_tvt_by_group = True):
+def k_fold_ttv(dataset, dataset_name, T2VT_ratio,V2T_ratio, shuffle_VT = False, split_tvt_by_group = True):
     """Splits dataset into Train, Validation and Test sets
 
     Args:
@@ -39,7 +42,8 @@ def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False, split_tvt_by_gr
 
     if split_tvt_by_group:
         fold_count = 1
-        train_idx, valid_idx, test_idx = split_by_group(dataset)
+        # train_idx, valid_idx, test_idx = split_by_group(dataset)
+        train_idx, valid_idx, test_idx = get_train_val_test_split_by_pid(dataset, dataset_name)
         # print("set(train_idx)&set(valid_idx)", set(train_idx)&set(valid_idx))
         # print("set(train_idx)&set(test_idx)", set(train_idx)&set(test_idx))
 
@@ -76,6 +80,41 @@ def k_fold_ttv(dataset,T2VT_ratio,V2T_ratio, shuffle_VT = False, split_tvt_by_gr
                 break
 
     return samplers
+
+def k_fold_by_group(dataset, n_of_folds=10, group_name="p_id"):
+    """Splits dataset into Train, Validation and Test sets
+
+    Args:
+        dataset (_type_): Data to be splitted
+        T2VT_ratio (int): Train / (Valid + Test)
+        V2T_ratio (int): Valid / Test
+    """
+
+    lst_groups = []
+    for item in dataset:
+        lst_groups.append([item.p_id, item.img_id, item.clinical_type, item.tumor_grade, item.osmonth])
+
+    df_dataset = pd.DataFrame(lst_groups, columns=["p_id", "img_id", "clinical_type", "tumor_grade", "osmonth"])
+
+    group_kfold = GroupKFold(n_splits=n_of_folds)
+    
+    # tumor grade is just a random column
+    group_kfold.get_n_splits(X=df_dataset["tumor_grade"], groups = df_dataset[group_name])
+    
+    
+    # List to save sampler triplet
+    samplers = []
+
+    for i, (train_idx, test_idx) in enumerate(group_kfold.split(X = df_dataset["tumor_grade"], groups = df_dataset[group_name])):
+        
+        print(f"Fold {i}:")
+        samplers.append((
+            (i), # fold number
+            (torch.utils.data.SubsetRandomSampler(train_idx)),
+            (torch.utils.data.SubsetRandomSampler(test_idx))))
+
+    return samplers
+
 
 
 def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curdir, "..", "models")):
@@ -293,6 +332,14 @@ def general_parser() -> argparse.Namespace:
     """
 
     parser = argparse.ArgumentParser(description='GNN Arguments')
+    
+    parser.add_argument(
+        '--dataset_name',
+        type=str,
+        default="JacksonFischer",
+        metavar='ds',
+        help='dataset name (default: JacksonFischer, alternative METABRIC)')
+    
     parser.add_argument(
         '--model',
         type=str,
@@ -332,7 +379,7 @@ def general_parser() -> argparse.Namespace:
     parser.add_argument(
         '--num_of_gcn_layers',
         type=int,
-        default=3,
+        default=2,
         metavar='NGCNL',
         help='Number of GCN layers (default: 2)')
 
@@ -552,7 +599,7 @@ def get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops):
     return nodeid_score_dict
 
 
-def convert_graph_to_anndata(graph, node_id_to_importance_dict, imp_quant_thr=0.90):
+def convert_graph_to_anndata(graph, node_id_to_importance_dict, dataset_name, imp_quant_thr=0.90):
     adata = None
     positions = np.array(graph.pos)
     features = np.array(graph.x)
@@ -563,7 +610,8 @@ def convert_graph_to_anndata(graph, node_id_to_importance_dict, imp_quant_thr=0.
     osmonth= graph.osmonth
     
     obs = [str(val) for val in list(range(graph.x.shape[0]))]
-    var = get_gene_list()
+    var = get_gene_list(dataset_name=dataset_name)
+    print(var)
     node_importance = []
     for item in obs:
         node_importance.append(node_id_to_importance_dict[int(item)])
@@ -577,19 +625,23 @@ def convert_graph_to_anndata(graph, node_id_to_importance_dict, imp_quant_thr=0.
     adata.obs["clinical_type"] = clinical_type
     adata.obs["img_id"] = str(img_id)
     adata.obs["p_id"] = p_id
+    
     adata.obs["tumor_grade"] = str(tumor_grade)
+    
     adata.obs["osmonth"] = float(osmonth)
     
     adata.obsm["pos"] = positions
-    adata.obsm["importance"] = node_importance
-
+    #print("node_importance", node_importance)
+    
+    adata.obs["importance"] = node_importance
+    
     importances_hard = np.array(node_importance > node_imp_thr, dtype="str")
-    # print(importances_hard)
+    # print("importances_hard", importances_hard)
     importances_hard = pd.Series(importances_hard, dtype="category")
     # print(importances_hard)
     adata.obs["importance_hard"] = importances_hard.values
     # print(adata.obs)
-    sc.tl.rank_genes_groups(adata, groupby="importance_hard", method='wilcoxon', key_added = f"wilcoxon")
+    # sc.tl.rank_genes_groups(adata, groupby="importance_hard", method='wilcoxon', key_added = f"wilcoxon")
     # sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False, key=f"wilcoxon", show=True, groupby="importance_hard", save="important_vs_unimportant")
 
     # print(adata.obs)
@@ -604,44 +656,57 @@ def get_hvgs(adata):
     pass
 
 
-def get_gene_list():
+def get_gene_list(dataset_name="JacksonFischer"):
+    lst_genes = []
+    if dataset_name=="JacksonFischer":
 
-    get_id_to_gene_dict = get_basel_zurich_staining_panel()
-    lst_features = ['Intensity_MeanIntensity_FullStack_c12',
-       'Intensity_MeanIntensity_FullStack_c13',
-       'Intensity_MeanIntensity_FullStack_c14',
-       'Intensity_MeanIntensity_FullStack_c15',
-       'Intensity_MeanIntensity_FullStack_c16',
-       'Intensity_MeanIntensity_FullStack_c17',
-       'Intensity_MeanIntensity_FullStack_c18',
-       'Intensity_MeanIntensity_FullStack_c19',
-       'Intensity_MeanIntensity_FullStack_c20',
-       'Intensity_MeanIntensity_FullStack_c21',
-       'Intensity_MeanIntensity_FullStack_c22',
-       'Intensity_MeanIntensity_FullStack_c23',
-       'Intensity_MeanIntensity_FullStack_c24',
-       'Intensity_MeanIntensity_FullStack_c25',
-       'Intensity_MeanIntensity_FullStack_c27',
-       'Intensity_MeanIntensity_FullStack_c28',
-       'Intensity_MeanIntensity_FullStack_c29',
-       'Intensity_MeanIntensity_FullStack_c30',
-       'Intensity_MeanIntensity_FullStack_c31',
-       'Intensity_MeanIntensity_FullStack_c33',
-       'Intensity_MeanIntensity_FullStack_c34',
-       'Intensity_MeanIntensity_FullStack_c35',
-       'Intensity_MeanIntensity_FullStack_c37',
-       'Intensity_MeanIntensity_FullStack_c38',
-       'Intensity_MeanIntensity_FullStack_c39',
-       'Intensity_MeanIntensity_FullStack_c40',
-       'Intensity_MeanIntensity_FullStack_c41',
-       'Intensity_MeanIntensity_FullStack_c43',
-       'Intensity_MeanIntensity_FullStack_c44',
-       'Intensity_MeanIntensity_FullStack_c45',
-       'Intensity_MeanIntensity_FullStack_c46',
-       'Intensity_MeanIntensity_FullStack_c47',
-       'Intensity_MeanIntensity_FullStack_c9']
+        get_id_to_gene_dict = get_basel_zurich_staining_panel()
+        lst_features = ['Intensity_MeanIntensity_FullStack_c12',
+        'Intensity_MeanIntensity_FullStack_c13',
+        'Intensity_MeanIntensity_FullStack_c14',
+        'Intensity_MeanIntensity_FullStack_c15',
+        'Intensity_MeanIntensity_FullStack_c16',
+        'Intensity_MeanIntensity_FullStack_c17',
+        'Intensity_MeanIntensity_FullStack_c18',
+        'Intensity_MeanIntensity_FullStack_c19',
+        'Intensity_MeanIntensity_FullStack_c20',
+        'Intensity_MeanIntensity_FullStack_c21',
+        'Intensity_MeanIntensity_FullStack_c22',
+        'Intensity_MeanIntensity_FullStack_c23',
+        'Intensity_MeanIntensity_FullStack_c24',
+        'Intensity_MeanIntensity_FullStack_c25',
+        'Intensity_MeanIntensity_FullStack_c27',
+        'Intensity_MeanIntensity_FullStack_c28',
+        'Intensity_MeanIntensity_FullStack_c29',
+        'Intensity_MeanIntensity_FullStack_c30',
+        'Intensity_MeanIntensity_FullStack_c31',
+        'Intensity_MeanIntensity_FullStack_c33',
+        'Intensity_MeanIntensity_FullStack_c34',
+        'Intensity_MeanIntensity_FullStack_c35',
+        'Intensity_MeanIntensity_FullStack_c37',
+        'Intensity_MeanIntensity_FullStack_c38',
+        'Intensity_MeanIntensity_FullStack_c39',
+        'Intensity_MeanIntensity_FullStack_c40',
+        'Intensity_MeanIntensity_FullStack_c41',
+        'Intensity_MeanIntensity_FullStack_c43',
+        'Intensity_MeanIntensity_FullStack_c44',
+        'Intensity_MeanIntensity_FullStack_c45',
+        'Intensity_MeanIntensity_FullStack_c46',
+        'Intensity_MeanIntensity_FullStack_c47',
+        'Intensity_MeanIntensity_FullStack_c9']
 
-    lst_genes = [ get_id_to_gene_dict[int(g_id.split("Intensity_MeanIntensity_FullStack_c")[1])] for g_id in lst_features ]
+        lst_genes = [ get_id_to_gene_dict[int(g_id.split("Intensity_MeanIntensity_FullStack_c")[1])] for g_id in lst_features ]
+        
+    elif dataset_name=="METABRIC":
+        
+        mean_ion_count_columns = [
+        'HH3_total', 'CK19', 'CK8_18', 'Twist', 'CD68', 'CK14', 'SMA', 'Vimentin',
+        'c_Myc', 'HER2', 'CD3', 'HH3_ph', 'Erk1_2', 'Slug', 'ER', 'PR', 'p53', 'CD44',
+        'EpCAM', 'CD45', 'GATA3', 'CD20', 'Beta_catenin', 'CAIX', 'E_cadherin', 'Ki67',
+        'EGFR', 'pS6', 'Sox9', 'vWF_CD31', 'pmTOR', 'CK7', 'panCK', 'c_PARP_c_Casp3',
+        'DNA1', 'DNA2', 'H3K27me3', 'CK5', 'Fibronectin'
+    ]
+        lst_genes = mean_ion_count_columns
     
     return lst_genes
 
@@ -760,7 +825,8 @@ def type_processor(c_data):
     return c_data
 
 
-def split_by_group(dataset):
+
+def split_by_group(dataset, random_state=42):
     import pandas as pd
     from sklearn.model_selection import GroupShuffleSplit 
 
@@ -769,14 +835,14 @@ def split_by_group(dataset):
         lst_groups.append([item.p_id, item.img_id, item.clinical_type, item.tumor_grade, item.osmonth])
     df_dataset = pd.DataFrame(lst_groups, columns=["p_id", "img_id", "clinical_type", "tumor_grade", "osmonth"])
     
-    splitter = GroupShuffleSplit(test_size=.10, n_splits=2, random_state = 7)
+    splitter = GroupShuffleSplit(test_size=.10, n_splits=2, random_state = random_state)
     split = splitter.split(df_dataset, groups=df_dataset['p_id'])
     trainval_inds, test_inds = next(split)
     # print(trainval_inds)
     trainval = df_dataset.iloc[trainval_inds]
     test = df_dataset.iloc[test_inds]
     
-    splitter2 = GroupShuffleSplit(test_size=.10, n_splits=2, random_state = 7)
+    splitter2 = GroupShuffleSplit(test_size=.10, n_splits=2, random_state = random_state)
     split2 = splitter2.split(trainval, groups=trainval['p_id'])
     train_inds, val_inds = next(split2)
 
@@ -805,6 +871,40 @@ def split_by_group(dataset):
     return list(train.index), list(validation.index), list(test.index)
  
 
+def get_train_val_test_split_by_pid(dataset, dataset_name):
+    import pandas as pd
+    from dataset import TissueDataset
+    # dataset = TissueDataset(os.path.join("../data/JacksonFischer", "month"),  "month")
+
+    lst_groups = []
+    for item in dataset:
+        lst_groups.append([item.p_id, item.img_id, item.clinical_type, item.tumor_grade, item.osmonth])
+
+    
+    df_dataset = pd.DataFrame(lst_groups, columns=["p_id", "img_id", "clinical_type", "tumor_grade", "osmonth"])
+    df_dataset_with_splits = None
+    if dataset_name=="METABRIC":
+        df_dataset_with_splits = pd.read_csv("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/plots/regression_split/METABRIC_47_rest.csv")
+    elif dataset_name=="JacksonFischer":
+        df_dataset_with_splits = pd.read_csv("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/plots/regression_split/JacksonFischer_89_rest.csv")
+    else:
+        raise ValueError("Invalid dataset name!")
+
+    train_img_ids = df_dataset_with_splits[df_dataset_with_splits["tvt"].str.contains("train")]["img_id"].values
+    val_img_ids = df_dataset_with_splits[df_dataset_with_splits["tvt"].str.contains("val")]["img_id"].values
+    test_img_ids = df_dataset_with_splits[df_dataset_with_splits["tvt"].str.contains("test")]["img_id"].values
+    train = df_dataset[df_dataset["img_id"].isin(train_img_ids)]
+    validation = df_dataset[df_dataset["img_id"].isin(val_img_ids)]
+    test = df_dataset[df_dataset["img_id"].isin(test_img_ids)]
+    # print(sorted(list(df_dataset[df_dataset["img_id"].isin(train_img_ids)]["img_id"])))
+    # print(sorted(list(df_dataset_with_splits[df_dataset_with_splits["tvt"].str.contains("train")]["img_id"])))
+    assert sorted(list(df_dataset[df_dataset["img_id"].isin(train_img_ids)]["img_id"]))==sorted(list(df_dataset_with_splits[df_dataset_with_splits["tvt"].str.contains("train")]["img_id"]))
+    assert len(set(train["p_id"])&set(validation["p_id"]))==0 and len(set(train["p_id"])&set(test["p_id"]))==0 and len(set(test["p_id"])&set(validation["p_id"]))==0
+    return list(train.index), list(validation.index), list(test.index)
+
+# get_train_val_test_split_by_pid()
+
+
 def clean_session_files(result_fold_path, model_fold_path, model_id, gnn_layer):
     pathlib.Path.unlink( Path(os.path.join(model_fold_path, f"{model_id}_SD.mdl")))
     pathlib.Path.unlink(Path(os.path.join(model_fold_path, f"{model_id}.json")))
@@ -813,4 +913,70 @@ def clean_session_files(result_fold_path, model_fold_path, model_id, gnn_layer):
     pathlib.Path.unlink(Path(os.path.join(result_fold_path, f"{model_id}.csv")))
     
     
+def generate_splits(dataset_name):
+    from dataset import TissueDataset
+    from matplotlib import pyplot as plt
+    dataset = TissueDataset(os.path.join(f"../data/{dataset_name}", "month"),  "month")
+
+    lst_groups = []
+    for item in dataset:
+        print(item)
+        lst_groups.append([item.p_id, item.img_id, item.clinical_type, -1 if item.tumor_grade[0].isnan() else int(item.tumor_grade[0].item()), int(item.osmonth[0].item()), int(item.is_censored[0].item())])
+    df_dataset = pd.DataFrame(lst_groups, columns=["p_id", "img_id", "clinical_type", "tumor_grade", "osmonth", "is_censored"])
+
+    for i in range(200):
+        train, val, test = split_by_group(dataset, random_state=i)
+        
+        df_train = df_dataset.iloc[train].copy()
+        df_train["tvt"] = "train"
+        df_val = df_dataset.iloc[val].copy()
+        df_val["tvt"] = "val"
+        df_test = df_dataset.iloc[test].copy()
+        df_test["tvt"] = "test"
+        df_ann_dataset = [df_train, df_val, df_test]
+        df_ann_dataset = pd.concat(df_ann_dataset)
+
+        df_train = df_train.drop_duplicates(subset=['p_id'])
+        df_val = df_val.drop_duplicates(subset=['p_id'])
+        df_test = df_test.drop_duplicates(subset=['p_id'])
+        frames = [df_train, df_val, df_test]
+        result = pd.concat(frames)
+
     
+        fig, axs = plt.subplots(1,3,figsize=(20,5))
+        
+        # print(result.groupby(['tvt', "clinical_type"]).count())
+        df_train.groupby(["clinical_type"]).count().plot( kind='pie', y = "osmonth", autopct='%1.0f%%', ax = axs[0])
+        df_val.groupby(["clinical_type"]).count().plot( kind='pie', y = "osmonth", autopct='%1.0f%%', ax = axs[1])
+        df_test.groupby(["clinical_type"]).count().plot( kind='pie', y = "osmonth", autopct='%1.0f%%', ax = axs[2]) 
+        plt.savefig(f"../plots/regression_split/{dataset_name}_{i}_pie_rest.png")
+
+        axes = result.boxplot("osmonth", by="tvt")
+        fig = axes.get_figure()
+        print(sum(df_train["is_censored"])/len(df_train))
+
+        df_train = df_dataset.iloc[train].copy()
+        df_train["tvt"] = "train"
+        df_val = df_dataset.iloc[val].copy()
+        df_val["tvt"] = "val"
+        df_test = df_dataset.iloc[test].copy()
+        df_test["tvt"] = "test"
+        fig.suptitle(f"Test: {round(1.0-sum(df_test.is_censored)/len(df_test),2)} / Train: {round(1.0-sum(df_train.is_censored)/len(df_train),2)} / Val: {round(1.0-sum(df_val.is_censored)/len(df_val),2)}")
+        plt.savefig(f"../plots/regression_split/{dataset_name}_{i}_rest.png")
+        plt.close()
+        df_ann_dataset.to_csv(f"../plots/regression_split/{dataset_name}_{i}_rest.csv")
+
+
+# generate_splits("JacksonFischer")
+# generate_splits("METABRIC")
+
+
+def set_seeds(seed=42):
+    pl.seed_everything(seed)
+    random.seed(seed)
+    # torch.use_deterministic_algorithms(True, warn_only=True)
+    # torch.backends.cudnn.deterministic = True
+    torch.manual_seed(seed)
+    # torch.cuda.manual_seed(seed)
+    # torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)

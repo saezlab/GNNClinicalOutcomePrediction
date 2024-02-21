@@ -9,7 +9,7 @@ from scipy.spatial import Delaunay, Voronoi, voronoi_plot_2d
 from tqdm import tqdm
 
 dataset = "METABRIC"
-dataset = "JacksonFischer"
+#  dataset = "JacksonFischer"
 
 RAW_DATA_PATH = os.path.join("../data",dataset,"raw")
 OUT_DATA_PATH = os.path.join("../data", "out_data", dataset)
@@ -41,6 +41,8 @@ def get_cell_count_df(cell_count_thr,path):
 def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid,  pos=None, plot=False,PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH):
     
     points = df_image[["Location_Center_X", "Location_Center_Y"]].to_numpy()
+    # print(df_image.columns)
+    
     # point_labels = list(df_image["ObjectNumber"].values)
     
     # divide the graph based on the mean x and mean y values if # of cells is greater than 75 percentile
@@ -124,17 +126,39 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
     assert edge_index_arr.shape[0]==edge_length_arr.shape[0]
 
     clinical_info_dict = dict()
-    clinical_info_dict["grade"] = df_image["grade"].values[0]
-    clinical_info_dict["tumor_size"] = df_image["tumor_size"].values[0]
-    clinical_info_dict["treatment"] = df_image["treatment"].values[0]
-    clinical_info_dict["age"] = df_image["age"].values[0]
-    clinical_info_dict["DiseaseStage"] = df_image["DiseaseStage"].values[0]
-    clinical_info_dict["diseasestatus"] = df_image["diseasestatus"].values[0]
-    clinical_info_dict["clinical_type"] = df_image["clinical_type"].values[0]
-    clinical_info_dict["DFSmonth"] = df_image["DFSmonth"].values[0]
-    clinical_info_dict["OSmonth"] = df_image["OSmonth"].values[0]
-    clinical_info_dict["Patientstatus"] = df_image["Patientstatus"].values[0]
-    clinical_info_dict["cell_count"] = len(df_image)
+
+    # TODO: Refactor this part
+    if "JacksonFischer" in RAW_DATA_PATH:
+        clinical_info_dict["grade"] = df_image["grade"].values[0]
+        clinical_info_dict["tumor_size"] = df_image["tumor_size"].values[0]
+        clinical_info_dict["treatment"] = df_image["treatment"].values[0]
+        clinical_info_dict["age"] = df_image["age"].values[0]
+        clinical_info_dict["DiseaseStage"] = df_image["DiseaseStage"].values[0]
+        clinical_info_dict["diseasestatus"] = df_image["diseasestatus"].values[0]
+        clinical_info_dict["clinical_type"] = df_image["clinical_type"].values[0]
+        clinical_info_dict["DFSmonth"] = df_image["DFSmonth"].values[0]
+        clinical_info_dict["OSmonth"] = df_image["OSmonth"].values[0]
+        clinical_info_dict["Patientstatus"] = df_image["Patientstatus"].values[0]
+        clinical_info_dict["cell_count"] = len(df_image)
+    elif "METABRIC" in RAW_DATA_PATH:
+        metabric_clinical_feat = ['SOM_nodes', 'pg_cluster', 'description',
+                                  'Study ID', 'Patient ID', 'PID', 'age', 'Type of Breast Surgery',
+                                  'description.1', 'Cancer Type Detailed', 'Cellularity', 'treatment',
+                                  'Pam50 + Claudin-low subtype', 'Cohort', 'ER status measured by IHC',
+                                  'ER Status', 'grade', 'HER2 status measured by SNP6', 'HER2 Status',
+                                  'Tumor Other Histologic Subtype', 'Hormone Therapy',
+                                  'Inferred Menopausal State', 'Integrative Cluster',
+                                  'Primary Tumor Laterality', 'Lymph nodes examined positive',
+                                  'Mutation Count', 'DiseaseStage', 'Oncotree Code', 'OSmonth',
+                                  'Overall Survival Status', 'PR Status', 'Radio Therapy', 'DFSmonth',
+                                  'Relapse Free Status', 'Number of Samples Per Patient', 'Sample Type',
+                                  'Sex', '3-Gene classifier subtype', 'TMB (nonsynonymous)', 'tumor_size',
+                                   'Tumor Stage', 'diseasestatus', 'clinical_type']
+        for col in metabric_clinical_feat:
+            clinical_info_dict[col] = df_image[col].values[0]
+        
+        clinical_info_dict["cell_count"] = len(df_image)
+
 
     # save the edge indices and as a list 
     with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_edge_index_length.pickle'), 'wb') as handle:
@@ -236,7 +260,7 @@ def create_graphs_delauney_triangulation(data_path, cell_count_thr=CELL_COUNT_TH
     df_cell_count = get_cell_count_df(cell_count_thr,data_path)
     imgnum_edge_thr_dict = dict()
 
-    print(df_dataset["PID"])
+    # print(df_dataset["PID"])
 
     with open(os.path.join(RAW_DATA_PATH, 'edge_thr.pickle'), 'rb') as handle:
             imgnum_edge_thr_dict = pickle.load(handle)
@@ -325,3 +349,21 @@ def data_processing_pipeline(data_path, CELL_COUNT_THR=CELL_COUNT_THR, GRAPH_DIV
     create_graphs_delauney_triangulation(cell_count_thr=CELL_COUNT_THR, GRAPH_DIV_THR=third_quartile, plot=True,RAW_DATA_PATH = RAW_DATA_PATH, data_path=data_path, PLOT_PATH=PLOT_PATH)
 
 # data_processing_pipeline("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw/basel_zurich_preprocessed_compact_dataset.csv")
+
+def data_processing_metabric_pipeline(data_path, CELL_COUNT_THR=CELL_COUNT_THR, GRAPH_DIV_THR=GRAPH_DIV_THR, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH):
+    # TODO make this parametric
+    from data_preparation import METABRIC_preprocess
+    # print("Creating compact dataset...")
+    # METABRIC_preprocess(visualize = False)
+    #print("Calculating edge length distribution....")
+    #get_edge_length_dist(data_path=data_path, cell_count_thr=CELL_COUNT_THR, quant= 0.975, plot_dist=False, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH)
+    
+    print("Calculating cell count distribution....")
+    df_cell_count = get_cell_count_df(CELL_COUNT_THR, path=data_path)
+    third_quartile = int(np.quantile(df_cell_count["Cell Counts"], 0.75))
+    print(RAW_DATA_PATH)
+    print("Creating graphs...")
+    create_graphs_delauney_triangulation(cell_count_thr=CELL_COUNT_THR, GRAPH_DIV_THR=third_quartile, plot=True,RAW_DATA_PATH = RAW_DATA_PATH, data_path=data_path, PLOT_PATH=PLOT_PATH)
+
+
+# data_processing_metabric_pipeline("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/METABRIC/raw/merged_data.csv",CELL_COUNT_THR=CELL_COUNT_THR, GRAPH_DIV_THR=GRAPH_DIV_THR, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH)

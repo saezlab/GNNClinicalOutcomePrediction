@@ -58,9 +58,27 @@ class NegativeLogLikelihood(torch.nn.Module):
         # self.reg = Regularization(order=2, weight_decay=self.L2_reg)
 
     def forward(self, risk_pred, y, e, device="cuda"):
-        mask = torch.ones(y.shape[0], y.shape[0]).to(device)
+
+        """
+        y = np.array([[1,6,2,2,4,5,1]])
+        mask = np.ones((7, 7))
         mask[(y.T - y) > 0] = 0
+        """
+        
+        # print("risk_pred", risk_pred[:5], risk_pred[:5].shape)
+        y = torch.reshape(y, risk_pred.shape)
+        e = torch.reshape(e, risk_pred.shape)
+        # print("y", y[:5], y[:5].shape)
+        # print("e", e[:5])
+        # print("risk_pred", risk_pred)
+        mask = torch.ones(y.shape[0], y.shape[0]).to(device)
+        # print("y", y)
+        # print("yT", y.T)
+        # print(torch.exp(risk_pred))
+        mask[(y.T - y) > 0] = 0
+        # print(mask)
         log_loss = torch.exp(risk_pred) * mask
+        # print("log_loss", log_loss)
         log_loss = torch.sum(log_loss, dim=0) / torch.sum(mask, dim=0)
         log_loss = torch.log(log_loss).reshape(-1, 1)
         neg_log_loss = -torch.sum((risk_pred-log_loss) * e) / torch.sum(e)

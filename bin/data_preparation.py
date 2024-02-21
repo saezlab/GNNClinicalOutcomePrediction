@@ -283,8 +283,8 @@ def create_preprocessed_sc_feature_fl():
     # print(new_dataset.size)  
     # print(new_dataset.columns)
     # print(new_dataset)
-    print("Saving the compact dataset to ", os.path.join(RAW_DATA_PATH, "raw", "basel_zurich_preprocessed_compact_dataset.csv"))
-    df_new_dataset.to_csv(os.path.join(RAW_DATA_PATH, "raw", "basel_zurich_preprocessed_compact_dataset.csv"), index=False)
+    print("Saving the compact dataset to ", os.path.join(RAW_DATA_PATH, "raw", "merged_preprocessed_dataset.csv"))
+    df_new_dataset.to_csv(os.path.join(RAW_DATA_PATH, "raw", "merged_preprocessed_dataset.csv"), index=False)
 
 # create_preprocessed_sc_feature_fl()
 
@@ -331,7 +331,7 @@ def METABRIC_preprocess(visualize = False):
     ]
 
     # Renaming the columns
-    renamed_columns = {col: f'IMFc_{i}' for i, col in enumerate(mean_ion_count_columns)}
+    renamed_columns = {col: f'Intensity_MeanIntensity_FullStackc_{i}' for i, col in enumerate(mean_ion_count_columns)}
 
     # Applying the renaming to the merged_data DataFrame
     merged_data.rename(columns=renamed_columns, inplace=True)
@@ -354,5 +354,5 @@ def METABRIC_preprocess(visualize = False):
     merged_data.rename(columns=columns_to_rename, inplace=True)
 
     # Save the merged dataframe to a new CSV file
-    merged_data.to_csv('../data/METABRIC/raw/merged_data.csv', index=False)  
+    merged_data.to_csv('../data/METABRIC/raw/merged_preprocessed_dataset.csv', index=False)  
 

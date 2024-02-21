@@ -11,12 +11,12 @@ today = date.today()
 d1 = today.strftime("%d-%m-%Y")
 
 
-def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu", gpu_id=0):
-    job_id = f"{model_name}_{job_name}_{d1}"
-
-
+def generate_generic_job_commands(model_name, dataset_name, loss, unit, job_name, queue="gpu", gpu_id=0):
+    job_id = f"{dataset_name}_{model_name}_{job_name}_{d1}"
+    print(job_id)
     config = {
         # "model": ["GCN", "GATConv", "TransformerConv", "PNAConv"],
+        "dataset_name": [dataset_name],
         "model": [model_name],
         "lr": [0.1, 0.01, 0.001, 0.0001],
         "bs": [16, 32, 64],
@@ -30,7 +30,7 @@ def generate_generic_job_commands(model_name, loss, unit, job_name, queue="gpu",
         #hyperparams for schedular
         # WARNING: Uncomment when schedular is used
         "factor": [0.5, 0.8, 0.2],
-        "patience": [5, 10],
+        "patience": [10, 20],
         "min_lr": [0.00002, 0.0001],
         #hyperparams for schedular
         # "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
@@ -174,8 +174,11 @@ generate_generic_job_commands("PNAConv", "MSE", "week_lognorm", "PNA_MSE_week_lo
 
 # bash <(head -n200 all_runs.sh)
 
-generate_generic_job_commands("GATV2", "CoxPHLoss", "month", "CoxPHLoss_month", "gpu")
-generate_generic_job_commands("PNAConv", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
+# generate_generic_job_commands("PNAConv", "NegativeLogLikelihood", "month", "NegativeLogLikelihood_month", "gpu")
+# generate_generic_job_commands("GATV2", "NegativeLogLikelihood", "month", "NegativeLogLikelihood_month", "gpusaez")
+# generate_generic_job_commands("GATV2", "CoxPHLoss", "month", "CoxPHLoss_month", "gpu")
+# generate_generic_job_commands("PNAConv", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
 # generate_generic_job_commands("GATV2", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
 # generate_generic_job_commands("GATV2", "MSE", "month", "MSE_month")
 # python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 20 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth --loss CoxPHLoss
+generate_generic_job_commands("PNAConv", "METABRIC", "NegativeLogLikelihood", "month", "NegativeLogLikelihood_fixed_dataset", "gpusaez")

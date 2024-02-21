@@ -17,9 +17,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
-import config
-
-seed = config.seed
+# TODO: Put this into the config file
+seed = 42
 
 
 S_PATH = os.path.dirname(__file__)
@@ -563,7 +562,7 @@ def UMAP_plot(embeddings, emb_id, related_data, attribute_name, experiment_name=
     attribute_colors = [attribute_color[attr] for attr in attributes]
 
     # Create a UMAP reducer
-    reducer = umap.UMAP(random_state=42)
+    reducer = umap.UMAP(random_state=42, n_neighbors=10)
 
     # Apply UMAP transformation
     umap_result = reducer.fit_transform(emd_array)
@@ -594,4 +593,4 @@ def UMAP_plot(embeddings, emb_id, related_data, attribute_name, experiment_name=
     out_path = os.path.join(PLOT_PATH, experiment_name, job_id)
     Path(out_path).mkdir(parents=True, exist_ok=True)
     print("Saving plot here:", out_path)
-    plt.savefig(os.path.join(out_path, f"{attribute_name}_{emb_id}.pdf"))
+    plt.savefig(os.path.join(out_path, f"{attribute_name}_{mode}_{emb_id}.pdf"))

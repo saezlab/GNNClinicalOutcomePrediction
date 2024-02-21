@@ -16,9 +16,6 @@ SEED = 42
 class CustomGCN(torch.nn.Module):
     """Customizable GCN class, currectly supporting GATConv,s TransformerConv
     GINConv, PNAConv
-
-
-
     Returns:
         CustomGCN: CustomGCN model
     """
@@ -69,7 +66,6 @@ class CustomGCN(torch.nn.Module):
         self.heads = self.check_Key("heads")
         self.deg = self.check_Key("deg")
     
-
 
         if self.label_type == "regression":
             self.num_ff_final = 1

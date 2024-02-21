@@ -11,17 +11,13 @@ import pandas as pd
 import os
 from torch_geometric.utils import degree
 from evaluation_metrics import r_squared_score, mse, rmse, mae
-import custom_tools
+import custom_tools as custom_tools
 import csv
 import statistics
-import pytorch_lightning as pl
 from eval import concordance_index
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.nn import PNAConv 
 from early_stopping import EarlyStopping
-
-custom_tools.set_seeds(seed=42)
-
 
 class trainer_tester:
 
@@ -33,8 +29,6 @@ class trainer_tester:
             parser_args (Namespace): Holds the arguments that came from parsing CLI
             setup_args (Namespace): Holds the arguments that came from setup
         """
-        
-        pl.seed_everything(42)
         self.parser_args = parser_args
         self.setup_args = setup_args
         self.set_device()
@@ -69,10 +63,8 @@ class trainer_tester:
         """
         # self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
         # self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data/JacksonFischer/week"), "week")
-        self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH, f"../data/{self.parser_args.dataset_name}", self.parser_args.unit),  self.parser_args.unit)
-        # dataset = TissueDataset(os.path.join("../data/JacksonFischer/month"), "month")
-
-        print("Number of samples:", len(self.dataset), self.parser_args.dataset_name )
+        self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data/JacksonFischer", self.parser_args.unit),  self.parser_args.unit)
+        print("Number of samples:", len(self.dataset))
 
         if self.parser_args.label == "OSMonth" or self.parser_args.loss == "CoxPHLoss":
             self.label_type = "regression"
@@ -120,7 +112,7 @@ class trainer_tester:
             model = self.set_model(deg)
 
             optimizer = torch.optim.Adam(model.parameters(), lr=self.parser_args.lr, weight_decay=self.parser_args.weight_decay)
-            scheduler = ReduceLROnPlateau(optimizer, 'min', factor= self.parser_args.factor, patience=self.parser_args.patience, min_lr=self.parser_args.min_lr, verbose=True)
+
 
             fold_dict = {
                     "fold": 1,
@@ -137,40 +129,7 @@ class trainer_tester:
 
         
         else:
-            self.samplers = custom_tools.k_fold_by_group(self.dataset)
-
-            deg = -1
-
-            for fold, train_sampler, validation_sampler in self.samplers:
-                print("Creating k folds")
-                train_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= train_sampler)
-                validation_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= validation_sampler)
-                # test_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= test_sampler)
-
-                if self.parser_args.model == "PNAConv" or "MMAConv" or "GMNConv":
-                    deg = self.calculate_deg(train_sampler)
-                
-                model = self.set_model(deg)
-
-                optimizer = torch.optim.Adam(model.parameters(), lr=self.parser_args.lr, weight_decay=self.parser_args.weight_decay)
-                scheduler = ReduceLROnPlateau(optimizer, 'min', factor= self.parser_args.factor, patience=self.parser_args.patience, min_lr=self.parser_args.min_lr, verbose=True)
-
-                fold_dict = {
-                    "fold": fold,
-                    "train_loader": train_loader,
-                    "validation_loader": validation_loader,
-                    # "test_loader": test_loader,
-                    "deg": deg,
-                    "model": model,
-                    "optimizer": optimizer,
-                    "scheduler": scheduler
-                }
-
-                self.fold_dicts.append(fold_dict)
-
-                #if not self.setup_args.use_fold:
-                #    break
-            """self.samplers = custom_tools.k_fold_by_group(self.dataset,
+            self.samplers = custom_tools.k_fold_ttv(self.dataset, 
                 T2VT_ratio=self.setup_args.T2VT_ratio,
                 V2T_ratio=self.setup_args.V2T_ratio)
 
@@ -203,7 +162,7 @@ class trainer_tester:
                 self.fold_dicts.append(fold_dict)
 
                 if not self.setup_args.use_fold:
-                    break"""
+                    break
 
     def calculate_deg(self, train_sampler):
         """Calcualtes deg, which is necessary for some models
@@ -264,7 +223,7 @@ class trainer_tester:
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
 
             loss = None
-            if self.parser_args.loss == "CoxPHLoss" or self.parser_args.loss == "NegativeLogLikelihood":
+            if self.parser_args.loss == "CoxPHLoss":
                 loss = self.setup_args.criterion(out, data.y.to(self.device), data.is_censored.to(self.device))  # Compute the loss.    
             else:
                 loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
@@ -279,7 +238,7 @@ class trainer_tester:
 
         return total_loss
 
-    def test(self, model, loader, fold, label=None, return_pred_df=False):
+    def test(self, model, loader, fold, label=None, save_res=False):
         """Tests the model on wanted loader
 
 
@@ -304,8 +263,9 @@ class trainer_tester:
                 out = model(data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
 
                 loss = None
-                if self.parser_args.loss == "CoxPHLoss" or self.parser_args.loss=="NegativeLogLikelihood":
-                    loss = self.setup_args.criterion(out, data.y.to(self.device), data.is_censored.to(self.device))  # Compute the loss.    
+                if self.parser_args.loss == "CoxPHLoss":
+                    loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device), data.is_censored.to(self.device))  # Compute the loss.    
+                   
                 else:
                     loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
 
@@ -319,7 +279,7 @@ class trainer_tester:
                     pred_list.extend([custom_tools.argmax(val) for val in out.squeeze()])
                 
                 #pred_list.extend([val.item() for val in data.y])
-                if return_pred_df:
+                if save_res:
                     tumor_grade_list.extend([val.item() for val in data.tumor_grade])
                     clinical_type_list.extend([val for val in data.clinical_type])
                     osmonth_list.extend([val.item() for val in data.osmonth])
@@ -329,7 +289,7 @@ class trainer_tester:
             else:
                 pass
         
-        if return_pred_df:
+        if save_res:
             
             # label_list = [str(fold_dict["fold"]) + "-" + label]*len(clinical_type_list)
             label_list = [str(fold) + "-" + label]*len(clinical_type_list) # 
@@ -341,68 +301,62 @@ class trainer_tester:
             return total_loss
 
     def train_test_loop(self):
-        """
-        Training and testing occurs under this function. 
+        """Training and testing occurs under this function. 
         """
         self.results =[] 
         # collect train/val/test predictions of all folds in all_preds_df
         all_preds_df = []
-        print(self.fold_dicts)
+    
         for fold_dict in self.fold_dicts:
             # print(fold_dict["model"])
             best_val_loss = np.inf
-            early_stopping = EarlyStopping(patience=self.parser_args.patience*2, verbose=True, model_path=self.setup_args.MODEL_PATH)
+            early_stopping = EarlyStopping(patience=100, verbose=True, model_path=self.setup_args.MODEL_PATH)
 
             print(f"########## Fold :  {fold_dict['fold']} ########## ")
             for epoch in (pbar := tqdm(range(self.parser_args.epoch), disable=False)):
 
                 self.train(fold_dict)
                 train_loss = self.test(fold_dict["model"], fold_dict["train_loader"],  fold_dict["fold"])
-                validation_loss, df_epoch_val = self.test(fold_dict["model"], fold_dict["validation_loader"],  fold_dict["fold"], "validation", self.setup_args.plot_result)
-                # test_loss, df_epoch_test = self.test(fold_dict["model"], fold_dict["test_loader"],  fold_dict["fold"], "test", self.setup_args.plot_result)
-                
-                epoch_val_ci_score = concordance_index(df_epoch_val['OS Month'], -df_epoch_val['Predicted'], df_epoch_val["Censored"]) if self.parser_args.loss=="NegativeLogLikelihood" else concordance_index(df_epoch_val['OS Month'], df_epoch_val['Predicted'], df_epoch_val["Censored"])
-                # epoch_test_ci_score = concordance_index(df_epoch_test['OS Month'], -df_epoch_test['Predicted'], df_epoch_test["Censored"]) if self.parser_args.loss=="NegativeLogLikelihood" else concordance_index(df_epoch_test['OS Month'], df_epoch_test['Predicted'], df_epoch_test["Censored"])
-            
+                validation_loss = self.test(fold_dict["model"], fold_dict["validation_loader"],  fold_dict["fold"])
+                test_loss = self.test(fold_dict["model"], fold_dict["test_loader"],  fold_dict["fold"])
+                """validation_loss= self.test(fold_dict, "validation_loader")
+                test_loss = self.test(fold_dict, "test_loader")"""
                 fold_dict["scheduler"].step(validation_loss)
-                early_stopping(validation_loss, epoch_val_ci_score, fold_dict["model"], vars(self.parser_args), id_file_name=self.setup_args.id, deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None)
+                early_stopping(validation_loss, fold_dict["model"], vars(self.parser_args), id_file_name=self.setup_args.id, deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None)
                 
-                pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Val c_index: {epoch_val_ci_score} Patience: {early_stopping.counter}")
+                pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Test loss: {test_loss:.2f} Patience: {early_stopping.counter}")
 
                 if early_stopping.early_stop:
-                    print("Best model lr:", fold_dict["optimizer"].param_groups[0]["lr"])
-                    self.parser_args.best_epoch = epoch
                     print("Early stopping the training...")
                     break
 
-                """
-                best_model = custom_tools.load_model(f"{self.setup_args.id}_SD", path = self.setup_args.MODEL_PATH, model_type = "SD", args = vars(self.parser_args), deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None, device=self.device).to(self.device)
-                best_train_loss, df_train = self.test(best_model, fold_dict["train_loader"], fold_dict["fold"], "train", self.setup_args.plot_result)  # type: ignore
-                best_val_loss, df_val= self.test(best_model, fold_dict["validation_loader"], fold_dict["fold"], "validation", self.setup_args.plot_result)  # type: ignore
-                """
-            # best_test_loss, df_test = self.test(best_model, fold_dict["test_loader"], fold_dict["fold"], "test", self.setup_args.plot_result) # type: ignore
+                """if validation_loss < best_val_loss:
+                    best_val_loss = validation_loss
+                    best_train_loss = train_loss
+                    best_test_loss = test_loss"""
+                
+                # if (epoch % self.setup_args.print_every_epoch) == 0:
+                #    print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Validation loss: {validation_loss:.4f}, Test loss: {test_loss:.4f}')
+            # l(f"{job_id}_SD", path = "../models/best_full_training_22-11-2022", model_type = "SD", args = args, deg=deg)
+            
+            
+            best_model = custom_tools.load_model(f"{self.setup_args.id}_SD", path = self.setup_args.MODEL_PATH, model_type = "SD", args = vars(self.parser_args), deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None, device=self.device).to(self.device)
+            
+            best_train_loss, df_train = self.test(best_model, fold_dict["train_loader"], fold_dict["fold"], "train", self.setup_args.plot_result)  # type: ignore
+            best_val_loss, df_val= self.test(best_model, fold_dict["validation_loader"], fold_dict["fold"], "validation", self.setup_args.plot_result)  # type: ignore
+            best_test_loss, df_test = self.test(best_model, fold_dict["test_loader"], fold_dict["fold"], "test", self.setup_args.plot_result) # type: ignore
 
             
-            """scores_dict = dict()
+            scores_dict = dict()
             if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
                 fold_train_ci_score = concordance_index(df_train['OS Month'], df_train['Predicted'], df_train["Censored"])
                 fold_val_ci_score = concordance_index(df_val['OS Month'], df_val['Predicted'], df_val["Censored"])
-                # fold_test_ci_score = concordance_index(df_test['OS Month'], df_test['Predicted'], df_test["Censored"])
+                fold_test_ci_score = concordance_index(df_test['OS Month'], df_test['Predicted'], df_test["Censored"])
                 scores_dict["fold_train_ci_score"] = fold_train_ci_score
                 scores_dict["fold_val_ci_score"] = fold_val_ci_score
-                # scores_dict["fold_test_ci_score"] = fold_test_ci_score
+                scores_dict["fold_test_ci_score"] = fold_test_ci_score
 
-            elif self.label_type == "regression" and self.parser_args.loss=="NegativeLogLikelihood":
-                fold_train_ci_score = concordance_index(df_train['OS Month'], -df_train['Predicted'], df_train["Censored"])
-                fold_val_ci_score = concordance_index(df_val['OS Month'], -df_val['Predicted'], df_val["Censored"])
-                # fold_test_ci_score = concordance_index(df_test['OS Month'], -df_test['Predicted'], df_test["Censored"])
-                scores_dict["fold_train_ci_score"] = fold_train_ci_score
-                scores_dict["fold_val_ci_score"] = fold_val_ci_score
-                # scores_dict["fold_test_ci_score"] = fold_test_ci_score
-                print(fold_train_ci_score, fold_val_ci_score) # , fold_test_ci_score)
-
-            # fold_tvt_preds_df = pd.concat([df_train, df_val, df_test])
-            fold_tvt_preds_df = pd.concat([df_train, df_val])
+            fold_tvt_preds_df = pd.concat([df_train, df_val, df_test])
             
             all_preds_df = None
             # populate all_preds_df with the first fold predictions
@@ -412,15 +366,69 @@ class trainer_tester:
                 all_preds_df = pd.concat([all_preds_df, fold_tvt_preds_df])
 
             all_preds_df.to_csv(os.path.join(self.setup_args.RESULT_PATH, f"{self.setup_args.id}.csv"), index=False)
-            # TODO: Remove this after production
+            
             if scores_dict["fold_val_ci_score"] > 0.60:
                 custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
                 all_preds_df.to_csv(os.path.join(self.setup_args.RESULT_PATH, f"{self.setup_args.id}.csv"), index=False)
             else:
                 # clean the bad performing models  
-                custom_tools.clean_session_files(result_fold_path=self.setup_args.RESULT_PATH, model_fold_path = self.setup_args.MODEL_PATH, model_id =self.setup_args.id, gnn_layer=self.parser_args.model)"""
+                custom_tools.clean_session_files(result_fold_path=self.setup_args.RESULT_PATH, model_fold_path = self.setup_args.MODEL_PATH, model_id =self.setup_args.id, gnn_layer=self.parser_args.model)
                 
             
+                                
+            """elif self.label_type == "regression":
+                fold_val_r2_score = r_squared_score(df_val['True Value'], df_val['Predicted'])
+                fold_val_mse_score = mse(df_val['True Value'], df_val['Predicted'])
+                fold_val_rmse_score = rmse(df_val['True Value'], df_val['Predicted'])
+                df_train['True Value'], df_train['Predicted'] = self.convert_to_month(df_train['True Value']), self.convert_to_month(df_train['Predicted'])
+                df_val['True Value'],  df_val['Predicted'] = self.convert_to_month(df_val['True Value']), self.convert_to_month(df_val['Predicted'])
+                df_test['True Value'], df_test['Predicted'] = self.convert_to_month(df_test['True Value']), self.convert_to_month(df_test['Predicted'])
+
+            elif self.label_type == "classification":
+                accuracy_Score = accuracy_score(df_val["True Value"], df_val['Predicted'])
+                precision_Score = precision_score(df_val["True Value"], df_val['Predicted'],average="micro")   
+                f1_Score = f1_score(df_val["True Value"], df_val['Predicted'],average="micro")
+                
+            
+
+            
+            # print(all_preds_df)
+            print(f"Best val loss: {best_val_loss}, Best test loss: {best_test_loss}")
+            
+            if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
+                self.results.append([fold_dict['fold'], round(best_train_loss, 4), round(best_val_loss, 4), round(best_test_loss, 4), fold_val_ci_score])
+
+            elif self.label_type == "regression":
+                self.results.append([fold_dict['fold'], round(best_train_loss, 4), round(best_val_loss, 4), round(best_test_loss, 4), fold_val_r2_score, fold_val_mse_score, fold_val_rmse_score])
+
+            elif self.label_type == "classification":
+                self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, accuracy_Score, precision_Score, f1_Score])"""
+        
+        """all_folds_val_df = all_preds_df.loc[(all_preds_df['Fold#-Set'].str[2:] == "validation")]
+
+        
+        if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
+            all_fold_val_ci_score = concordance_index(all_folds_val_df['OS Month'], all_folds_val_df['Predicted'], all_folds_val_df["Censored"])
+            print(f"All folds C index: {all_fold_val_ci_score}")
+
+        elif self.label_type == "regression":
+            all_fold_val_r2_score = r_squared_score(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
+            all_fold_val_mse_score = mse(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
+            all_fold_val_mae_score = mae(all_folds_val_df['True Value'], all_folds_val_df['Predicted'])
+            print(f"All folds val - R2 score: {all_fold_val_r2_score}\tMSE: {all_fold_val_mse_score}\tMAE: {all_fold_val_mae_score}")
+        
+        if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
+            all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
+
+        elif  (self.label_type == "regression" and all_fold_val_r2_score>0.6):
+            # plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id)
+            all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
+            self.save_results()
+            custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
+            if not self.parser_args.fold:
+                custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.setup_args.id, mode="SD", path=self.setup_args.MODEL_PATH)
+                if self.parser_args.model == "PNAConv":
+                    custom_tools.save_pickle(self.fold_dicts[0]["deg"], f"{self.setup_args.id}_deg.pckl", self.setup_args.MODEL_PATH)"""
     
     def full_train_loop(self):
         """Training and testing occurs under this function. 
@@ -431,25 +439,22 @@ class trainer_tester:
         all_preds_df = []
         fold_dict = self.fold_dicts[0]    
         best_val_loss = np.inf
-        
+
         print(f"Performing full training ...")
         for epoch in (pbar := tqdm(range(self.parser_args.epoch), disable=True)):
 
             self.train(fold_dict)
 
-            # train_loss = self.test(fold_dict["model"], "train_loader", 0)
-            train_loss = self.test(fold_dict["model"], fold_dict["train_loader"],  fold_dict["fold"])
+            train_loss = self.test(fold_dict, "train_loader")
             pbar.set_description(f"Train loss: {train_loss}")
 
             if (epoch % self.setup_args.print_every_epoch) == 0:
                 print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}')
 
 
-        train_loss, df_train = self.test(fold_dict["model"], fold_dict["train_loader"], fold_dict["fold"], "train", self.setup_args.plot_result)
-        # best_test_loss, df_test = self.test(best_model, fold_dict["test_loader"], fold_dict["fold"], "test", self.setup_args.plot_result) # type: ignore
+        train_loss, df_train = self.test(fold_dict, "train_loader", "train", self.setup_args.plot_result)
 
         if self.label_type == "regression":
-            ci_score = concordance_index(df_train['OS Month'], -df_train['Predicted'], df_train["Censored"])
             r2_score = r_squared_score(df_train['True Value'], df_train['Predicted'])
             mse_score = mse(df_train['True Value'], df_train['Predicted'])
             rmse_score = rmse(df_train['True Value'], df_train['Predicted'])
@@ -467,15 +472,14 @@ class trainer_tester:
         elif self.label_type == "classification":
             self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, accuracy_Score, precision_Score, f1_Score])
 
-        print("Train ci score", ci_score)
+
         # print("All folds val r2 score:", all_fold_val_r2_score)
     
         if  (self.label_type == "regression"):
-            # plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id, full_training=True)
-            all_preds_df.to_csv(os.path.join(self.setup_args.RESULT_PATH, f"{self.setup_args.id}.csv"), index=False)
+            plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id, full_training=True)
+            all_preds_df.to_csv(os.path.join(self.setup_args.OUT_DATA_PATH, f"{self.setup_args.id}.csv"), index=False)
             self.save_results()
             custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
-            
             if not self.parser_args.fold:
                 custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.setup_args.id, mode="SD", path=self.setup_args.MODEL_PATH)
                 if self.parser_args.model == "PNAConv":
@@ -563,8 +567,6 @@ class trainer_tester:
 
 
     # python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 1000 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth --loss CoxPHLoss
-    # python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 1000 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth --loss NegativeLogLikelihood
-    # python train_test_controller.py --dataset_name JacksonFischer --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 1000 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth --loss NegativeLogLikelihood        
 
     # full_training
     # python train_test_controller.py --model PNAConv --lr 0.001 --bs 16 --dropout 0.0 --epoch 200 --num_of_gcn_layers 3 --num_of_ff_layers 2 --gcn_h 32 --fcl 512 --en best_full_training_week_15-12-2022 --weight_decay 0.0001 --factor 0.5 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --full_training --label OSMonth

@@ -6,13 +6,17 @@ from torch.utils.data import Subset
 # custom_tools.split_by_group()
 
 
-"""dataset = TissueDataset(os.path.join(".", "../data/JacksonFischer", "month"),  "month")
+dataset = TissueDataset(os.path.join(".", "../data/METABRIC", "month"),  "month")
 
 
-
+count = 0
 for data in dataset:
-    print(data)"""
+    if data.censored.item()==0:
+        count+=1
+    # print(data.censored.item())
 
+print(count)
+print(len(dataset))
 import eval 
 
 ci_index = eval.concordance_index([1,4,5,6], [0,0,0,0],[0,1,1,1])
