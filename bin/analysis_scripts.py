@@ -122,20 +122,22 @@ def calculate_all_cindex_scores(folder_path_list):
                     pass
         
     df_results = pd.DataFrame (all_results, columns = header)
-    # df_results.sort_values(by=["val_r2 score", "test_r2 score"], inplace=True, ascending=False)
-    df_results.sort_values(by=["test_cindex"], inplace=True, ascending=True)
+    print(df_results)
+    df_results.sort_values(by=["val_cindex", "test_cindex"], inplace=True, ascending=False)
+    # df_results.sort_values(by=["test_cindex"], inplace=True, ascending=True)
 
     return df_results
 
 
 # calculate_cindex_scores_from_preds("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_CoxPHLoss_month_24-11-2023", "4vzHDHJhBEhzvI91la51HQ.csv")
-# df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_CoxPHLoss_month_24-11-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/PNAConv_CoxPHLoss_month_24-11-2023"])
+# "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_CoxPHLoss_month_24-11-2023",
+df= calculate_all_cindex_scores([ "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/PNAConv_CoxPHLoss_month_24-11-2023"])
 # df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_NegativeLogLikelihood_fixed_dataset_13-12-2023"])
 # df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_NegativeLogLikelihood_fixed_dataset_13-12-2023"])
 # df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/PNAConv_NegativeLogLikelihood_month_30-11-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_NegativeLogLikelihood_month_04-12-2023"])
 # df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_NegativeLogLikelihood_month_04-12-2023# "])
 
-df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/METABRIC_PNAConv_NegativeLogLikelihood_fixed_dataset_04-01-2024"])
+# df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/METABRIC_PNAConv_NegativeLogLikelihood_fixed_dataset_04-01-2024"])
 print(df)
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_year_30-11-2022"]))
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_week_07-12-2022"]))

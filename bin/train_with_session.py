@@ -25,6 +25,8 @@ json_fl = open("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinical
 json_fl = open("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/GATV2_NegativeLogLikelihood_month_04-12-2023/WCSTZwu7iVXlw-_9NvOqIw.json")
 json_fl = open("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/GATV2_NegativeLogLikelihood_fixed_dataset_13-12-2023/V05lYbfqzxjRjenrPbsplg.json")
 json_fl = open("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/GATV2_NegativeLogLikelihood_month_04-12-2023/YyroGgMa_H4xn_ctP3C5Zw.json")
+json_fl = open("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/GATV2_NegativeLogLikelihood_month_04-12-2023/YyroGgMa_H4xn_ctP3C5Zw.json")
+
 t_args.__dict__.update(json.load(json_fl))
 parser_args = parser.parse_args(namespace=t_args)
 
@@ -60,6 +62,8 @@ elif parser_args.loss== "NegativeLogLikelihood":
 else:
     raise Exception("Loss function should be MSE, Huber, CoxPHLoss or NegativeLogLikelihood...")
 
+
+setup_args.criterion = CoxPHLoss()
 setup_args.print_every_epoch = 10
 setup_args.plot_result = True
 
