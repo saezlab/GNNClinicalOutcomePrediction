@@ -51,7 +51,7 @@ class EarlyStopping:
             self.counter = 0
     
     # (model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curdir, "..", "models")
-    def save_model(self, val_loss, eval_score, model, hyperparams, id_file_name, deg):
+    def save_model(self, val_loss, eval_score, model, hyperparams, id_file_name, deg, save_model=False):
         '''Saves model when validation loss decrease.'''
         
         if self.verbose:
@@ -61,10 +61,10 @@ class EarlyStopping:
         self.best_eval_score = eval_score
 
         # vars(self.parser_args)
-
-        custom_tools.save_dict_as_json(hyperparams, id_file_name, self.path)
-        custom_tools.save_model(model=model, fileName=id_file_name, mode="SD", path=self.path)
-        if deg!=None:
-            
-            custom_tools.save_pickle(deg, f"{id_file_name}_deg.pckl", self.path)
+        if save_model:
+            custom_tools.save_dict_as_json(hyperparams, id_file_name, self.path)
+            custom_tools.save_model(model=model, fileName=id_file_name, mode="SD", path=self.path)
+            if deg!=None:
+                
+                custom_tools.save_pickle(deg, f"{id_file_name}_deg.pckl", self.path)
         

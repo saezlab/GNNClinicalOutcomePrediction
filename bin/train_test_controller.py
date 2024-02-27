@@ -11,7 +11,7 @@ from trainer_tester import trainer_tester
 
 
 
-pl.seed_everything(42)
+custom_tools.set_seeds(42)
 parser_args = custom_tools.general_parser()
 setup_args = SimpleNamespace()
 
@@ -51,8 +51,6 @@ setup_args.plot_result = True
 
 # Object can be saved if wanted
 trainer_tester(parser_args, setup_args)
-
-
 
 
 

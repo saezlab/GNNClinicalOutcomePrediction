@@ -8,8 +8,8 @@ import seaborn as sns
 from scipy.spatial import Delaunay, Voronoi, voronoi_plot_2d
 from tqdm import tqdm
 
-dataset = "METABRIC"
-#  dataset = "JacksonFischer"
+# dataset = "METABRIC"
+dataset = "JacksonFischer"
 
 RAW_DATA_PATH = os.path.join("../data",dataset,"raw")
 OUT_DATA_PATH = os.path.join("../data", "out_data", dataset)
@@ -21,11 +21,13 @@ CELL_COUNT_THR = 100
 
 
 def get_dataset_from_csv(path="a"):
+    """
     path = None
     if dataset == "JacksonFischer":
         path = "../data/JacksonFischer/raw/basel_zurich_preprocessed_compact_dataset.csv"
     elif dataset == "METABRIC":
         path = "../data/METABRIC/raw/merged_data.csv"
+    """
 
     return pd.read_csv(path)
 
@@ -41,6 +43,7 @@ def get_cell_count_df(cell_count_thr,path):
 def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid,  pos=None, plot=False,PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH):
     
     points = df_image[["Location_Center_X", "Location_Center_Y"]].to_numpy()
+    
     # print(df_image.columns)
     
     # point_labels = list(df_image["ObjectNumber"].values)
@@ -139,6 +142,8 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
         clinical_info_dict["DFSmonth"] = df_image["DFSmonth"].values[0]
         clinical_info_dict["OSmonth"] = df_image["OSmonth"].values[0]
         clinical_info_dict["Patientstatus"] = df_image["Patientstatus"].values[0]
+        # clinical_info_dict["cell_type"] = df_image["cell_type"].values[0]
+        # clinical_info_dict["class"] = df_image["class"].values[0]
         clinical_info_dict["cell_count"] = len(df_image)
     elif "METABRIC" in RAW_DATA_PATH:
         metabric_clinical_feat = ['SOM_nodes', 'pg_cluster', 'description',
@@ -174,7 +179,10 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
     with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_features.pickle'), 'wb') as handle:
         pickle.dump(np.array(df_image.drop(nonfeat_cols, axis=1)), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-            # save the feature vector as numpy array, first column is the cell id
+    with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_ct_class.pickle'), 'wb') as handle:
+        pickle.dump(df_image[["cell_type", "class"]].to_numpy(), handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
+    # save the feature vector as numpy array, first column is the cell id
     with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_coordinates.pickle'), 'wb') as handle:
         pickle.dump(points, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -194,7 +202,7 @@ def get_edge_length_dist(data_path,cell_count_thr, quant, plot_dist=False, PLOT_
     Returns:
         dict: A dictionary containing the image number as key and its corresponding edge length threshold as value.
     """
-    df_dataset = get_dataset_from_csv(data_path)
+    df_dataset = pd.read_csv(data_path)
     df_cell_count = get_cell_count_df(cell_count_thr,path=data_path)
     imgnum_edge_thr_dict = dict()
     all_edge_count_list = []
@@ -338,17 +346,17 @@ def data_processing_pipeline(data_path, CELL_COUNT_THR=CELL_COUNT_THR, GRAPH_DIV
     # TODO make this parametric
     from data_preparation import create_preprocessed_sc_feature_fl
     print("Creating compact dataset...")
-    create_preprocessed_sc_feature_fl()
+    # create_preprocessed_sc_feature_fl()
     print("Calculating edge length distribution....")
     get_edge_length_dist(data_path=data_path, cell_count_thr=CELL_COUNT_THR, quant= 0.975, plot_dist=False, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH)
     print("Calculating cell count distribution....")
     df_cell_count = get_cell_count_df(CELL_COUNT_THR, path=data_path)
-    third_quartile = int(np.quantile(df_cell_count["Cell Counts"], 0.75))
+    third_quartile = int(np.quantile(df_cell_count["Cell Counts"], 0.50))
 
     print("Creating graphs...")
     create_graphs_delauney_triangulation(cell_count_thr=CELL_COUNT_THR, GRAPH_DIV_THR=third_quartile, plot=True,RAW_DATA_PATH = RAW_DATA_PATH, data_path=data_path, PLOT_PATH=PLOT_PATH)
 
-# data_processing_pipeline("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw/basel_zurich_preprocessed_compact_dataset.csv")
+# data_processing_pipeline("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw/merged_preprocessed_dataset.csv")
 
 def data_processing_metabric_pipeline(data_path, CELL_COUNT_THR=CELL_COUNT_THR, GRAPH_DIV_THR=GRAPH_DIV_THR, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH):
     # TODO make this parametric

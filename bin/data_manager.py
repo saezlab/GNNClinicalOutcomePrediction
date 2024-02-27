@@ -6,7 +6,8 @@ from torch.utils.data import Subset
 # custom_tools.split_by_group()
 
 
-dataset = TissueDataset(os.path.join(".", "../data/METABRIC", "month"),  "month")
+dataset = TissueDataset(os.path.join(".", "../data/JacksonFischer", "month"),  "month")
+# dataset = TissueDataset(os.path.join(".", "../data/METABRIC", "month"),  "month")
 
 
 count = 0

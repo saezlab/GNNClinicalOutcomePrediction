@@ -20,7 +20,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.nn import PNAConv 
 from early_stopping import EarlyStopping
 
-custom_tools.set_seeds(seed=42)
+
 
 
 class trainer_tester:
@@ -33,8 +33,7 @@ class trainer_tester:
             parser_args (Namespace): Holds the arguments that came from parsing CLI
             setup_args (Namespace): Holds the arguments that came from setup
         """
-        
-        pl.seed_everything(42)
+        custom_tools.set_seeds(seed=42)
         self.parser_args = parser_args
         self.setup_args = setup_args
         self.set_device()
@@ -67,8 +66,6 @@ class trainer_tester:
         """Pulls data, creates samplers according to ratios, creates train, test and validation loaders for 
         each fold, saves them under the 'folds_dict' dictionary
         """
-        # self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data"))
-        # self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH,"../data/JacksonFischer/week"), "week")
         self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH, f"../data/{self.parser_args.dataset_name}", self.parser_args.unit),  self.parser_args.unit)
         # dataset = TissueDataset(os.path.join("../data/JacksonFischer/month"), "month")
 
@@ -104,7 +101,6 @@ class trainer_tester:
             self.dataset.data.y = custom_tools.convert_wLT(self.dataset.data.y,self.LT_ToIndex)
 
         self.dataset = self.dataset.shuffle()
-        # print("Dataset:",  self.dataset)
 
         self.fold_dicts = []
         deg = -1
@@ -142,7 +138,7 @@ class trainer_tester:
             deg = -1
 
             for fold, train_sampler, validation_sampler in self.samplers:
-                print("Creating k folds")
+                # print("Creating k folds")
                 train_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= train_sampler)
                 validation_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= validation_sampler)
                 # test_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= test_sampler)
@@ -168,43 +164,7 @@ class trainer_tester:
 
                 self.fold_dicts.append(fold_dict)
 
-                #if not self.setup_args.use_fold:
-                #    break
-            """self.samplers = custom_tools.k_fold_by_group(self.dataset,
-                T2VT_ratio=self.setup_args.T2VT_ratio,
-                V2T_ratio=self.setup_args.V2T_ratio)
-
-            deg = -1
-
-            for fold, train_sampler, validation_sampler, test_sampler in self.samplers:
-                train_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= train_sampler)
-                validation_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= validation_sampler)
-                test_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= test_sampler)
-
-                if self.parser_args.model == "PNAConv" or "MMAConv" or "GMNConv":
-                    deg = self.calculate_deg(train_sampler)
-                
-                model = self.set_model(deg)
-
-                optimizer = torch.optim.Adam(model.parameters(), lr=self.parser_args.lr, weight_decay=self.parser_args.weight_decay)
-                scheduler = ReduceLROnPlateau(optimizer, 'min', factor= self.parser_args.factor, patience=self.parser_args.patience, min_lr=self.parser_args.min_lr, verbose=True)
-
-                fold_dict = {
-                    "fold": fold,
-                    "train_loader": train_loader,
-                    "validation_loader": validation_loader,
-                    "test_loader": test_loader,
-                    "deg": deg,
-                    "model": model,
-                    "optimizer": optimizer,
-                    "scheduler": scheduler
-                }
-
-                self.fold_dicts.append(fold_dict)
-
-                if not self.setup_args.use_fold:
-                    break"""
-
+    
     def calculate_deg(self, train_sampler):
         """Calcualtes deg, which is necessary for some models
 
@@ -346,8 +306,9 @@ class trainer_tester:
         """
         self.results =[] 
         # collect train/val/test predictions of all folds in all_preds_df
-        all_preds_df = []
-        print(self.fold_dicts)
+        fold_val_ci = []
+
+        # print(self.fold_dicts)
         for fold_dict in self.fold_dicts:
             # print(fold_dict["model"])
             best_val_loss = np.inf
@@ -367,11 +328,13 @@ class trainer_tester:
                 fold_dict["scheduler"].step(validation_loss)
                 early_stopping(validation_loss, epoch_val_ci_score, fold_dict["model"], vars(self.parser_args), id_file_name=self.setup_args.id, deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None)
                 
-                pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Val c_index: {epoch_val_ci_score} Patience: {early_stopping.counter}")
+                # pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Val c_index: {epoch_val_ci_score} Patience: {early_stopping.counter}")
+                pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Best val. c_index: {early_stopping.best_eval_score} Patience: {early_stopping.counter}")
 
-                if early_stopping.early_stop:
+                if early_stopping.early_stop or epoch==self.parser_args.epoch-1:
                     print("Best model lr:", fold_dict["optimizer"].param_groups[0]["lr"])
                     self.parser_args.best_epoch = epoch
+                    fold_val_ci.append(early_stopping.best_eval_score)
                     print("Early stopping the training...")
                     break
 
@@ -380,6 +343,7 @@ class trainer_tester:
                 best_train_loss, df_train = self.test(best_model, fold_dict["train_loader"], fold_dict["fold"], "train", self.setup_args.plot_result)  # type: ignore
                 best_val_loss, df_val= self.test(best_model, fold_dict["validation_loader"], fold_dict["fold"], "validation", self.setup_args.plot_result)  # type: ignore
                 """
+        
             # best_test_loss, df_test = self.test(best_model, fold_dict["test_loader"], fold_dict["fold"], "test", self.setup_args.plot_result) # type: ignore
 
             
@@ -419,7 +383,11 @@ class trainer_tester:
             else:
                 # clean the bad performing models  
                 custom_tools.clean_session_files(result_fold_path=self.setup_args.RESULT_PATH, model_fold_path = self.setup_args.MODEL_PATH, model_id =self.setup_args.id, gnn_layer=self.parser_args.model)"""
-                
+        average_ci_score = sum(fold_val_ci)/len(fold_val_ci)
+        if average_ci_score > 0.60:
+            self.parser_args.ci_score = average_ci_score
+            custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
+            print(f"Average c_index: {sum(fold_val_ci)/len(fold_val_ci)}")
             
     
     def full_train_loop(self):

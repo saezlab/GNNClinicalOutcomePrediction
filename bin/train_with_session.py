@@ -64,6 +64,7 @@ else:
 
 
 setup_args.criterion = CoxPHLoss()
+# setup_args.criterion = NegativeLogLikelihood()
 setup_args.print_every_epoch = 10
 setup_args.plot_result = True
 

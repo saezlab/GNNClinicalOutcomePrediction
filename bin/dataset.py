@@ -14,7 +14,7 @@ from torch_geometric.data import InMemoryDataset, download_url
 import pytorch_lightning as pl
 
 
-custom_tools.set_seeds()
+
 
 
 S_PATH = os.path.realpath(__file__)
@@ -41,6 +41,7 @@ class TissueDataset(InMemoryDataset):
             transform (_type_, optional): _description_. Defaults to None.
             pre_transform (_type_, optional): _description_. Defaults to None.
         """
+        custom_tools.set_seeds(42)
         self.wanted_label = wanted_label
         self.unit = unit
         super().__init__(root, transform, pre_transform)
@@ -63,7 +64,7 @@ class TissueDataset(InMemoryDataset):
     def process(self):
         # Read data into huge `Data` list.
         self.data = pd.read_csv(os.path.join(self.root, "..", "raw", self.raw_file_names[0]))
-        
+        print(self.data)
         # GRAPH_DIV_THR
 
 
@@ -99,6 +100,10 @@ class TissueDataset(InMemoryDataset):
                         edge_index_arr, edge_length_arr = pickle.load(handle)
                         edge_index_arr = np.array(edge_index_arr)
 
+                    with open(os.path.join(self.root, "..", "raw", f'{img}_{pid}_ct_class.pickle'), 'rb') as handle:
+                        ct_class_arr = pickle.load(handle)
+                        ct_class_arr = np.array(ct_class_arr)
+                    
                     with open(os.path.join(self.root, "..", "raw", f'{img}_{pid}_coordinates.pickle'), 'rb') as handle:
                         coordinates_arr = pickle.load(handle)
                         coordinates_arr = np.array(coordinates_arr)
@@ -114,11 +119,11 @@ class TissueDataset(InMemoryDataset):
                             
                             
                             # print(clinical_info_dict)
-                            data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=y_val, osmonth=clinical_info_dict["OSmonth"], clinical_type=str(clinical_info_dict["clinical_type"]), treatment=clinical_info_dict["treatment"], disease_stage=clinical_info_dict["DiseaseStage"],  tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["diseasestatus"], dfs_month=clinical_info_dict["DFSmonth"], is_censored=censored) # ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["disease_status"], dfs_month=clinical_info_dict["DFSmonth"]
+                            data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=y_val, osmonth=clinical_info_dict["OSmonth"], clinical_type=str(clinical_info_dict["clinical_type"]), treatment=clinical_info_dict["treatment"], disease_stage=clinical_info_dict["DiseaseStage"],  tumor_grade=int(clinical_info_dict["grade"]), img_id=img, p_id=pid ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["diseasestatus"], dfs_month=clinical_info_dict["DFSmonth"], is_censored=censored, ct_class = ct_class_arr) # ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["disease_status"], dfs_month=clinical_info_dict["DFSmonth"]
                             # data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=np.log(clinical_info_dict["OSmonth"]*4+1.1), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid)
                             # data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=round(clinical_info_dict["OSmonth"]/12.0,3), osmonth=clinical_info_dict["OSmonth"], clinical_type=clinical_info_dict["clinical_type"], tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid)
                         else:
-                            data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=clinical_info_dict[self.wanted_label], osmonth=clinical_info_dict["OSmonth"], clinical_type=str(clinical_info_dict["clinical_type"]), treatment=clinical_info_dict["treatment"], disease_stage=clinical_info_dict["DiseaseStage"],  tumor_grade=clinical_info_dict["grade"], img_id=img, p_id=pid ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["diseasestatus"], dfs_month=clinical_info_dict["DFSmonth"], is_censored=censored) # ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["disease_status"], dfs_month=clinical_info_dict["DFSmonth"]
+                            data = Data(x=torch.from_numpy(feature_arr).type(torch.FloatTensor), edge_index=torch.from_numpy(edge_index_arr).type(torch.LongTensor).t().contiguous(), pos=torch.from_numpy(coordinates_arr).type(torch.FloatTensor), y=clinical_info_dict[self.wanted_label], osmonth=clinical_info_dict["OSmonth"], clinical_type=str(clinical_info_dict["clinical_type"]), treatment=clinical_info_dict["treatment"], disease_stage=clinical_info_dict["DiseaseStage"],  tumor_grade=int(clinical_info_dict["grade"]), img_id=img, p_id=pid ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["diseasestatus"], dfs_month=clinical_info_dict["DFSmonth"], is_censored=censored, ct_class = ct_class_arr) # ,age=clinical_info_dict["age"], disease_status=clinical_info_dict["disease_status"], dfs_month=clinical_info_dict["DFSmonth"]
                     
                     data_list.append(data)
                     count+=1
@@ -130,5 +135,7 @@ class TissueDataset(InMemoryDataset):
         if self.pre_transform is not None:
             data_list = [self.pre_transform(data) for data in data_list]
 
+
+        print("data_list[0]", data_list[0])
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])

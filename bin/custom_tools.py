@@ -107,7 +107,6 @@ def k_fold_by_group(dataset, n_of_folds=10, group_name="p_id"):
 
     for i, (train_idx, test_idx) in enumerate(group_kfold.split(X = df_dataset["tumor_grade"], groups = df_dataset[group_name])):
         
-        print(f"Fold {i}:")
         samplers.append((
             (i), # fold number
             (torch.utils.data.SubsetRandomSampler(train_idx)),
@@ -386,7 +385,7 @@ def general_parser() -> argparse.Namespace:
     parser.add_argument(
         '--num_of_ff_layers',
         type=int,
-        default=3,
+        default=2,
         metavar='NFFL',
         help='Number of FF layers (default: 2)')
         
@@ -971,12 +970,16 @@ def generate_splits(dataset_name):
 # generate_splits("METABRIC")
 
 
-def set_seeds(seed=42):
+def set_seeds(seed=42, deterministic = False):
     pl.seed_everything(seed)
     random.seed(seed)
-    # torch.use_deterministic_algorithms(True, warn_only=True)
-    # torch.backends.cudnn.deterministic = True
+    
     torch.manual_seed(seed)
-    # torch.cuda.manual_seed(seed)
-    # torch.backends.cudnn.benchmark = False
+    # 
     np.random.seed(seed)
+    if deterministic:
+        torch.use_deterministic_algorithms(True, warn_only=True)
+        torch.backends.cudnn.deterministic = True
+        torch.cuda.manual_seed(seed)
+        
+    

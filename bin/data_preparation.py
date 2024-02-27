@@ -210,7 +210,30 @@ def create_preprocessed_sc_feature_fl():
     cols = pd.read_csv(f_path, index_col=False, nrows=0).columns.tolist()
 
     cols_to_be_selected = ["ImageNumber",  "ObjectNumber", "Location_Center_X", "Location_Center_Y"]
+
+    df_ct_annotations = pd.read_csv(os.path.join(RAW_DATA_PATH, "Metacluster_annotations.csv"), sep=";")
+    metacluster_to_ct_class_dict = dict()
+    for ind, row in df_ct_annotations.iterrows():
+        metacluster_to_ct_class_dict[row["Metacluster "]] = row["Cell type"], row["Class"] # create a tuple first index is cell type, second index is class
     
+    
+    # This part is added later to add cell type annotations / it is a bit redundant and can be refactored later
+    # /net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/Basel_SC_locations.csv
+    imgcell_to_id_dict = dict()
+    sc_loc_dataset_fl_lst = ["Basel_SC_locations.csv", "Zurich_SC_locations.csv"]
+    for fl in sc_loc_dataset_fl_lst:
+        df_sc_locations = pd.read_csv(os.path.join(RAW_DATA_PATH, fl))
+        for ind, row in df_sc_locations.iterrows():
+            imgcell_to_id_dict[row["ImageNumber"], row["ObjectNumber"]] = row["id"] # create a tuple 0th index is cell type, 1st index is class 
+
+    cellid_2_metacluster_dict = dict()
+    sc_ct_annot_list = ["Basel_metaclusters.csv", "Zurich_matched_metaclusters.csv"]
+    for fl in sc_ct_annot_list:
+        df_sc_annot = pd.read_csv(os.path.join(RAW_DATA_PATH, fl))
+        for ind, row in df_sc_annot.iterrows():
+            cellid_2_metacluster_dict[row["id"]] = row["cluster"] # create a tuple 0th index is cell type, 1st index is class 
+    
+    # print(imgcell_to_id_dict.keys())
     # get channel ids to be kept
     dict_fullstackid_gene = get_basel_zurich_staining_panel()
     for col in cols:
@@ -232,15 +255,27 @@ def create_preprocessed_sc_feature_fl():
             print(f"Prossesing chunk #{i}... Chunk size: {ch_size}")
             chunks.append(chunk[cols_to_be_selected])
 
-            # print(chunks)
+            # print("chunks", chunks)
+            
             # remove the rows with cells from unwanted images
             chunks[-1]  = chunks[-1][~chunks[-1].ImageNumber.isin(img_numbers_to_be_ignored)]
             p_id_lst, grade_lst, tumor_size_lst, age_lst, treatment_lst, diseasestage_lst, diseasestatus_lst, clinical_type_lst, dfsmonth_lst, osmonth_lst, patientstatus_lst = [], [], [], [], [], [], [], [], [], [], [] 
+            ct_list, class_list = [], []
             fl_name_lst, img_number_lst = [], []
             
             for _, row in chunks[-1].iterrows():
                 fl_name, img_number,  p_id, grade, tumor_size, age, treatment, diseasestage, diseasestatus, clinical_type,  dfsmonth, osmonth, patientstatus = dict_imgnumber_pid[int(row["ImageNumber"])]
+                
                 p_id = str(p_id)+"-basel" if fl_name.startswith("Basel") else str(p_id)+"-zurich"
+
+                cell_type, class_name = "Unknown", "Unknown"
+                try:
+                    id = imgcell_to_id_dict[int(row["ImageNumber"]), int(row["ObjectNumber"])]
+                    meta_cluster_id = cellid_2_metacluster_dict[id]
+                    cell_type, class_name = metacluster_to_ct_class_dict[meta_cluster_id]
+                except:
+                    pass
+
                 p_id_lst.append(p_id)
                 grade_lst.append(grade)
                 tumor_size_lst.append(tumor_size)
@@ -253,6 +288,8 @@ def create_preprocessed_sc_feature_fl():
                 osmonth_lst.append(osmonth)# = row["OSmonth"]
                 patientstatus_lst.append(patientstatus)# = row["OSmonth"]
                 fl_name_lst.append(fl_name)
+                ct_list.append(cell_type)
+                class_list.append(class_name)
 
             
             chunks[-1]["PID"] = p_id_lst
@@ -267,6 +304,8 @@ def create_preprocessed_sc_feature_fl():
             chunks[-1]["OSmonth"] = osmonth_lst
             chunks[-1]["Patientstatus"] = patientstatus_lst
             chunks[-1]["fl_name"] = fl_name_lst
+            chunks[-1]["cell_type"] = ct_list
+            chunks[-1]["class"] = class_list
             
             i += 1
     
@@ -277,7 +316,7 @@ def create_preprocessed_sc_feature_fl():
     df_new_dataset[['ObjectNumber', "ImageNumber"]] = df_new_dataset[['ObjectNumber', "ImageNumber"]].astype(integer, )
 
     print(df_new_dataset)
-
+    
 
     # print(new_dataset.count())
     # print(new_dataset.size)  
@@ -286,7 +325,7 @@ def create_preprocessed_sc_feature_fl():
     print("Saving the compact dataset to ", os.path.join(RAW_DATA_PATH, "raw", "merged_preprocessed_dataset.csv"))
     df_new_dataset.to_csv(os.path.join(RAW_DATA_PATH, "raw", "merged_preprocessed_dataset.csv"), index=False)
 
-# create_preprocessed_sc_feature_fl()
+# create_preprocessed_sc_feature_fl()
 
 def generate_clinical_type(row):
         ER = row['ER Status']

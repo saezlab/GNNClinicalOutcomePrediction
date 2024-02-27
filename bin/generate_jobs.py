@@ -20,17 +20,17 @@ def generate_generic_job_commands(model_name, dataset_name, loss, unit, job_name
         "model": [model_name],
         "lr": [0.1, 0.01, 0.001, 0.0001],
         "bs": [16, 32, 64],
-        "dropout": [0.0, 0.1, 0.2, 0.3],
-        "epoch": [1000],
+        "dropout": [0.2, 0.3],
+        "epoch": [200],
         "num_of_gcn_layers": [2,3], # 
         "num_of_ff_layers": [1,2], # 
         "gcn_h": [16, 32, 64, 128],
-        "fcl": [64, 128, 256, 512],
-        "weight_decay": [0.1, 0.001, 0.0001, 3e-6, 1e-5],
+        "fcl": [64, 128, 256],
+        "weight_decay": [0.1, 0.001, 0.0001, 1e-5],
         #hyperparams for schedular
         # WARNING: Uncomment when schedular is used
         "factor": [0.5, 0.8, 0.2],
-        "patience": [10, 20],
+        "patience": [5, 10],
         "min_lr": [0.00002, 0.0001],
         #hyperparams for schedular
         # "aggregators": ["min", "max", "sum","mean", "sum max"], # ARBTR Find references
@@ -181,4 +181,6 @@ generate_generic_job_commands("PNAConv", "MSE", "week_lognorm", "PNA_MSE_week_lo
 # generate_generic_job_commands("GATV2", "CoxPHLoss", "month", "CoxPHLoss_month", "gpusaez")
 # generate_generic_job_commands("GATV2", "MSE", "month", "MSE_month")
 # python train_test_controller.py --model PNAConv --lr 0.001 --bs 32 --dropout 0.0 --epoch 20 --num_of_gcn_layers 2 --num_of_ff_layers 1 --gcn_h 128 --fcl 256 --en best_n_fold_17-11-2022 --weight_decay 0.0001 --factor 0.8 --patience 5 --min_lr 2e-05 --aggregators sum max --scalers amplification --no-fold --label OSMonth --loss CoxPHLoss
-generate_generic_job_commands("PNAConv", "METABRIC", "NegativeLogLikelihood", "month", "NegativeLogLikelihood_fixed_dataset", "gpusaez")
+# generate_generic_job_commands("PNAConv", "METABRIC", "NegativeLogLikelihood", "month", "NegativeLogLikelihood_fixed_dataset", "gpusaez")
+generate_generic_job_commands("PNAConv", "JacksonFischer", "CoxPHLoss", "month", "CoxPHLoss_10_fold", "gpusaez")
+# generate_generic_job_commands("GATV2", "JacksonFischer", "CoxPHLoss", "month", "CoxPHLoss_10_fold", "gpu")
