@@ -848,27 +848,39 @@ def split_by_group(dataset, random_state=42):
     train = trainval.iloc[train_inds]
     validation = trainval.iloc[val_inds]
 
-    """print(train)
-    print(validation)
-    print(test)
-    print(set(train["p_id"]))
-    print(set(validation["p_id"]))
-    print(set(test["p_id"]))
-    print(set(train["p_id"])&set(validation["p_id"]))
-    print(set(test["p_id"])&set(validation["p_id"]))
-    print(set(test["p_id"])&set(validation["p_id"]))
-    print("Split by group", set(train_inds)&set(test_inds), set(train_inds)&set(val_inds))"""
-
-    # print(train.index)
-    # print(validation.index)
-    # print(test.index)
-
     # print("Split by group dataframe", set(train.index)&set(validation.index), set(train.index)&set(test.index))
     assert len(set(train["p_id"])&set(validation["p_id"]))==0 and len(set(train["p_id"])&set(test["p_id"]))==0 and len(set(test["p_id"])&set(validation["p_id"]))==0
 
 
     return list(train.index), list(validation.index), list(test.index)
  
+
+def get_n_fold_split(dataset):
+    
+    json_fl = load_json("/home/rifaioglu/projects/GNNClinicalOutcomePrediction/models/JacksonFischer_Final/ZtT3bAfIBcLKFwDOMXgfwA_best.json")
+    # json_fl = load_json("/home/rifaioglu/projects/GNNClinicalOutcomePrediction/models/JacksonFischer_Final/jswXq05BE0Bx2c29gNGEMg.json")
+    lst_groups = []
+    for ind, item in enumerate(dataset):
+        lst_groups.append([item.p_id, item.img_id, item.clinical_type, item.tumor_grade, item.osmonth])
+
+    df_dataset = pd.DataFrame(lst_groups, columns=["p_id", "img_id", "clinical_type", "tumor_grade", "osmonth"])
+    
+
+    
+    # List to save sampler triplet
+    samplers = []
+
+    for fold in json_fl["fold_img_id_dict"]:
+        train_idx = list(df_dataset.loc[df_dataset.img_id.isin(json_fl["fold_img_id_dict"][fold][0]),:].index)
+        test_idx = list(df_dataset.loc[df_dataset.img_id.isin(json_fl["fold_img_id_dict"][fold][1]),:].index)
+    
+        samplers.append((
+                (fold), # fold number
+                (torch.utils.data.SubsetRandomSampler(train_idx)),
+                (torch.utils.data.SubsetRandomSampler(test_idx))))
+
+
+    return samplers
 
 def get_train_val_test_split_by_pid(dataset, dataset_name):
     import pandas as pd
@@ -964,10 +976,6 @@ def generate_splits(dataset_name):
         plt.savefig(f"../plots/regression_split/{dataset_name}_{i}_rest.png")
         plt.close()
         df_ann_dataset.to_csv(f"../plots/regression_split/{dataset_name}_{i}_rest.csv")
-
-
-# generate_splits("JacksonFischer")
-# generate_splits("METABRIC")
 
 
 def set_seeds(seed=42, deterministic = False):

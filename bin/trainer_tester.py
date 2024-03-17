@@ -14,6 +14,8 @@ from evaluation_metrics import r_squared_score, mse, rmse, mae
 import custom_tools
 import csv
 import statistics
+import seaborn as sns
+
 import pytorch_lightning as pl
 from eval import concordance_index
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -133,15 +135,26 @@ class trainer_tester:
 
         
         else:
-            self.samplers = custom_tools.k_fold_by_group(self.dataset)
+            # self.samplers = custom_tools.k_fold_by_group(self.dataset)
+            self.samplers = custom_tools.get_n_fold_split(self.dataset)
 
             deg = -1
 
+            self.parser_args.fold_img_id_dict = dict()
             for fold, train_sampler, validation_sampler in self.samplers:
-                # print("Creating k folds")
+                # print("Creating k folds", fold, train_sampler.ids)
                 train_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= train_sampler)
                 validation_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= validation_sampler)
                 # test_loader = DataLoader(self.dataset, batch_size=self.parser_args.bs, sampler= test_sampler)
+                
+                train_img_ids = []
+                val_img_ids = []
+                for data in train_loader:
+                    train_img_ids.extend(data.img_id)
+                for data in validation_loader:
+                    val_img_ids.extend(data.img_id)
+
+                self.parser_args.fold_img_id_dict[f"fold_{fold}"] = [train_img_ids, val_img_ids]
 
                 if self.parser_args.model == "PNAConv" or "MMAConv" or "GMNConv":
                     deg = self.calculate_deg(train_sampler)
@@ -163,7 +176,7 @@ class trainer_tester:
                 }
 
                 self.fold_dicts.append(fold_dict)
-
+            # print(self.parser_args.fold_img_id_dict)
     
     def calculate_deg(self, train_sampler):
         """Calcualtes deg, which is necessary for some models
@@ -316,13 +329,13 @@ class trainer_tester:
 
             print(f"########## Fold :  {fold_dict['fold']} ########## ")
             for epoch in (pbar := tqdm(range(self.parser_args.epoch), disable=False)):
-
+    
                 self.train(fold_dict)
                 train_loss = self.test(fold_dict["model"], fold_dict["train_loader"],  fold_dict["fold"])
                 validation_loss, df_epoch_val = self.test(fold_dict["model"], fold_dict["validation_loader"],  fold_dict["fold"], "validation", self.setup_args.plot_result)
                 # test_loss, df_epoch_test = self.test(fold_dict["model"], fold_dict["test_loader"],  fold_dict["fold"], "test", self.setup_args.plot_result)
                 
-                epoch_val_ci_score = concordance_index(df_epoch_val['OS Month'], -df_epoch_val['Predicted'], df_epoch_val["Censored"]) if self.parser_args.loss=="NegativeLogLikelihood" else concordance_index(df_epoch_val['OS Month'], df_epoch_val['Predicted'], df_epoch_val["Censored"])
+                epoch_val_ci_score = concordance_index(df_epoch_val['OS Month'], -df_epoch_val['Predicted'], df_epoch_val["Censored"]) if self.parser_args.loss=="NegativeLogLikelihood" else concordance_index(df_epoch_val['OS Month'], -df_epoch_val['Predicted'], df_epoch_val["Censored"])
                 # epoch_test_ci_score = concordance_index(df_epoch_test['OS Month'], -df_epoch_test['Predicted'], df_epoch_test["Censored"]) if self.parser_args.loss=="NegativeLogLikelihood" else concordance_index(df_epoch_test['OS Month'], df_epoch_test['Predicted'], df_epoch_test["Censored"])
             
                 fold_dict["scheduler"].step(validation_loss)
@@ -388,7 +401,10 @@ class trainer_tester:
             self.parser_args.ci_score = average_ci_score
             custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
             print(f"Average c_index: {sum(fold_val_ci)/len(fold_val_ci)}")
-            
+            box_plt = sns.boxplot(data=fold_val_ci)
+            fig = box_plt.get_figure()
+            fig.savefig(os.path.join(self.setup_args.PLOT_PATH, f"{self.setup_args.id}.png"))
+    
     
     def full_train_loop(self):
         """Training and testing occurs under this function. 
@@ -416,7 +432,10 @@ class trainer_tester:
         train_loss, df_train = self.test(fold_dict["model"], fold_dict["train_loader"], fold_dict["fold"], "train", self.setup_args.plot_result)
         # best_test_loss, df_test = self.test(best_model, fold_dict["test_loader"], fold_dict["fold"], "test", self.setup_args.plot_result) # type: ignore
 
-        if self.label_type == "regression":
+        if self.label_type == "regression" and self.parser_args.loss == "CoxPHLoss":
+            ci_score = concordance_index(df_train['OS Month'], -df_train['Predicted'], df_train["Censored"])
+
+        elif self.label_type == "regression":
             ci_score = concordance_index(df_train['OS Month'], -df_train['Predicted'], df_train["Censored"])
             r2_score = r_squared_score(df_train['True Value'], df_train['Predicted'])
             mse_score = mse(df_train['True Value'], df_train['Predicted'])
@@ -429,16 +448,27 @@ class trainer_tester:
 
         all_preds_df = df_train
         
-        if self.label_type == "regression": 
+
+        if self.label_type == "regression" and self.parser_args.loss == "CoxPHLoss":
+            self.results.append([fold_dict['fold'], round(100000, 4), round(100000, 4), round(100000, 4), ci_score])
+
+        elif self.label_type == "regression": 
             self.results.append([fold_dict['fold'], round(100000, 4), round(100000, 4), round(100000, 4), r2_score, mse_score, rmse_score])
         
         elif self.label_type == "classification":
             self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, accuracy_Score, precision_Score, f1_Score])
 
         print("Train ci score", ci_score)
-        # print("All folds val r2 score:", all_fold_val_r2_score)
-    
-        if  (self.label_type == "regression"):
+        print(self.label_type, self.parser_args.loss)
+        if  (self.label_type == "regression") and self.parser_args.loss == "CoxPHLoss":
+            self.parser_args.ci_score = ci_score
+            custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
+            if not self.parser_args.fold:
+                custom_tools.save_model(model=self.fold_dicts[0]["model"], fileName=self.setup_args.id, mode="SD", path=self.setup_args.MODEL_PATH)
+                if self.parser_args.model == "PNAConv":
+                    custom_tools.save_pickle(self.fold_dicts[0]["deg"], f"{self.setup_args.id}_deg.pckl", self.setup_args.MODEL_PATH)
+
+        elif  (self.label_type == "regression"):
             # plotting.plot_pred_vs_real(all_preds_df, self.parser_args.en, self.setup_args.id, full_training=True)
             all_preds_df.to_csv(os.path.join(self.setup_args.RESULT_PATH, f"{self.setup_args.id}.csv"), index=False)
             self.save_results()

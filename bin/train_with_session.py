@@ -20,11 +20,17 @@ args = parser.parse_args()"""
 
 # WCSTZwu7iVXlw-_9NvOqIw
 t_args = argparse.Namespace()
-json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/YyroGgMa_H4xn_ctP3C5Zw.json")
+"""json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/YyroGgMa_H4xn_ctP3C5Zw.json")
 json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/FaAGmroaSN1zzkKthzk-cQ.json")
 json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/WCSTZwu7iVXlw-_9NvOqIw.json")
-json_fl = open("../models/GATV2_NegativeLogLikelihood_fixed_dataset_13-12-2023/V05lYbfqzxjRjenrPbsplg.json")
-json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/YyroGgMa_H4xn_ctP3C5Zw.json")
+json_fl = open("../models/GATV2_NegativeLogLikelihood_fixed_dataset_13-12-2023/V05lYbfqzxjRjenrPbsplg.json")"""
+# json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/YyroGgMa_H4xn_ctP3C5Zw.json")
+json_fl = open("../models/JacksonFischer_Final/ZtT3bAfIBcLKFwDOMXgfwA_best.json")
+# json_fl = open("../models/JacksonFischer_Final/FaX6TFVflduRtbuFdWSkYA.json")
+# json_fl = open("../models/JacksonFischer_Final/O3CFsgYHQzTq__95Ozw_dQ.json")
+# ZtT3bAfIBcLKFwDOMXgfwA
+# O3CFsgYHQzTq__95Ozw_dQ
+# FaX6TFVflduRtbuFdWSkYA
 
 t_args.__dict__.update(json.load(json_fl))
 parser_args = parser.parse_args(namespace=t_args)
@@ -36,6 +42,7 @@ setup_args.id = custom_tools.generate_session_id()
 print(f"Session id: {setup_args.id}")
 
 setup_args.S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
+parser_args.en = "JacksonFischer_Final"
 # setup_args.OUT_DATA_PATH = os.path.join(setup_args.S_PATH, "../data", "out_data", parser_args.en)
 setup_args.RESULT_PATH = os.path.join(setup_args.S_PATH, "../results", "idedFiles", parser_args.en)
 setup_args.PLOT_PATH = os.path.join(setup_args.S_PATH, "../plots", parser_args.en)
@@ -61,16 +68,18 @@ elif parser_args.loss== "NegativeLogLikelihood":
 else:
     raise Exception("Loss function should be MSE, Huber, CoxPHLoss or NegativeLogLikelihood...")
 
+parser_args.en = "JacksonFischer_Final"
 
 setup_args.criterion = CoxPHLoss()
+parser_args.loss = "CoxPHLoss"
 # setup_args.criterion = NegativeLogLikelihood()
 setup_args.print_every_epoch = 10
 setup_args.plot_result = True
 
-# parser_args.full_training = True
+parser_args.full_training = True
 parser_args.patience = 10
 parser_args.dataset_name = "JacksonFischer"
-# parser_args.epoch = 36
-print(parser_args)
+parser_args.epoch = 40
+# print(parser_args)
 # Object can be saved if wanted
 trainer_tester(parser_args, setup_args)
