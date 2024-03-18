@@ -13,7 +13,7 @@ import json
 
 parser = argparse.ArgumentParser()
 
-custom_tools.set_seeds(seed=42)
+custom_tools.set_seeds(seed=42, deterministic=True)
 """parser_args = custom_tools.general_parser()
 setup_args = SimpleNamespace()
 args = parser.parse_args()"""
@@ -76,7 +76,7 @@ parser_args.loss = "CoxPHLoss"
 setup_args.print_every_epoch = 10
 setup_args.plot_result = True
 
-parser_args.full_training = True
+parser_args.full_training = False
 parser_args.patience = 10
 parser_args.dataset_name = "JacksonFischer"
 parser_args.epoch = 40

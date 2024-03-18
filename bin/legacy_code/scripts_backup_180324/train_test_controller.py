@@ -9,7 +9,9 @@ from loss import CoxPHLoss, NegativeLogLikelihood
 from trainer_tester import trainer_tester
 
 
-custom_tools.set_seeds(42, deterministic=True)
+
+
+custom_tools.set_seeds(42)
 parser_args = custom_tools.general_parser()
 setup_args = SimpleNamespace()
 
@@ -25,8 +27,8 @@ setup_args.MODEL_PATH = os.path.join(setup_args.S_PATH, "../models", parser_args
 
 custom_tools.create_directories([setup_args.RESULT_PATH, setup_args.PLOT_PATH, setup_args.MODEL_PATH])
 
-# setup_args.T2VT_ratio = 4
-# setup_args.V2T_ratio = 1
+setup_args.T2VT_ratio = 4
+setup_args.V2T_ratio = 1
 setup_args.use_fold = parser_args.fold
 
 

@@ -7,145 +7,35 @@ from torch_geometric import utils
 import plotting as plotting
 from tqdm import tqdm   
 import matplotlib.pyplot as plt
-from torch_geometric.explain import Explainer, GNNExplainer
+import torch_geometric as pyg
+from explainer import GNNExplainer
+from explainer_base import GNNExplainer
+import largest_connected_component
 from data_processing import OUT_DATA_PATH
-import anndata as ad
+import networkx as nx
 import pytorch_lightning as pl
 
 
 device = custom_tools.get_device()
-
 S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 OUT_DATA_PATH = os.path.join(S_PATH, "../data", "out_data")
-# RAW_DATA_PATH = os.path.join(S_PATH, "../data", "JacksonFischer/raw")
-# RAW_DATA_PATH = os.path.join(S_PATH, "../data", "METABRIC/raw")
+RAW_DATA_PATH = os.path.join(S_PATH, "../data", "raw")
 
     
-class Custom_Explainer:
+class Explainer:
  
     # init method or constructor
-    def __init__(self, model, dataset_name, dataset, exp_name, job_id, seed=42):
+    def __init__(self, model,dataset = None, seed=42):
 
         if seed!=42:
             pl.seed_everything(seed)
         self.seed = seed
         self.model = model
         self.dataset = dataset
-        self.dataset_name = dataset_name
-        self.exp_name = exp_name
-        self.job_id = job_id
-        self.RAW_DATA_PATH = os.path.join(S_PATH, "../data", f"{dataset_name}/raw")
 
 
     def set_dataset(self, dataset):
         self.dataset = dataset
-
-    
-    def explain(self,lr: float=0.1,  epoch: int=100, return_type: str = "regression", feat_mask_type: str = "feature"):
-        
-        
-        gene_list = custom_tools.get_gene_list()
-        print(gene_list)
-        adata_concat = []
-        count = 0
-        for test_graph in tqdm(self.dataset):
-
-            explainer = Explainer(
-            model=self.model,
-            algorithm=GNNExplainer(epochs=200),
-            explanation_type='model',
-            node_mask_type='attributes',
-            edge_mask_type='object',
-            model_config=dict(
-                mode='regression',
-                task_level='graph',
-                return_type='raw', 
-            ),
-            )
-            with open(os.path.join(self.RAW_DATA_PATH, f'{test_graph.img_id}_{test_graph.p_id}_coordinates.pickle'), 'rb') as handle:
-                coordinates_arr = pickle.load(handle)
-        
-            # Generate the explanation for a particular graph:
-            explanation = explainer(test_graph.x, test_graph.edge_index)
-            # print("Edge mask:", explanation.edge_mask)
-            # print("Node mask:", explanation.node_mask)
-            edge_value_mask = explanation.edge_mask
-            quant_thr = 0.80
-            
-            genename_to_nodeid_dict = dict()
-
-            for col_ind, gene_name in enumerate(gene_list):
-                genename_to_nodeid_dict[gene_name] = dict()
-                for node_id, val in enumerate(test_graph.x[:,col_ind]):
-                    genename_to_nodeid_dict[gene_name][node_id] = val.item()
-            
-        
-            edge_exp_score_mask_arr = np.array(edge_value_mask.cpu())
-
-
-            edge_thr = np.quantile(np.array(edge_value_mask.cpu()), quant_thr)
-
-            print(f"Edge thr: {edge_thr:.3f}\tMin: {np.min(edge_exp_score_mask_arr)}\tMax: {np.max(edge_exp_score_mask_arr):.3f}\tMin: {np.min(edge_exp_score_mask_arr):.3f}")
-            
-
-            exp_edges_bool = edge_exp_score_mask_arr > edge_thr
-
-            explained_edge_indices = exp_edges_bool.nonzero()[0]
-
-            """for ind, val in enumerate(exp_edges_bool):
-                if val:
-                    print(val, edge_exp_score_mask_arr[ind])"""
-            # print(edge_exp_score_mask_arr)
-            # print(list(set(range(len(edge_value_mask)))- set(explained_edge_indices)))
-            np.put(edge_exp_score_mask_arr, list(set(range(len(edge_value_mask)))- set(explained_edge_indices)), 0.0)
-
-
-            edgeid_to_mask_dict = dict()
-            for ind, m_val in enumerate(edge_exp_score_mask_arr):
-                # print(ind, m_val, exp_edges_bool[ind], edge_value_mask[ind], edge_thr)
-                node_id1, node_id2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
-                edgeid_to_mask_dict[(node_id1, node_id2)] = m_val.item()
-            
-            
-            n_of_hops = 2   
-            # TODO: Check if the scores are calculated over the ccs
-            plt.rcParams['figure.figsize'] = 10, 10
-            node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops)
-
-            adata = custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict, dataset_name=self.dataset_name)
-            # print(adata.obs["importance_hard"])
-            # print("obs_names", adata.obs_names)
-            # print("var_names", adata.var_names)
-            adata_concat.append(adata)
-            # print(adata_concat)
-            plt.rcParams['figure.figsize'] = 45, 15
-            fig, axs = plt.subplots(1, 3)
-            plotting.plot_graph(test_graph, coordinates_arr, axs[0], font_size=5,  node_size=100, width=1)
-            plotting.plot_node_importances(test_graph, coordinates_arr, node_to_score_dict,  axs[2], node_size=100, width=1)
-            plotting.plot_node_importances_voronoi(test_graph, coordinates_arr, node_to_score_dict,  axs[1])
-            # plotting.plot_node_importances_voronoi(test_graph, coordinates_arr,  genename_to_nodeid_dict[gene_list[0]],  axs[0][3], title=gene_list[0], cmap=plt.cm.GnBu)
-
-            """cols = 4
-            for ind,val in enumerate(gene_list[1:]):
-                fig_row, fig_col = int(ind/cols), ind%cols
-                plotting.plot_node_importances_voronoi(test_graph, coordinates_arr,  genename_to_nodeid_dict[gene_list[ind+1]],  axs[fig_row+1][fig_col], title=gene_list[ind+1], cmap=plt.cm.GnBu)"""
-
-
-            fig.savefig( os.path.join("../plots/explanations", self.dataset_name, f"{self.exp_name}_{self.job_id}", f"{test_graph.img_id}_{test_graph.p_id}_{str(int(test_graph.osmonth))}_{test_graph.clinical_type}"))
-            plt.close()
-            count +=1
-
-        
-            #if count ==3:
-            #   break
-
-        print(adata_concat)
-        
-        adata = ad.concat(adata_concat)
-        print(adata)
-        adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"{self.dataset_name}_{self.exp_name}_{self.job_id}_concatenated_explanations.h5ad"))
-
-
 
     def explain_by_gnnexplainer(self,lr: float=0.1,  epoch: int=100, return_type: str = "regression", feat_mask_type: str = "feature"):
         """
@@ -213,8 +103,8 @@ class Custom_Explainer:
             plt.rcParams['figure.figsize'] = 10, 10
             node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops)
 
-            adata = custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict)
-            # adata_concat.append(adata)
+            custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict)
+            adata_concat.append(adata)
             
             plt.rcParams['figure.figsize'] = 50, 100
             fig, axs = plt.subplots(9, 4)
@@ -239,6 +129,15 @@ class Custom_Explainer:
         # adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"concatenated_explanations.h5ad"))
 
         
+
+            
+            
+
+    def explain_by_lime(self, epoch, return_type, feat_mask_type):
+        ## TODO: Include lime implementation 
+        return
+
+
 
 
 

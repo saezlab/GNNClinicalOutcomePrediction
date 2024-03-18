@@ -35,7 +35,7 @@ class trainer_tester:
             parser_args (Namespace): Holds the arguments that came from parsing CLI
             setup_args (Namespace): Holds the arguments that came from setup
         """
-        custom_tools.set_seeds(seed=42, deterministic=True)
+        custom_tools.set_seeds(seed=42)
         self.parser_args = parser_args
         self.setup_args = setup_args
         self.set_device()
@@ -168,6 +168,7 @@ class trainer_tester:
                     "fold": fold,
                     "train_loader": train_loader,
                     "validation_loader": validation_loader,
+                    # "test_loader": test_loader,
                     "deg": deg,
                     "model": model,
                     "optimizer": optimizer,
@@ -350,6 +351,51 @@ class trainer_tester:
                     print("Early stopping the training...")
                     break
 
+                """
+                best_model = custom_tools.load_model(f"{self.setup_args.id}_SD", path = self.setup_args.MODEL_PATH, model_type = "SD", args = vars(self.parser_args), deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None, device=self.device).to(self.device)
+                best_train_loss, df_train = self.test(best_model, fold_dict["train_loader"], fold_dict["fold"], "train", self.setup_args.plot_result)  # type: ignore
+                best_val_loss, df_val= self.test(best_model, fold_dict["validation_loader"], fold_dict["fold"], "validation", self.setup_args.plot_result)  # type: ignore
+                """
+        
+            # best_test_loss, df_test = self.test(best_model, fold_dict["test_loader"], fold_dict["fold"], "test", self.setup_args.plot_result) # type: ignore
+
+            
+            """scores_dict = dict()
+            if self.label_type == "regression" and self.parser_args.loss=="CoxPHLoss":
+                fold_train_ci_score = concordance_index(df_train['OS Month'], df_train['Predicted'], df_train["Censored"])
+                fold_val_ci_score = concordance_index(df_val['OS Month'], df_val['Predicted'], df_val["Censored"])
+                # fold_test_ci_score = concordance_index(df_test['OS Month'], df_test['Predicted'], df_test["Censored"])
+                scores_dict["fold_train_ci_score"] = fold_train_ci_score
+                scores_dict["fold_val_ci_score"] = fold_val_ci_score
+                # scores_dict["fold_test_ci_score"] = fold_test_ci_score
+
+            elif self.label_type == "regression" and self.parser_args.loss=="NegativeLogLikelihood":
+                fold_train_ci_score = concordance_index(df_train['OS Month'], -df_train['Predicted'], df_train["Censored"])
+                fold_val_ci_score = concordance_index(df_val['OS Month'], -df_val['Predicted'], df_val["Censored"])
+                # fold_test_ci_score = concordance_index(df_test['OS Month'], -df_test['Predicted'], df_test["Censored"])
+                scores_dict["fold_train_ci_score"] = fold_train_ci_score
+                scores_dict["fold_val_ci_score"] = fold_val_ci_score
+                # scores_dict["fold_test_ci_score"] = fold_test_ci_score
+                print(fold_train_ci_score, fold_val_ci_score) # , fold_test_ci_score)
+
+            # fold_tvt_preds_df = pd.concat([df_train, df_val, df_test])
+            fold_tvt_preds_df = pd.concat([df_train, df_val])
+            
+            all_preds_df = None
+            # populate all_preds_df with the first fold predictions
+            if fold_dict["fold"] == 1:
+                all_preds_df = fold_tvt_preds_df
+            else:
+                all_preds_df = pd.concat([all_preds_df, fold_tvt_preds_df])
+
+            all_preds_df.to_csv(os.path.join(self.setup_args.RESULT_PATH, f"{self.setup_args.id}.csv"), index=False)
+            # TODO: Remove this after production
+            if scores_dict["fold_val_ci_score"] > 0.60:
+                custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
+                all_preds_df.to_csv(os.path.join(self.setup_args.RESULT_PATH, f"{self.setup_args.id}.csv"), index=False)
+            else:
+                # clean the bad performing models  
+                custom_tools.clean_session_files(result_fold_path=self.setup_args.RESULT_PATH, model_fold_path = self.setup_args.MODEL_PATH, model_id =self.setup_args.id, gnn_layer=self.parser_args.model)"""
         average_ci_score = sum(fold_val_ci)/len(fold_val_ci)
         if average_ci_score > 0.60:
             self.parser_args.ci_score = average_ci_score
@@ -381,6 +427,7 @@ class trainer_tester:
 
             if (epoch % self.setup_args.print_every_epoch) == 0:
                 print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}')
+
 
         train_loss, df_train = self.test(fold_dict["model"], fold_dict["train_loader"], fold_dict["fold"], "train", self.setup_args.plot_result)
         # best_test_loss, df_test = self.test(best_model, fold_dict["test_loader"], fold_dict["fold"], "test", self.setup_args.plot_result) # type: ignore
