@@ -857,7 +857,7 @@ def split_by_group(dataset, random_state=42):
 
 def get_n_fold_split(dataset):
     
-    json_fl = load_json("/home/rifaioglu/projects/GNNClinicalOutcomePrediction/data/JacksonFischer/folds.json")
+    json_fl = load_json("../data/JacksonFischer/folds.json")
     # json_fl = load_json("/home/rifaioglu/projects/GNNClinicalOutcomePrediction/models/JacksonFischer_Final/jswXq05BE0Bx2c29gNGEMg.json")
     lst_groups = []
     for ind, item in enumerate(dataset):

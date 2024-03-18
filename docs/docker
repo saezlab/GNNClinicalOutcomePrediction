@@ -2,4 +2,6 @@
 Run this under docker file folder
 docker build -t py_gem_nvdia:py_gem .
 docker run --gpus all -it --rm py_gem_nvdia:py_gem
-docker cp /home/rifaioglu/projects/GNNClinicalOutcomePrediction/models/JacksonFischer_Final/ZtT3bAfIBcLKFwDOMXgfwA_best.json  f39899e15c44:/GNNClinicalOutcomePrediction/models/JacksonFischer_Final
+docker cp /home/rifaioglu/projects/GNNClinicalOutcomePrediction/models/JacksonFischer_Final/ZtT3bAfIBcLKFwDOMXgfwA_best.json  463c9797d7b5:/GNNClinicalOutcomePrediction/models/JacksonFischer_Final
+docker cp /home/rifaioglu/projects/GNNClinicalOutcomePrediction/data/JacksonFischer/month/  463c9797d7b5:/GNNClinicalOutcomePrediction/data/JacksonFischer/
+docker cp /home/rifaioglu/projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw/  463c9797d7b5:/GNNClinicalOutcomePrediction/data/JacksonFischer/
