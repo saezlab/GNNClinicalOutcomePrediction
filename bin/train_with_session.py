@@ -9,6 +9,9 @@ from types import SimpleNamespace
 from loss import CoxPHLoss, NegativeLogLikelihood
 from trainer_tester import trainer_tester
 import json
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 parser = argparse.ArgumentParser()
@@ -25,7 +28,7 @@ json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/FaAGmroaS
 json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/WCSTZwu7iVXlw-_9NvOqIw.json")
 json_fl = open("../models/GATV2_NegativeLogLikelihood_fixed_dataset_13-12-2023/V05lYbfqzxjRjenrPbsplg.json")"""
 # json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/YyroGgMa_H4xn_ctP3C5Zw.json")
-json_fl = open("../models/JacksonFischer_Final/ZtT3bAfIBcLKFwDOMXgfwA_best.json")
+json_fl = open("../models/JacksonFischer/model_hyperparams.json")
 # json_fl = open("../models/JacksonFischer_Final/FaX6TFVflduRtbuFdWSkYA.json")
 # json_fl = open("../models/JacksonFischer_Final/O3CFsgYHQzTq__95Ozw_dQ.json")
 # ZtT3bAfIBcLKFwDOMXgfwA
@@ -68,7 +71,7 @@ elif parser_args.loss== "NegativeLogLikelihood":
 else:
     raise Exception("Loss function should be MSE, Huber, CoxPHLoss or NegativeLogLikelihood...")
 
-parser_args.en = "JacksonFischer_Final"
+parser_args.en = "JacksonFischer"
 
 setup_args.criterion = CoxPHLoss()
 parser_args.loss = "CoxPHLoss"
