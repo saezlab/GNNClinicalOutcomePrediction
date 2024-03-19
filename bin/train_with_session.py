@@ -13,9 +13,19 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-
-parser = argparse.ArgumentParser()
 custom_tools.set_seeds(seed=42, deterministic=True)
+parser = argparse.ArgumentParser()
+parser.add_argument(
+        '--full_training',
+        type= bool,
+        action=argparse.BooleanOptionalAction,
+        default= False,
+        metavar='F',
+        help='Perform full_training, default: --no-full_training (--full_training, --no-full_training),')
+
+
+# args = vars(parser.parse_args())
+
 
 
 # WCSTZwu7iVXlw-_9NvOqIw
@@ -33,7 +43,11 @@ json_fl = open("../models/JacksonFischer/model_hyperparams.json")
 # FaX6TFVflduRtbuFdWSkYA
 
 t_args.__dict__.update(json.load(json_fl))
+# print("t_args", t_args)
 parser_args = parser.parse_args(namespace=t_args)
+
+args = vars(parser.parse_args())
+full_training = args['full_training']
 
 setup_args = SimpleNamespace()
 setup_args.id = custom_tools.generate_session_id()
@@ -68,7 +82,7 @@ parser_args.loss = "CoxPHLoss"
 setup_args.print_every_epoch = 10
 setup_args.plot_result = True
 
-parser_args.full_training = False
+parser_args.full_training = full_training
 parser_args.patience = 10
 parser_args.dataset_name = "JacksonFischer"
 parser_args.epoch = 40
