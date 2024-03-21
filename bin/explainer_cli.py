@@ -26,8 +26,7 @@ class Custom_Explainer:
     # init method or constructor
     def __init__(self, model, dataset_name, dataset, exp_name, job_id, seed=42):
 
-        if seed!=42:
-            pl.seed_everything(seed)
+        custom_tools.set_seeds(seed, deterministic=True)
         self.seed = seed
         self.model = model
         self.dataset = dataset

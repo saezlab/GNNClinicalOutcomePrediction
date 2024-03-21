@@ -107,15 +107,15 @@ with open(os.path.join(RAW_DATA_PATH, f'{test_graph.img_id}_{test_graph.p_id}_co
 # plotting.plot_khop(test_dataset[0], "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr,)
 
 
-random_seed_list = [42] # , 21, 1, 12, 123, 1234, 2, 23, 234, 2345]
+random_seed = 42 # , 21, 1, 12, 123, 1234, 2, 23, 234, 2345]
 all_edges_list = []
-for random_seed in random_seed_list:
-    explainer = Custom_Explainer(model, args.dataset_name, dataset, args.exp_name, args.job_id, seed=random_seed)
+custom_tools.set_seeds(seed=42, deterministic=True)
+explainer = Custom_Explainer(model, args.dataset_name, dataset, args.exp_name, args.job_id, seed=random_seed)
 
-    pl.seed_everything(random_seed)
-    for lr in [0.1]:# , 0.01, 0.001, 0.0001]:
-        edge_idx = explainer.explain(epoch=100, lr=lr)
-        # all_edges_list.append([val.item() for val in list(edge_idx.cpu())])"""
+
+for lr in [0.1]:# , 0.01, 0.001, 0.0001]:
+    edge_idx = explainer.explain(epoch=100, lr=lr)
+    # all_edges_list.append([val.item() for val in list(edge_idx.cpu())])"""
 """
 import pickle
 result = np.logical_and.reduce(all_edges_list)
