@@ -143,7 +143,7 @@ class Custom_Explainer:
         
         adata = ad.concat(adata_concat)
         print(adata)
-        adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"{self.dataset_name}_{self.exp_name}_{self.job_id}_concatenated_explanations.h5ad"))
+        adata.write(os.path.join(OUT_DATA_PATH, "adatafiles", f"{self.exp_name}_{self.job_id}_concatenated_explanations.h5ad"))
 
 
 

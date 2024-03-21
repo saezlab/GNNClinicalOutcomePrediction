@@ -88,10 +88,11 @@ model = custom_tools.load_model(f"{args.job_id}_SD", path = f"../models/{args.ex
 dataset = TissueDataset(os.path.join(f"../data/{args.dataset_name}", "month"),  "month")
 
 Path( os.path.join("../plots/explanations", args.dataset_name, f"{args.exp_name}_{args.job_id}") ).mkdir(parents=True, exist_ok=True)
+Path("../data/out_data/adatafiles" ).mkdir(parents=True, exist_ok=True)
 # dataset = TissueDataset(os.path.join(S_PATH,"../data/JacksonFischer/basel_zurich_preprocessed_compact_dataset.csv"))
 
 dataset = dataset.shuffle()
-
+"""
 num_of_train = int(len(dataset)*0.80)
 num_of_val = int(len(dataset)*0.10)
 
@@ -101,7 +102,7 @@ test_dataset = dataset[num_of_train+num_of_val:]
 
 test_graph = test_dataset[0]
 with open(os.path.join(RAW_DATA_PATH, f'{test_graph.img_id}_{test_graph.p_id}_coordinates.pickle'), 'rb') as handle:
-    coordinates_arr = pickle.load(handle)
+    coordinates_arr = pickle.load(handle)"""
 
 # plotting.plot_khop(test_dataset[0], "../plots/subgraphs", f"{test_graph.img_id}_{test_graph.p_id}", coordinates_arr,)
 
@@ -129,3 +130,6 @@ print(np.unique(result, return_counts=True))
 # python explain_driver.py --dataset_name JacksonFischer --exp_name "GATV2_NegativeLogLikelihood_month_04-12-2023" --job_id YyroGgMa_H4xn_ctP3C5Zw
 
 # python explain_driver.py --dataset_name JacksonFischer --exp_name "JacksonFischer_Final" --job_id Q35QNYtJGirq4yCX3KzaKQ
+
+# python explain_driver.py --dataset_name JacksonFischer --exp_name "JacksonFischer" --job_id Wwz8zqJAi6uciz73dC9vVw
+# python explain_driver.py --dataset_name JacksonFischer --exp_name "JacksonFischer" --job_id 2mYvWJwUarIJkw0vvUbl3Q

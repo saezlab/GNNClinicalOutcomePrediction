@@ -18,15 +18,11 @@ RUN pip install leidenalg==0.10.2
 
 
 # Optionally, you can copy any additional files required for your application
-# COPY <local_path> <container_path>
 COPY ./models/JacksonFischer/model_hyperparams.json  /GNNClinicalOutcomePrediction/models/JacksonFischer
 COPY ./data/JacksonFischer/month/  /GNNClinicalOutcomePrediction/data/JacksonFischer/month
 COPY ./data/JacksonFischer/raw/  /GNNClinicalOutcomePrediction/data/JacksonFischer/raw
 COPY ./data/JacksonFischer/folds.json /GNNClinicalOutcomePrediction/data/JacksonFischer/
-
-# Command to run your script (assuming it's named train.py)
-# COPY /home/rifaioglu/projects/GNNClinicalOutcomePrediction/data/JacksonFischer/month /GNNClinicalOutcomePrediction/
-
+COPY ./data/JacksonFischer/*.csv /GNNClinicalOutcomePrediction/data/JacksonFischer/
 
 # Add tag
 LABEL py_gem="true"

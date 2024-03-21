@@ -85,7 +85,7 @@ setup_args.plot_result = True
 parser_args.full_training = full_training
 parser_args.patience = 10
 parser_args.dataset_name = "JacksonFischer"
-parser_args.epoch = 40
+parser_args.epoch = 50
 # print(parser_args)
 # Object can be saved if wanted
 trainer_tester(parser_args, setup_args)
