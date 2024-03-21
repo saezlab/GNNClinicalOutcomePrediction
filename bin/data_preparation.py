@@ -311,17 +311,9 @@ def create_preprocessed_sc_feature_fl():
     
     # concatenate chunks and remove the rows with NA values
     df_new_dataset = pd.concat(chunks)
-    # print(df_new_dataset)
     df_new_dataset.dropna(subset = df_new_dataset.columns[:37], how="any",  inplace=True)
     df_new_dataset[['ObjectNumber', "ImageNumber"]] = df_new_dataset[['ObjectNumber', "ImageNumber"]].astype(integer, )
-
     print(df_new_dataset)
-    
-
-    # print(new_dataset.count())
-    # print(new_dataset.size)  
-    # print(new_dataset.columns)
-    # print(new_dataset)
     print("Saving the compact dataset to ", os.path.join(RAW_DATA_PATH, "raw", "merged_preprocessed_dataset.csv"))
     df_new_dataset.to_csv(os.path.join(RAW_DATA_PATH, "raw", "merged_preprocessed_dataset.csv"), index=False)
 

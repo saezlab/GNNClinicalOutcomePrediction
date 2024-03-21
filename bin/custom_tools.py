@@ -607,6 +607,9 @@ def convert_graph_to_anndata(graph, node_id_to_importance_dict, dataset_name, im
     p_id= graph.p_id
     tumor_grade= graph.tumor_grade
     osmonth= graph.osmonth
+    cell_type = [str(val[0]) for val in graph.ct_class]
+    ct_general = [str(val[1]) for val in graph.ct_class]
+
     
     obs = [str(val) for val in list(range(graph.x.shape[0]))]
     var = get_gene_list(dataset_name=dataset_name)
@@ -639,6 +642,8 @@ def convert_graph_to_anndata(graph, node_id_to_importance_dict, dataset_name, im
     importances_hard = pd.Series(importances_hard, dtype="category")
     # print(importances_hard)
     adata.obs["importance_hard"] = importances_hard.values
+    adata.obs["cell_type"] = cell_type
+    adata.obs["class"] = ct_general
     # print(adata.obs)
     # sc.tl.rank_genes_groups(adata, groupby="importance_hard", method='wilcoxon', key_added = f"wilcoxon")
     # sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False, key=f"wilcoxon", show=True, groupby="importance_hard", save="important_vs_unimportant")
