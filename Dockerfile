@@ -7,6 +7,7 @@ RUN git clone https://github.com/saezlab/GNNClinicalOutcomePrediction.git
 WORKDIR /GNNClinicalOutcomePrediction
 RUN mkdir -p /GNNClinicalOutcomePrediction/models/JacksonFischer
 RUN mkdir -p /GNNClinicalOutcomePrediction/data/JacksonFischer
+RUN mkdir -p /GNNClinicalOutcomePrediction/data/out_data/adatafiles
 
 # Install the packages
 RUN pip install scanpy==1.9.8
