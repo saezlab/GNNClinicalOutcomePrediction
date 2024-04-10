@@ -112,11 +112,7 @@ class Custom_Explainer:
             node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops)
 
             adata = custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict, dataset_name=self.dataset_name)
-            # print(adata.obs["importance_hard"])
-            # print("obs_names", adata.obs_names)
-            # print("var_names", adata.var_names)
             adata_concat.append(adata)
-            # print(adata_concat)
             plt.rcParams['figure.figsize'] = 45, 15
             fig, axs = plt.subplots(1, 3)
             plotting.plot_graph(test_graph, coordinates_arr, axs[0], font_size=5,  node_size=100, width=1)
@@ -191,18 +187,11 @@ class Custom_Explainer:
             exp_edges_bool = edge_exp_score_mask_arr > edge_thr
 
             explained_edge_indices = exp_edges_bool.nonzero()[0]
-
-            """for ind, val in enumerate(exp_edges_bool):
-                if val:
-                    print(val, edge_exp_score_mask_arr[ind])"""
-            # print(edge_exp_score_mask_arr)
-            # print(list(set(range(len(edge_value_mask)))- set(explained_edge_indices)))
             np.put(edge_exp_score_mask_arr, list(set(range(len(edge_value_mask)))- set(explained_edge_indices)), 0.0)
 
 
             edgeid_to_mask_dict = dict()
             for ind, m_val in enumerate(edge_exp_score_mask_arr):
-                # print(ind, m_val, exp_edges_bool[ind], edge_value_mask[ind], edge_thr)
                 node_id1, node_id2 = test_graph.edge_index[0,ind].item(), test_graph.edge_index[1,ind].item()
                 edgeid_to_mask_dict[(node_id1, node_id2)] = m_val.item()
             
@@ -213,7 +202,6 @@ class Custom_Explainer:
             node_to_score_dict = custom_tools.get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops)
 
             adata = custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict)
-            # adata_concat.append(adata)
             
             plt.rcParams['figure.figsize'] = 50, 100
             fig, axs = plt.subplots(9, 4)
