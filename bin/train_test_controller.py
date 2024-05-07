@@ -9,7 +9,7 @@ from loss import CoxPHLoss, NegativeLogLikelihood
 from trainer_tester import trainer_tester
 
 
-custom_tools.set_seeds(42, deterministic=True)
+custom_tools.set_seeds(42, deterministic=False)
 parser_args = custom_tools.general_parser()
 setup_args = SimpleNamespace()
 

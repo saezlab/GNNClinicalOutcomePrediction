@@ -35,7 +35,7 @@ class trainer_tester:
             parser_args (Namespace): Holds the arguments that came from parsing CLI
             setup_args (Namespace): Holds the arguments that came from setup
         """
-        custom_tools.set_seeds(seed=42, deterministic=True)
+        custom_tools.set_seeds(seed=42, deterministic=False)
         self.parser_args = parser_args
         self.setup_args = setup_args
         self.set_device()
@@ -135,8 +135,8 @@ class trainer_tester:
 
         
         else:
-            # self.samplers = custom_tools.k_fold_by_group(self.dataset)
-            self.samplers = custom_tools.get_n_fold_split(self.dataset)
+            self.samplers = custom_tools.k_fold_by_group(self.dataset)
+            # self.samplers = custom_tools.get_n_fold_split(self.dataset)
 
             deg = -1
 
@@ -351,7 +351,7 @@ class trainer_tester:
                     break
 
         average_ci_score = sum(fold_val_ci)/len(fold_val_ci)
-        if average_ci_score > 0.60:
+        if average_ci_score > 0.65:
             self.parser_args.ci_score = average_ci_score
             custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
             print(f"Average c_index: {sum(fold_val_ci)/len(fold_val_ci)}")

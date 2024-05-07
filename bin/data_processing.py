@@ -8,8 +8,8 @@ import seaborn as sns
 from scipy.spatial import Delaunay, Voronoi, voronoi_plot_2d
 from tqdm import tqdm
 
-# dataset = "METABRIC"
-dataset = "JacksonFischer"
+dataset = "METABRIC"
+# dataset = "JacksonFischer"
 
 RAW_DATA_PATH = os.path.join("../data",dataset,"raw")
 OUT_DATA_PATH = os.path.join("../data", "out_data", dataset)
@@ -148,7 +148,7 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
     elif "METABRIC" in RAW_DATA_PATH:
         metabric_clinical_feat = ['SOM_nodes', 'pg_cluster', 'description',
                                   'Study ID', 'Patient ID', 'PID', 'age', 'Type of Breast Surgery',
-                                  'description.1', 'Cancer Type Detailed', 'Cellularity', 'treatment',
+                                  'cell_type', 'Cancer Type Detailed', 'Cellularity', 'treatment',
                                   'Pam50 + Claudin-low subtype', 'Cohort', 'ER status measured by IHC',
                                   'ER Status', 'grade', 'HER2 status measured by SNP6', 'HER2 Status',
                                   'Tumor Other Histologic Subtype', 'Hormone Therapy',
@@ -179,9 +179,13 @@ def generate_graphs_using_points(df_image, imgnum_edge_thr_dict, img_num,  pid, 
     with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_features.pickle'), 'wb') as handle:
         pickle.dump(np.array(df_image.drop(nonfeat_cols, axis=1)), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_ct_class.pickle'), 'wb') as handle:
-        pickle.dump(df_image[["cell_type", "class"]].to_numpy(), handle, protocol=pickle.HIGHEST_PROTOCOL)
-    
+    if "METABRIC" in RAW_DATA_PATH:
+        with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_ct_class.pickle'), 'wb') as handle:
+            pickle.dump(df_image[["cell_type"]].to_numpy(), handle, protocol=pickle.HIGHEST_PROTOCOL)
+    else:
+        with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_ct_class.pickle'), 'wb') as handle:
+            pickle.dump(df_image[["cell_type", "class"]].to_numpy(), handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
     # save the feature vector as numpy array, first column is the cell id
     with open(os.path.join(RAW_DATA_PATH, f'{img_num_lbl}_{pid}_coordinates.pickle'), 'wb') as handle:
         pickle.dump(points, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -351,10 +355,10 @@ def data_processing_pipeline(data_path, CELL_COUNT_THR=CELL_COUNT_THR, GRAPH_DIV
     get_edge_length_dist(data_path=data_path, cell_count_thr=CELL_COUNT_THR, quant= 0.975, plot_dist=False, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH)
     print("Calculating cell count distribution....")
     df_cell_count = get_cell_count_df(CELL_COUNT_THR, path=data_path)
-    third_quartile = int(np.quantile(df_cell_count["Cell Counts"], 0.50))
+    quartile = int(np.quantile(df_cell_count["Cell Counts"], 0.50))
 
     print("Creating graphs...")
-    create_graphs_delauney_triangulation(cell_count_thr=CELL_COUNT_THR, GRAPH_DIV_THR=third_quartile, plot=True,RAW_DATA_PATH = RAW_DATA_PATH, data_path=data_path, PLOT_PATH=PLOT_PATH)
+    create_graphs_delauney_triangulation(cell_count_thr=CELL_COUNT_THR, GRAPH_DIV_THR=quartile, plot=True,RAW_DATA_PATH = RAW_DATA_PATH, data_path=data_path, PLOT_PATH=PLOT_PATH)
 
 # data_processing_pipeline("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/JacksonFischer/raw/merged_preprocessed_dataset.csv")
 
@@ -363,15 +367,15 @@ def data_processing_metabric_pipeline(data_path, CELL_COUNT_THR=CELL_COUNT_THR, 
     from data_preparation import METABRIC_preprocess
     # print("Creating compact dataset...")
     # METABRIC_preprocess(visualize = False)
-    #print("Calculating edge length distribution....")
-    #get_edge_length_dist(data_path=data_path, cell_count_thr=CELL_COUNT_THR, quant= 0.975, plot_dist=False, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH)
+    print("Calculating edge length distribution....")
+    get_edge_length_dist(data_path=data_path, cell_count_thr=CELL_COUNT_THR, quant= 0.975, plot_dist=False, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH)
     
     print("Calculating cell count distribution....")
     df_cell_count = get_cell_count_df(CELL_COUNT_THR, path=data_path)
-    third_quartile = int(np.quantile(df_cell_count["Cell Counts"], 0.75))
+    quartile = int(np.quantile(df_cell_count["Cell Counts"], 0.50))
     print(RAW_DATA_PATH)
     print("Creating graphs...")
-    create_graphs_delauney_triangulation(cell_count_thr=CELL_COUNT_THR, GRAPH_DIV_THR=third_quartile, plot=True,RAW_DATA_PATH = RAW_DATA_PATH, data_path=data_path, PLOT_PATH=PLOT_PATH)
+    create_graphs_delauney_triangulation(cell_count_thr=CELL_COUNT_THR, GRAPH_DIV_THR=quartile, plot=True,RAW_DATA_PATH = RAW_DATA_PATH, data_path=data_path, PLOT_PATH=PLOT_PATH)
 
 
-# data_processing_metabric_pipeline("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/METABRIC/raw/merged_data.csv",CELL_COUNT_THR=CELL_COUNT_THR, GRAPH_DIV_THR=GRAPH_DIV_THR, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH)
+# data_processing_metabric_pipeline("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/METABRIC/raw/merged_preprocessed_dataset.csv",CELL_COUNT_THR=CELL_COUNT_THR, GRAPH_DIV_THR=GRAPH_DIV_THR, PLOT_PATH=PLOT_PATH, RAW_DATA_PATH=RAW_DATA_PATH)

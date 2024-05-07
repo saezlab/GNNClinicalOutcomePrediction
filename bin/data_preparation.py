@@ -378,7 +378,7 @@ def METABRIC_preprocess(visualize = False):
         'Nottingham prognostic index': 'DiseaseStage',
         'Patient\'s Vital Status': 'diseasestatus',
         'Relapse Free Status (Months)': 'DFSmonth',
-        'Cancer Type': 'description',
+        'cell_type': 'description',
 
     }
 

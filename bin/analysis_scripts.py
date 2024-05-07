@@ -1,4 +1,5 @@
 import os
+import json
 import argparse
 import numpy as np
 import pandas as pd
@@ -128,17 +129,37 @@ def calculate_all_cindex_scores(folder_path_list):
 
     return df_results
 
+def get_average_scores_from_json(folder_path_list):
+    # returns JSON object as 
+    # a dictionary
+    header = ["experiment name", "job id", "c_index"]
+    all_results = []
+
+    for folder_path in folder_path_list:
+        
+        for fl in os.listdir(folder_path):
+            if fl.endswith(".json"):
+                job_id = fl.rsplit(".", maxsplit=1)[0]
+                fl = open(os.path.join(folder_path, fl))
+                data = json.load(fl)
+                all_results.append([data["en"], job_id, data["ci_score"]])
+            
+    df_results = pd.DataFrame (all_results, columns = header)
+    
+    df_results.sort_values(by=["c_index"], inplace=True, ascending=False)
+    print(df_results)
+
 
 # calculate_cindex_scores_from_preds("/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_CoxPHLoss_month_24-11-2023", "4vzHDHJhBEhzvI91la51HQ.csv")
 # "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_CoxPHLoss_month_24-11-2023",
-df= calculate_all_cindex_scores([ "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/PNAConv_CoxPHLoss_month_24-11-2023"])
+# df= calculate_all_cindex_scores([ "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/PNAConv_CoxPHLoss_month_24-11-2023"])
 # df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_NegativeLogLikelihood_fixed_dataset_13-12-2023"])
 # df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_NegativeLogLikelihood_fixed_dataset_13-12-2023"])
 # df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/PNAConv_NegativeLogLikelihood_month_30-11-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_NegativeLogLikelihood_month_04-12-2023"])
 # df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/GATV2_NegativeLogLikelihood_month_04-12-2023# "])
-
-# df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/METABRIC_PNAConv_NegativeLogLikelihood_fixed_dataset_04-01-2024"])
-print(df)
+# /net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/METABRIC_PNAConv_NegativeLogLikelihood_fixed_dataset_04-01-2024
+# df= calculate_all_cindex_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/results/idedFiles/METABRIC_PNAConv_NegativeLogLikelihood_fixed_dataset_04-01-2024"])
+# print(df)
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_year_30-11-2022"]))
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNA_training_week_07-12-2022"]))
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/best_n_fold_week_14-12-2022"]))
@@ -157,3 +178,6 @@ print(df)
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_Huber_month_30-06-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_week_lognorm_30-06-2023", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/data/out_data/PNAConv_PNA_MSE_month_30-06-2023"]))
 
 # print(calculate_all_reg_scores([]))
+
+# print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024"]))
+get_average_scores_from_json(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024"])
