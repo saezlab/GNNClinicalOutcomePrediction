@@ -88,7 +88,7 @@ model = custom_tools.load_model(f"{args.job_id}_SD", path = f"../models/{args.ex
 dataset = TissueDataset(os.path.join(f"../data/{args.dataset_name}", "month"),  "month")
 
 Path( os.path.join("../plots/explanations", args.dataset_name, f"{args.exp_name}_{args.job_id}") ).mkdir(parents=True, exist_ok=True)
-Path("../data/out_data/adatafiles" ).mkdir(parents=True, exist_ok=True)
+Path(f"../data/out_data/adatafiles/{args.dataset_name}" ).mkdir(parents=True, exist_ok=True)
 # dataset = TissueDataset(os.path.join(S_PATH,"../data/JacksonFischer/basel_zurich_preprocessed_compact_dataset.csv"))
 
 dataset = dataset.shuffle()

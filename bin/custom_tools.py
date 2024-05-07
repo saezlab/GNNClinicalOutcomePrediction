@@ -860,9 +860,10 @@ def split_by_group(dataset, random_state=42):
     return list(train.index), list(validation.index), list(test.index)
  
 
-def get_n_fold_split(dataset):
+def get_n_fold_split(dataset, dataset_name):
     
-    json_fl = load_json("../data/JacksonFischer/folds.json")
+    json_fl = load_json(f"../data/{dataset_name}/folds.json")
+    # json_fl = load_json("../models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024/-pEmEqMbmY3nybm13c6U6Q.json")
     # json_fl = load_json("/home/rifaioglu/projects/GNNClinicalOutcomePrediction/models/JacksonFischer_Final/jswXq05BE0Bx2c29gNGEMg.json")
     lst_groups = []
     for ind, item in enumerate(dataset):

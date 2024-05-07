@@ -16,6 +16,12 @@ warnings.filterwarnings("ignore")
 custom_tools.set_seeds(seed=42, deterministic=True)
 parser = argparse.ArgumentParser()
 parser.add_argument(
+        '--dataset_name',
+        type= str,
+        metavar='F',
+        required=True,
+        help='Dataset name')
+parser.add_argument(
         '--full_training',
         type= bool,
         action=argparse.BooleanOptionalAction,
@@ -23,10 +29,10 @@ parser.add_argument(
         metavar='F',
         help='Perform full_training, default: --no-full_training (--full_training, --no-full_training),')
 
-
+args = vars(parser.parse_args())
 # args = vars(parser.parse_args())
 
-
+dataset_name = args["dataset_name"]
 
 # WCSTZwu7iVXlw-_9NvOqIw
 t_args = argparse.Namespace()
@@ -35,16 +41,27 @@ json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/FaAGmroaS
 json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/WCSTZwu7iVXlw-_9NvOqIw.json")
 json_fl = open("../models/GATV2_NegativeLogLikelihood_fixed_dataset_13-12-2023/V05lYbfqzxjRjenrPbsplg.json")"""
 # json_fl = open("../models/GATV2_NegativeLogLikelihood_month_04-12-2023/YyroGgMa_H4xn_ctP3C5Zw.json")
-json_fl = open("../models/JacksonFischer/model_hyperparams.json")
+# gjqwQWOr25LssZF06ATdvg
+# json_fl = open("../models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024/gjqwQWOr25LssZF06ATdvg.json")
+json_fl = open(f"../models/{dataset_name}/model_hyperparams.json")
+t_args.__dict__.update(json.load(json_fl))
+# print("t_args", t_args)
+parser_args = parser.parse_args(namespace=t_args)
+
+# json_fl = open(f"../models/{dataset_name}/model_hyperparams.json")
 # json_fl = open("../models/JacksonFischer_Final/FaX6TFVflduRtbuFdWSkYA.json")
 # json_fl = open("../models/JacksonFischer_Final/O3CFsgYHQzTq__95Ozw_dQ.json")
 # ZtT3bAfIBcLKFwDOMXgfwA
 # O3CFsgYHQzTq__95Ozw_dQ
 # FaX6TFVflduRtbuFdWSkYA
+# METABRIC vuF_GvxYKM6o_m0VUINsMw
+"""json_fl = open("../models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024/3T8IFIYDQiZzwmT-wjdYJw.json") #  0.65
+json_fl = open("../models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024/vuF_GvxYKM6o_m0VUINsMw.json") # 0.60
+json_fl = open("../models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024/3T8IFIYDQiZzwmT-wjdYJw.json")
+# G27C9PThIOGDGxmaqwdQ4Q
+json_fl = open("../models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024/G27C9PThIOGDGxmaqwdQ4Q.json")
+json_fl = open("../models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024/3T8IFIYDQiZzwmT-wjdYJw.json")"""
 
-t_args.__dict__.update(json.load(json_fl))
-# print("t_args", t_args)
-parser_args = parser.parse_args(namespace=t_args)
 
 args = vars(parser.parse_args())
 full_training = args['full_training']
@@ -84,8 +101,8 @@ setup_args.plot_result = True
 
 parser_args.full_training = full_training
 parser_args.patience = 10
-parser_args.dataset_name = "JacksonFischer"
+# parser_args.dataset_name = "METABRIC"
 parser_args.epoch = 50
-# print(parser_args)
+print(parser_args)
 # Object can be saved if wanted
 trainer_tester(parser_args, setup_args)
