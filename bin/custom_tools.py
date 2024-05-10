@@ -607,6 +607,7 @@ def convert_graph_to_anndata(graph, node_id_to_importance_dict, dataset_name, im
     p_id= graph.p_id
     tumor_grade= graph.tumor_grade
     osmonth= graph.osmonth
+    print(graph)
     cell_type = [str(val[0]) for val in graph.ct_class]
     ct_general = [str(val[1]) for val in graph.ct_class]
 
