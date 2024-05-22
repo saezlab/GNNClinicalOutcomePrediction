@@ -180,4 +180,5 @@ def get_average_scores_from_json(folder_path_list):
 # print(calculate_all_reg_scores([]))
 
 # print(calculate_all_reg_scores(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024"]))
-get_average_scores_from_json(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024"])
+# get_average_scores_from_json(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024"])
+get_average_scores_from_json(["/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/METABRIC_GATV2_CoxPHLoss_10_fold_gpu_14-04-2024", "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024"])

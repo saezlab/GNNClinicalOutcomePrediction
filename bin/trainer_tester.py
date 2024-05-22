@@ -292,7 +292,7 @@ class trainer_tester:
                 
                 #pred_list.extend([val.item() for val in data.y])
                 if return_pred_df:
-                    tumor_grade_list.extend([val.item() for val in data.tumor_grade])
+                    tumor_grade_list.extend([val for val in data.tumor_grade])
                     clinical_type_list.extend([val for val in data.clinical_type])
                     osmonth_list.extend([val.item() for val in data.osmonth])
                     censorship_list.extend([val.item() for val in data.is_censored])
