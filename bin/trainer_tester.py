@@ -135,8 +135,8 @@ class trainer_tester:
 
         
         else:
-            self.samplers = custom_tools.k_fold_by_group(self.dataset)
-            # self.samplers = custom_tools.get_n_fold_split(self.dataset)
+            # self.samplers = custom_tools.k_fold_by_group(self.dataset)
+            self.samplers = custom_tools.get_n_fold_split(self.dataset, self.parser_args.dataset_name)
 
             deg = -1
 
@@ -328,7 +328,16 @@ class trainer_tester:
 
             print(f"########## Fold :  {fold_dict['fold']} ########## ")
             for epoch in (pbar := tqdm(range(self.parser_args.epoch), disable=False)):
-    
+                # print(fold_dict["train_loader"].img_id)
+                # print(fold_dict["validation_loader"])
+                """all_train_img_ids = []
+                all_val_img_ids = []
+                for i, batch in enumerate(fold_dict["train_loader"]): 
+                    all_train_img_ids.extend(batch.img_id)
+                for i, batch in enumerate(fold_dict["validation_loader"]): 
+                    all_val_img_ids.extend(batch.img_id)
+                print(all_train_img_ids)
+                print(all_val_img_ids)"""
                 self.train(fold_dict)
                 train_loss = self.test(fold_dict["model"], fold_dict["train_loader"],  fold_dict["fold"])
                 validation_loss, df_epoch_val = self.test(fold_dict["model"], fold_dict["validation_loader"],  fold_dict["fold"], "validation", self.setup_args.plot_result)

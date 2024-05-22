@@ -607,6 +607,7 @@ def convert_graph_to_anndata(graph, node_id_to_importance_dict, dataset_name, im
     p_id= graph.p_id
     tumor_grade= graph.tumor_grade
     osmonth= graph.osmonth
+    print(graph)
     cell_type = [str(val[0]) for val in graph.ct_class]
     ct_general = [str(val[1]) for val in graph.ct_class]
 
@@ -860,9 +861,10 @@ def split_by_group(dataset, random_state=42):
     return list(train.index), list(validation.index), list(test.index)
  
 
-def get_n_fold_split(dataset):
+def get_n_fold_split(dataset, dataset_name):
     
-    json_fl = load_json("../data/JacksonFischer/folds.json")
+    json_fl = load_json(f"../data/{dataset_name}/folds.json")
+    # json_fl = load_json("../models/METABRIC_GATV2_CoxPHLoss_10_fold_gpusaez_14-04-2024/-pEmEqMbmY3nybm13c6U6Q.json")
     # json_fl = load_json("/home/rifaioglu/projects/GNNClinicalOutcomePrediction/models/JacksonFischer_Final/jswXq05BE0Bx2c29gNGEMg.json")
     lst_groups = []
     for ind, item in enumerate(dataset):
