@@ -22,7 +22,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.nn import PNAConv 
 from early_stopping import EarlyStopping
 
-
+# torch.autograd.set_detect_anomaly(True)
 
 
 class trainer_tester:
@@ -242,7 +242,6 @@ class trainer_tester:
                 loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
             
             loss.backward()  # Derive gradients.
-            #out_list.extend([val.item() for val in out.squeeze()])
             
             pred_list.extend([val.item() for val in out.squeeze()])
             total_loss += float(loss.item())
@@ -328,16 +327,7 @@ class trainer_tester:
 
             print(f"########## Fold :  {fold_dict['fold']} ########## ")
             for epoch in (pbar := tqdm(range(self.parser_args.epoch), disable=False)):
-                # print(fold_dict["train_loader"].img_id)
-                # print(fold_dict["validation_loader"])
-                """all_train_img_ids = []
-                all_val_img_ids = []
-                for i, batch in enumerate(fold_dict["train_loader"]): 
-                    all_train_img_ids.extend(batch.img_id)
-                for i, batch in enumerate(fold_dict["validation_loader"]): 
-                    all_val_img_ids.extend(batch.img_id)
-                print(all_train_img_ids)
-                print(all_val_img_ids)"""
+
                 self.train(fold_dict)
                 train_loss = self.test(fold_dict["model"], fold_dict["train_loader"],  fold_dict["fold"])
                 validation_loss, df_epoch_val = self.test(fold_dict["model"], fold_dict["validation_loader"],  fold_dict["fold"], "validation", self.setup_args.plot_result)
