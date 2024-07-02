@@ -28,6 +28,12 @@ parser.add_argument(
         default= False,
         metavar='F',
         help='Perform full_training, default: --no-full_training (--full_training, --no-full_training),')
+parser.add_argument(
+        '--model_name',
+        type= str,
+        default= None,
+        metavar='N',
+        help='Use this name instead of random session id')
 
 args = vars(parser.parse_args())
 # args = vars(parser.parse_args())
@@ -57,9 +63,14 @@ parser_args = parser.parse_args(namespace=t_args)
 
 args = vars(parser.parse_args())
 full_training = args['full_training']
+model_name = args['model_name']
 
 setup_args = SimpleNamespace()
 setup_args.id = custom_tools.generate_session_id()
+if model_name:
+    parser_args.id = model_name
+    setup_args.id = model_name
+    
 setup_args.S_PATH = "/".join(os.path.realpath(__file__).split(os.sep)[:-1])
 setup_args.RESULT_PATH = os.path.join(setup_args.S_PATH, "../results", "idedFiles", parser_args.en)
 setup_args.PLOT_PATH = os.path.join(setup_args.S_PATH, "../plots", parser_args.en)
@@ -94,7 +105,10 @@ setup_args.plot_result = True
 parser_args.full_training = full_training
 parser_args.patience = 10
 # parser_args.dataset_name = "METABRIC"
-parser_args.epoch = 50
-# print(parser_args)
+parser_args.epoch = 100
+print(parser_args)
+print(setup_args)
 # Object can be saved if wanted
 trainer_tester(parser_args, setup_args)
+
+# python train_with_session.py --dataset_name JacksonFischer --full_training --model_name JF
