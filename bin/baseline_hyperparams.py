@@ -52,3 +52,26 @@ rgr_gradient_boosting_params = dict(
             max_depth = np.arange(3,10),
             subsample = np.linspace(0.5,1.5,10,endpoint=True)
             )
+
+
+
+#Gradient Boosting Parameters
+FastSurvivalSVM_params = dict(
+            max_iter = [20, 100, 500, 1000],
+            tol=[1e-1, 1e-2, 1e-3, 1e-5],
+            optimizer = ['avltree','rbtree','simple'],
+            )
+
+#RandomSurvivalForest Parameters
+RandomSurvivalForest_params = dict(
+            n_estimators = np.arange(100,1001, step=100),
+            min_samples_split=[5, 10, 20, 30], 
+            min_samples_leaf=[10, 15, 30]
+            )
+
+#GradientBoostingSurvivalAnalysis Parameters
+GradientBoostingSurvivalAnalysis_params = dict(
+            n_estimators = np.arange(100,1001, step=100),
+            learning_rate = np.linspace(0.1,1.0,num = 10),
+            max_depth = np.arange(1,4)
+            )

@@ -997,4 +997,27 @@ def set_seeds(seed=42, deterministic = False):
         torch.backends.cudnn.deterministic = True
         torch.cuda.manual_seed(seed)
         
+
+import numpy as np
+from itertools import product
+
+def create_hyperparameter_combinations(hyperparams):
+    """
+    Create all combinations of hyperparameters from a given dictionary.
     
+    Parameters:
+    hyperparams (dict): A dictionary where keys are hyperparameter names and values are lists of possible values.
+    
+    Returns:
+    list of dict: A list of dictionaries, each representing a combination of hyperparameters.
+    """
+    keys = hyperparams.keys()
+    values = hyperparams.values()
+    
+    # Create product of all values
+    combinations = list(product(*values))
+    
+    # Create list of dictionaries for each combination
+    combinations_dicts = [dict(zip(keys, combo)) for combo in combinations]
+    
+    return combinations_dicts

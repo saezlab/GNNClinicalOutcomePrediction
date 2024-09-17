@@ -112,3 +112,4 @@ print(setup_args)
 trainer_tester(parser_args, setup_args)
 
 # python train_with_session.py --dataset_name JacksonFischer --full_training --model_name JF
+# python train_with_session.py --dataset_name JacksonFischer --no-full_training --model_name JF_xfold

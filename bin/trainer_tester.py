@@ -352,6 +352,7 @@ class trainer_tester:
         average_ci_score = sum(fold_val_ci)/len(fold_val_ci)
         if average_ci_score > 0.65:
             self.parser_args.ci_score = average_ci_score
+            self.parser_args.fold_ci_scores = fold_val_ci
             custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
             print(f"Average c_index: {sum(fold_val_ci)/len(fold_val_ci)}")
             box_plt = sns.boxplot(data=fold_val_ci)
