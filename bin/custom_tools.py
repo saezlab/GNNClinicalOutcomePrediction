@@ -584,7 +584,7 @@ def get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops):
     original_graph = utils.to_networkx(test_graph)
     node_list= original_graph.nodes
     nodeid_score_dict = dict()
-    # WARN: There is a strange error in image id 74ul_52
+
     for node_id in node_list:
         try:
             node_score = get_khop_node_score(test_graph, node_id, edgeid_to_mask_dict, n_of_hops)
@@ -593,7 +593,6 @@ def get_all_k_hop_node_scores(test_graph, edgeid_to_mask_dict, n_of_hops):
 
             print("ERROR occured when finding node score!")
             nodeid_score_dict[node_id] = 0.0
-        
 
     return nodeid_score_dict
 

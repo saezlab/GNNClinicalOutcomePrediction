@@ -247,10 +247,80 @@ def plot_node_importances_voronoi(test_graph, coordinates_arr, node_score_dict, 
     
     ax.set_xlim([minx, maxx])
     ax.set_ylim([miny, maxy])
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_frame_on(False)
     if title:
         ax.set_title(title, fontsize=50)
 
 
+
+def plot_node_types_voronoi(test_graph, coordinates_arr, ax, font_size=10):
+    original_graph = utils.to_networkx(test_graph)
+    color_list = []
+    
+    # Get coarse cell type annotations (first dimension of ct_class)
+    coarse_cell_types = [ct[1] for ct in test_graph.ct_class]
+    unique_cell_types = list(set(coarse_cell_types))
+    
+    """# Assign a unique color to each cell type
+    cell_type_colors = plt.cm.get_cmap("tab10", len(unique_cell_types))
+    cell_type_color_dict = {ctype: cell_type_colors(i) for i, ctype in enumerate(unique_cell_types)}"""
+    
+    # Assign a unique pastel color to each cell type
+    pastel_colors = plt.cm.Pastel1  # Use a pastel colormap
+    cell_type_color_dict = {ctype: pastel_colors(i % pastel_colors.N) for i, ctype in enumerate(unique_cell_types)}
+    
+    # Map nodes to their respective cell type colors
+    color_list = [cell_type_color_dict[coarse_cell_types[n_id]] for n_id in original_graph.nodes]
+    
+    minx, miny = list(np.min(coordinates_arr, axis=0))
+    maxx, maxy = list(np.max(coordinates_arr, axis=0))
+    
+    # Add dummy nodes to the corners
+    coordinates_arr = np.append(coordinates_arr, [[maxx+10, maxy+10], [minx-10,maxy+10], [maxx+10,miny-10], [minx-10,miny-10]], axis=0)
+    
+    vor = Voronoi(coordinates_arr)
+    fig = voronoi_plot_2d(vor, show_vertices=False, line_colors='orange', line_width=1, line_alpha=0.6, point_size=5, ax=ax)
+    
+    for j in range(len(coordinates_arr) - 4):  # Exclude dummy nodes
+        region = vor.regions[vor.point_region[j]]
+        if not -1 in region:
+            polygon = [vor.vertices[i] for i in region]
+            ax.fill(*zip(*polygon), color=color_list[j])
+    
+    ax.set_xlim([minx, maxx])
+    ax.set_ylim([miny, maxy])
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_frame_on(False)
+    
+    # Create legend for cell types
+    handles = [mpl.patches.Patch(color=cell_type_color_dict[ctype], label=ctype) for ctype in unique_cell_types]
+    ax.legend(handles=handles, title="Cell Types", fontsize=font_size, loc='upper right')
+
+
+def plot_node_importances(test_graph, coordinates_arr, node_score_dict, ax, quant_thr=None, node_size=3000, font_size=10, width=8):
+    original_graph = utils.to_networkx(test_graph)
+
+    color_list = []
+    for n_id in original_graph.nodes:
+        color_list.append(node_score_dict[n_id])
+
+    if quant_thr:
+        node_imp_thr = np.quantile(color_list, quant_thr)
+        color_list = np.array(color_list > node_imp_thr).astype(int)
+
+    node_score_str_dict = dict()
+    for node_id in node_score_dict.keys():
+        node_score_str_dict[node_id] = f"{node_id}_{node_score_dict[node_id]:.2f}"
+        
+    nx.draw(original_graph, pos=coordinates_arr, node_color=color_list, node_size=node_size, arrows=False, cmap=plt.cm.afmhot, ax=ax)
+    # nx.draw_networkx_labels(original_graph, labels=node_score_str_dict, pos=coordinates_arr, font_size=font_size, ax=ax)
+
+    nx.draw_networkx_edges(original_graph,  pos=coordinates_arr, arrows=False, width=width, ax=ax)
+
+    
 def plot_khop(test_graph, coordinates_arr, edgeid_to_mask_dict, n_of_hops, ax, node_size=3000, font_size=10, width=8):
     # The method returns (1) the nodes involved in the subgraph, (2) the filtered edge_index connectivity, (3) the mapping from node indices in node_idx to their new location, and (4) the edge mask indicating which edges were preserved.
     subset_nodes, subset_edge_index, mapping, edge_mask = utils.k_hop_subgraph(407, n_of_hops, test_graph.edge_index)

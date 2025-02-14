@@ -113,11 +113,12 @@ class Custom_Explainer:
 
             adata = custom_tools.convert_graph_to_anndata(test_graph, node_to_score_dict, dataset_name=self.dataset_name)
             adata_concat.append(adata)
-            plt.rcParams['figure.figsize'] = 45, 15
-            fig, axs = plt.subplots(1, 3)
+            plt.rcParams['figure.figsize'] = 48, 8
+            fig, axs = plt.subplots(1, 4)
             plotting.plot_graph(test_graph, coordinates_arr, axs[0], font_size=5,  node_size=100, width=1)
             plotting.plot_node_importances(test_graph, coordinates_arr, node_to_score_dict,  axs[2], node_size=100, width=1)
             plotting.plot_node_importances_voronoi(test_graph, coordinates_arr, node_to_score_dict,  axs[1])
+            plotting.plot_node_types_voronoi(test_graph, coordinates_arr, axs[3])
             # plotting.plot_node_importances_voronoi(test_graph, coordinates_arr,  genename_to_nodeid_dict[gene_list[0]],  axs[0][3], title=gene_list[0], cmap=plt.cm.GnBu)
 
             """cols = 4
@@ -126,7 +127,8 @@ class Custom_Explainer:
                 plotting.plot_node_importances_voronoi(test_graph, coordinates_arr,  genename_to_nodeid_dict[gene_list[ind+1]],  axs[fig_row+1][fig_col], title=gene_list[ind+1], cmap=plt.cm.GnBu)"""
 
 
-            fig.savefig( os.path.join("../plots/explanations", self.dataset_name, f"{self.exp_name}_{self.job_id}", f"{test_graph.img_id}_{test_graph.p_id}_{str(int(test_graph.osmonth))}_{test_graph.clinical_type}"))
+            fig.savefig( os.path.join("../plots/explanations", self.dataset_name, f"{self.exp_name}_{self.job_id}", f"{test_graph.img_id}_{test_graph.p_id}_{str(int(test_graph.osmonth))}_{test_graph.clinical_type}.png"))
+            fig.savefig( os.path.join("../plots/explanations", self.dataset_name, f"{self.exp_name}_{self.job_id}", f"{test_graph.img_id}_{test_graph.p_id}_{str(int(test_graph.osmonth))}_{test_graph.clinical_type}.pdf"))
             plt.close()
             count +=1
 
@@ -209,7 +211,7 @@ class Custom_Explainer:
             plotting.plot_node_importances(test_graph, coordinates_arr, node_to_score_dict,  axs[0][2], node_size=100, width=1)
             plotting.plot_node_importances_voronoi(test_graph, coordinates_arr, node_to_score_dict,  axs[0][1])
             plotting.plot_node_importances_voronoi(test_graph, coordinates_arr,  genename_to_nodeid_dict[gene_list[0]],  axs[0][3], title=gene_list[0], cmap=plt.cm.GnBu)
-
+            
             cols = 4
             for ind,val in enumerate(gene_list[1:]):
                 fig_row, fig_col = int(ind/cols), ind%cols
