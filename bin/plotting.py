@@ -255,22 +255,37 @@ def plot_node_importances_voronoi(test_graph, coordinates_arr, node_score_dict, 
 
 
 
-def plot_node_types_voronoi(test_graph, coordinates_arr, ax, font_size=10):
+def plot_node_types_voronoi(test_graph, coordinates_arr, ax, node_type="ct_class", cmap =plt.cm.Pastel1, ct_order= None, font_size=10):
     original_graph = utils.to_networkx(test_graph)
     color_list = []
-    
+    # ct_class
     # Get coarse cell type annotations (first dimension of ct_class)
-    coarse_cell_types = [ct[1] for ct in test_graph.ct_class]
-    unique_cell_types = list(set(coarse_cell_types))
+    # print(test_graph[node_type])
+    if node_type=="ct_class":
+        coarse_cell_types = [ct[1] for ct in test_graph[node_type]]
+    else:
+        coarse_cell_types = [ct if pd.notna(ct) else "Tumor" for ct in test_graph[node_type]]
+
+    if ct_order:
+        unique_cell_types = ct_order
+    else:
+        unique_cell_types = list(set(coarse_cell_types))
     
     """# Assign a unique color to each cell type
     cell_type_colors = plt.cm.get_cmap("tab10", len(unique_cell_types))
     cell_type_color_dict = {ctype: cell_type_colors(i) for i, ctype in enumerate(unique_cell_types)}"""
     
     # Assign a unique pastel color to each cell type
-    pastel_colors = plt.cm.Pastel1  # Use a pastel colormap
-    cell_type_color_dict = {ctype: pastel_colors(i % pastel_colors.N) for i, ctype in enumerate(unique_cell_types)}
-    
+    # pastel_colors = plt.cm.Pastel1  # Use a pastel colormap
+    pastel_colors = cmap
+    # Create a dictionary mapping cell types to colors from the custom colormap
+    cell_type_color_dict = {
+        ctype: cmap(i / max(1, len(unique_cell_types) - 1))  # Normalize index to [0,1]
+        for i, ctype in enumerate(unique_cell_types)
+    }
+
+    # cell_type_color_dict = {ctype: pastel_colors(i % pastel_colors.N) for i, ctype in enumerate(unique_cell_types)}
+    # print(cell_type_color_dict)
     # Map nodes to their respective cell type colors
     color_list = [cell_type_color_dict[coarse_cell_types[n_id]] for n_id in original_graph.nodes]
     
@@ -516,11 +531,32 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import custom_tools
+import numpy as np
 
-def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_name = "clinical_type", fl_path = "/net/data.isilon/ag-saez/bq_arifaioglu/home/Projects/GNNClinicalOutcomePrediction/plots/manuscript_figures"):
+def classify_breast_cancer(row):
+    er = row['ER Status']
+    pr = row['PR Status']
+    her2 = row['HER2 Status']
+    
+    hr_positive = (er == 'Positive') or (pr == 'Positive')
+
+    if not hr_positive and her2 == 'Negative':
+        return 'TripleNeg'
+    elif not hr_positive and her2 == 'Positive':
+        return 'HR-HER2+'
+    elif hr_positive and her2 == 'Negative':
+        return 'HR+HER2-'
+    elif hr_positive and her2 == 'Positive':
+        return 'HR+HER2+'
+    else:
+        return np.nan  # In case of unexpected values
+
+
+def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_name = "clinical_type", plt_path = "../plots/manuscript_figures"):
     c_data  = pd.read_csv("../data/METABRIC/brca_metabric_clinical_data.tsv", sep="\t", index_col=False)
     s_c_data = pd.read_csv("../data/METABRIC/single_cell_data.csv", index_col=False)
     c_data.columns = c_data.columns.str.strip()
+    c_data['Subtype'] = c_data.apply(classify_breast_cancer, axis=1)
     # Print columns
     print("Clinical data columns: ", c_data.columns)
     print("Single cell data columns: ", s_c_data.columns)
@@ -531,61 +567,32 @@ def visualize_clinical_data(c_data=None, s_c_data=None, clinical_type_column_nam
     if clinical_type_column_name not in c_data.columns:
         c_data = custom_tools.type_processor(c_data)
 
-    # Define custom order for the plot
+    # Define custom order
     custom_order = ["TripleNeg", "HR-HER2+", "HR+HER2-", "HR+HER2+"]
-    my_pal = {"TripleNeg": "b", "HR-HER2+": "y", "HR+HER2-":"g", "HR+HER2+":"r"}
 
-    
+    # Define darker shades
+    my_pal = {"TripleNeg": "#4682B4",  # Steel Blue (Darker Blue)
+            "HR-HER2+": "#DAA520",   # Goldenrod (Darker Yellow)
+            "HR+HER2-": "#228B22",   # Forest Green (Darker Green)
+            "HR+HER2+": "#B22222"}   # Firebrick (Darker Red)
 
-    # Clinical_type vs Survival candle plot using sns and order the clinical_type
-    clinical_type = c_data["clinical_type"]
-    survival = c_data["Overall Survival (Months)"]
-    ax = sns.boxplot(x=clinical_type, y=survival, order=custom_order, palette= my_pal)
-    ax.set(xlabel="Clinical Type", ylabel="Overall Survival (Months)")
-    # plt.show()
-    # adding transparency to colors
-    for patch in ax.artists:
-        r, g, b, a = patch.get_facecolor()
-        patch.set_facecolor((r, g, b, .3))
-    plt.savefig(os.path.join(fl_path, "METABRIC_clinical_type_vs_survival.pdf"))
+    # Set figure size
+    plt.figure(figsize=(8, 6))
+
+    # Create the box plot with pastel colors
+    sns.boxplot(data=c_data, x='Subtype', y='Overall Survival (Months)', 
+                order=custom_order, palette=my_pal)
+
+    # Improve plot readability
+    plt.xticks(rotation=45)
+    plt.title('Distribution of Overall Survival (Months) per Subtype')
+    plt.xlabel('Breast Cancer Subtype')
+    plt.ylabel('Overall Survival (Months)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(plt_path, "METABRIC_clinical_type_vs_survival.pdf"))
     plt.clf()
 
-    # plot tumor_stage vs survival box plot
-    tumor_stage = c_data["Tumor Stage"]
-    # Remove nan values
-    tumor_stage = tumor_stage[tumor_stage.notnull()]
-    # Remove 0
-    tumor_stage = tumor_stage[tumor_stage != 0]
-    ax = sns.boxplot(x=tumor_stage, y=survival)
-    ax.set(xlabel="Tumor Stage", ylabel="Overall Survival (Months)")
-    plt.savefig(os.path.join(PLOT_PATH, "manuscript_figures", "METABRIC_tumor_stage_vs_survival.pdf"))
-
-    clinical_type = c_data["clinical_type"]
-    age = c_data["Age at Diagnosis"]
-    ax = sns.boxplot(x=clinical_type, y=age, order=custom_order, palette= my_pal)
-    ax.set(xlabel="Clinical Type", ylabel="Age at Diagnosis")
-    for patch in ax.artists:
-        r, g, b, a = patch.get_facecolor()
-        patch.set_facecolor((r, g, b, .3))
-
-    plt.savefig(os.path.join(fl_path, "METABRIC_clinical_type_vs_age.pdf"))
-    plt.clf()
-    # plt.show()
-
     
-    # Age vs Survival scatter plot, color by clinical_type
-    
-    ax = sns.scatterplot(x=survival, y=age, hue=clinical_type, hue_order=custom_order)
-    ax.set(xlabel="Overall Survival (Months)", ylabel="Age at Diagnosis")
-    plt.savefig(os.path.join(PLOT_PATH, "manuscript_figures", "METABRIC_age_vs_survibility.pdf"))
-
-    
-
-
-    # HER2-NAN count
-    print("HER2-NAN count: ", len(c_data[c_data["clinical_type"] == "HER2-NAN"]))
-    # Total count   
-    print("Total count: ", len(c_data))
 
 def UMAP_plot(embeddings, emb_id, related_data, attribute_name, experiment_name=None, job_id=None, mode="FC", attributes = np.empty(0)):
     """Creates 2D UMAP plot for given embeddings and related data.

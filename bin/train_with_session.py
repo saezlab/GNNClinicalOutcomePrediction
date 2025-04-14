@@ -113,3 +113,6 @@ trainer_tester(parser_args, setup_args)
 
 # python train_with_session.py --dataset_name JacksonFischer --full_training --model_name JF
 # python train_with_session.py --dataset_name JacksonFischer --no-full_training --model_name JF_xfold
+
+# python train_with_session.py --dataset_name METABRIC --full_training --model_name METABRIC
+# python train_with_session.py --dataset_name METABRIC --no-full_training --model_name METABRIC_xfold

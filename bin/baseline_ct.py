@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 import pandas as pd
+from tqdm import tqdm   
 from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import KFold
 from sksurv.metrics import concordance_index_censored
@@ -18,6 +19,7 @@ from sksurv.ensemble import GradientBoostingSurvivalAnalysis
 # n nighroe analysis
 
 dataset_name= "JacksonFischer"
+dataset_name= "METABRIC"
 dataset_path = os.path.join("/home/rifaioglu/projects/GNNClinicalOutcomePrediction/data", dataset_name)
 
 def get_ct_classes():
@@ -123,7 +125,7 @@ def load_json(file_path):
     return l_dict
 
 import json
-json_fl = load_json("/home/rifaioglu/projects/GNNClinicalOutcomePrediction/data/JacksonFischer/folds.json")
+json_fl = load_json(f"/home/rifaioglu/projects/GNNClinicalOutcomePrediction/data/{dataset_name}/folds.json")
 
 
 aggregator = ["sum", "mean"]
@@ -136,10 +138,15 @@ result_df_cols  = []
 all_results = []
 for agg in aggregator:
     df_dataset, cell_type_list = get_dataset_df(agg=agg)
+    # print(cell_type_list)
     all_data_y =[]
     all_status = []
     for ind, row in df_dataset.iterrows():
-        patient_status = True if row["Patientstatus"].lower().startswith("death") else False
+        
+        if dataset_name == "METABRIC":
+            patient_status = True if row["diseasestatus"]!="Living" else False
+        else:
+            patient_status = True if row["Patientstatus"].lower().startswith("death") else False
         all_data_y.append((patient_status, float(row["OSmonth"])))
         all_status.append(patient_status)
 
@@ -161,7 +168,7 @@ for agg in aggregator:
     
     for est_name in estimators:
         hyper_param_combs = hyper_param_combs_dict[est_name]
-        for ind, comb in enumerate(hyper_param_combs):
+        for ind, comb in tqdm(enumerate(hyper_param_combs), total=len(hyper_param_combs), desc=f"{est_name}, {agg}"):
             
             result_df_cols.append(f"{est_name}-{ind}-{agg}")
             estimator = None
@@ -192,12 +199,10 @@ for agg in aggregator:
                 estimator.predict(test_data_x))
                 k_fold_cindex.append(test_cindex[0])
             all_results.append(k_fold_cindex)
-            print(ind)
-
 print(len(all_results))
 print(len(result_df_cols))
 df_results = pd.DataFrame(np.array(all_results).T, columns=result_df_cols)
 
-df_results.to_csv("/home/rifaioglu/projects/GNNClinicalOutcomePrediction/data/out_data/baseline_predictors/baseline_ct_results.csv")
+df_results.to_csv(f"/home/rifaioglu/projects/GNNClinicalOutcomePrediction/data/out_data/baseline_predictors/{dataset_name}_baseline_ct_results.csv")
 
 

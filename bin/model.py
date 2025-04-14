@@ -1,6 +1,7 @@
 # from tkinter import Variable
 # from turtle import hideturtle
 import torch
+import sys
 from torch.nn import Linear
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, GATConv, TransformerConv, GINConv, PNAConv, GATv2Conv
@@ -221,9 +222,10 @@ class CustomGCN(torch.nn.Module):
 
 
     def forward(self, x, edge_index, batch=torch.tensor([1]), att=False):
-        # print("BURAYA gel")
+        # print("X",x.isna, x)
+        
         if self.type == 'GATConv' and att is True:
-            # print("BURAYA gel2"
+            
             '''
             In this implementation just first GAT layers' attention weights have been looked at.
             '''
@@ -247,16 +249,31 @@ class CustomGCN(torch.nn.Module):
             # Conv layers
             
             for conv in self.convs:
+                # x = conv(x, edge_index)
+                # print("X",x)  
                 x = F.relu(conv(x, edge_index))
+                
+                
                 x = F.dropout(x, self.dropout, training=self.training)
+                
+            # Check for NaNs
+            
+            # Check for NaNs
+            
 
+            
             # Convulution Result Aggregation
             x = global_mean_pool(x, batch)  # [batch_size, gcn_hidden_neurons]
-
+            
             # Classification according to ppoling
             for ff_l in self.ff_layers[:-1]:
                 x = F.relu(ff_l(x))
                 # x = h + x  # residual#
                 x = F.dropout(x, self.dropout, training=self.training)
             x = self.ff_layers[-1](x)
+            # print("X",x)
+            has_nan = torch.isnan(x).any()
+            if has_nan:
+                print("NaN in the output")
+                sys.exit()
             return x

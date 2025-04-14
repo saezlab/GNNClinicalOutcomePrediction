@@ -115,6 +115,33 @@ def k_fold_by_group(dataset, n_of_folds=10, group_name="p_id"):
     return samplers
 
 
+def k_fold_random_split(dataset, n_of_folds=10, seed=42):
+    """Splits dataset into Train and Test sets using random K-Fold (no grouping)
+
+    Args:
+        dataset (_type_): Data to be split
+        n_of_folds (int): Number of folds
+        seed (int): Random seed for reproducibility
+    """
+
+    # Extract relevant data (or dummy columns if not needed)
+    lst_data = []
+    for item in dataset:
+        lst_data.append([item.p_id, item.img_id, item.clinical_type, item.tumor_grade, item.osmonth])
+    
+    df_dataset = pd.DataFrame(lst_data, columns=["p_id", "img_id", "clinical_type", "tumor_grade", "osmonth"])
+    
+    kf = KFold(n_splits=n_of_folds, shuffle=True, random_state=seed)
+    
+    samplers = []
+    for i, (train_idx, test_idx) in enumerate(kf.split(df_dataset)):
+        samplers.append((
+            i,  # fold number
+            torch.utils.data.SubsetRandomSampler(train_idx),
+            torch.utils.data.SubsetRandomSampler(test_idx)
+        ))
+
+    return samplers
 
 def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curdir, "..", "models")):
     """
@@ -137,7 +164,7 @@ def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curd
     if mode == "SD":
         torch.save(model.state_dict(), path_model)
 
-    elif mode == "SDH":
+    elif mode == "SDH": 
         torch.save(model.state_dict(), path_model)
         
         try: 
@@ -157,6 +184,7 @@ def save_model(model: CustomGCN,fileName ,mode: str, path = os.path.join(os.curd
         torch.save(model, path_model)
 
     print(f"Model saved with session id: {fileName}!")
+    print(f"Saved model path: {path_model}!")
 
 
 def load_model(fileName: str, path =  os.curdir, model_type: str = "NONE", args: dict = {}, deg = None, gpu_id=None, device=None):
@@ -337,7 +365,7 @@ def general_parser() -> argparse.Namespace:
         type=str,
         default="JacksonFischer",
         metavar='ds',
-        help='dataset name (default: JacksonFischer, alternative METABRIC)')
+        help='dataset name (default: JacksonFischer, alternatives METABRIC, Lung)')
     
     parser.add_argument(
         '--model',

@@ -2,9 +2,10 @@ from cProfile import label
 from sklearn.metrics import accuracy_score, f1_score, precision_score
 import torch
 from model import CustomGCN
-from dataset import TissueDataset
+from dataset import TissueDataset, LungDataset
 from torch_geometric.loader import DataLoader
 import numpy as np
+import torch.nn as nn
 import plotting
 from tqdm import tqdm
 import pandas as pd
@@ -68,10 +69,15 @@ class trainer_tester:
         """Pulls data, creates samplers according to ratios, creates train, test and validation loaders for 
         each fold, saves them under the 'folds_dict' dictionary
         """
-        self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH, f"../data/{self.parser_args.dataset_name}", self.parser_args.unit),  self.parser_args.unit)
+        if self.parser_args.dataset_name == "Lung":
+            self.dataset = LungDataset(os.path.join(self.setup_args.S_PATH, f"../data/{self.parser_args.dataset_name}"), "Relapse")
+            # RAW_DATA_PATH = os.path.join("../data", f"{dataset_name}/raw")
+            #dataset = LungDataset(f"../data/{dataset_name}",  "Relapse")
+        else:
+            self.dataset = TissueDataset(os.path.join(self.setup_args.S_PATH, f"../data/{self.parser_args.dataset_name}", self.parser_args.unit),  self.parser_args.unit)
         # dataset = TissueDataset(os.path.join("../data/JacksonFischer/month"), "month")
 
-        print("Number of samples:", len(self.dataset), self.parser_args.dataset_name )
+        print("Number of samples:", len(self.dataset), self.parser_args.dataset_name,  self.parser_args.label)
 
         if self.parser_args.label == "OSMonth" or self.parser_args.loss == "CoxPHLoss":
             self.label_type = "regression"
@@ -90,12 +96,14 @@ class trainer_tester:
             self.label_type = "classification"
             self.setup_args.criterion = torch.nn.CrossEntropyLoss()
 
-        elif self.parser_args.label == "grade":
+        elif self.parser_args.label == "Relapse":
+            print("Classification")
             self.label_type = "classification"
-            self.setup_args.criterion = torch.nn.CrossEntropyLoss()
-            self.dataset.data.y = self.dataset.data.tumor_grade
-            self.unique_classes = torch.unique(self.dataset.data.tumor_grade)
-            self.num_classes = len(self.unique_classes)
+            # self.setup_args.criterion = torch.nn.CrossEntropyLoss()
+            self.dataset.data.y = self.dataset.data.y
+            self.unique_classes = torch.unique(self.dataset.data.y)
+            # self.num_classes = len(self.unique_classes)
+            self.num_classes = 1
 
         self.label_data = self.dataset.data.y
         if self.label_type=="classification":
@@ -116,6 +124,7 @@ class trainer_tester:
                     deg = self.calculate_deg(train_sampler)
 
             model = self.set_model(deg)
+            
 
             optimizer = torch.optim.Adam(model.parameters(), lr=self.parser_args.lr, weight_decay=self.parser_args.weight_decay)
             scheduler = ReduceLROnPlateau(optimizer, 'min', factor= self.parser_args.factor, patience=self.parser_args.patience, min_lr=self.parser_args.min_lr, verbose=True)
@@ -135,8 +144,12 @@ class trainer_tester:
 
         
         else:
+            
             # self.samplers = custom_tools.k_fold_by_group(self.dataset)
-            self.samplers = custom_tools.get_n_fold_split(self.dataset, self.parser_args.dataset_name)
+            if self.parser_args.dataset_name == "Lung":
+                self.samplers = custom_tools.k_fold_random_split(self.dataset)
+            else:
+                self.samplers = custom_tools.get_n_fold_split(self.dataset, self.parser_args.dataset_name)
 
             deg = -1
 
@@ -160,6 +173,7 @@ class trainer_tester:
                     deg = self.calculate_deg(train_sampler)
                 
                 model = self.set_model(deg)
+                # print("Model", model)
 
                 optimizer = torch.optim.Adam(model.parameters(), lr=self.parser_args.lr, weight_decay=self.parser_args.weight_decay)
                 scheduler = ReduceLROnPlateau(optimizer, 'min', factor= self.parser_args.factor, patience=self.parser_args.patience, min_lr=self.parser_args.min_lr, verbose=True)
@@ -234,12 +248,14 @@ class trainer_tester:
         for data in fold_dict["train_loader"]:  # Iterate in batches over the training dataset.
 
             out = fold_dict["model"](data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
-
+            # print("Out shape", out.shape, torch.sigmoid(out), data.y)
             loss = None
-            if self.parser_args.loss == "CoxPHLoss" or self.parser_args.loss == "NegativeLogLikelihood":
+            if self.parser_args.loss == "CoxPHLoss":#  or self.parser_args.loss == "NegativeLogLikelihood":
                 loss = self.setup_args.criterion(out, data.y.to(self.device), data.is_censored.to(self.device))  # Compute the loss.    
             else:
-                loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
+                # print("Loss", data.y, out.squeeze(), out.shape)
+                loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device)) # .to(self.device))  # Compute the loss.
+                # print("Loss", loss, loss.item(), data.y.to(self.device), out.squeeze(), out)
             
             loss.backward()  # Derive gradients.
             
@@ -268,44 +284,73 @@ class trainer_tester:
         model.eval()
 
         total_loss = 0.0
-        pid_list, img_list, pred_list, true_list, tumor_grade_list, clinical_type_list, osmonth_list, censorship_list = [], [], [], [], [], [], [], []
+        pid_list, img_list, pred_list, true_list, tumor_grade_list, clinical_type_list, osmonth_list, censorship_list, relapse_list = [], [], [], [], [], [], [], [], []
         
         for data in loader:  # Iterate in batches over the training/test dataset.
             if data.y.shape[0]>1:
                 out = model(data.x.to(self.device), data.edge_index.to(self.device), data.batch.to(self.device)).type(torch.DoubleTensor).to(self.device) # Perform a single forward pass.
 
                 loss = None
-                if self.parser_args.loss == "CoxPHLoss" or self.parser_args.loss=="NegativeLogLikelihood":
+                if self.parser_args.loss == "CoxPHLoss":#  or self.parser_args.loss=="NegativeLogLikelihood":
                     loss = self.setup_args.criterion(out, data.y.to(self.device), data.is_censored.to(self.device))  # Compute the loss.    
                 else:
+                    # print("Classification loss")
+                    # print(out.squeeze(),  data.y.to(self.device))
                     loss = self.setup_args.criterion(out.squeeze(), data.y.to(self.device))  # Compute the loss.
 
                 total_loss += float(loss.item())
 
                 true_list.extend([round(val.item(),6) for val in data.y])
                 # WARN Correct usage of "max" ?
-                if self.label_type == "regression":
+                if self.parser_args.loss == "CoxPHLoss":# == "regression":
                     pred_list.extend([val.item() for val in out.squeeze()])
                 else:
-                    pred_list.extend([custom_tools.argmax(val) for val in out.squeeze()])
+                    probs = torch.sigmoid(out)
+                    preds = (probs >= 0.5).float()
+                    # print("preds, data.y", preds.squeeze(), data.y)
+                    correct = (np.array(preds.squeeze().cpu()) == np.array(data.y)).sum()
+                    # accuracy = correct / data.y.size(0)
+                    # print("Accuracy", accuracy)
+                    pred_list.extend([val for val in preds])
                 
                 #pred_list.extend([val.item() for val in data.y])
-                if return_pred_df:
+                # print(self.parser_args.dataset_name)
+                if return_pred_df and self.parser_args.loss == "CoxPHLoss":
                     tumor_grade_list.extend([val for val in data.tumor_grade])
                     clinical_type_list.extend([val for val in data.clinical_type])
                     osmonth_list.extend([val.item() for val in data.osmonth])
                     censorship_list.extend([val.item() for val in data.is_censored])
                     pid_list.extend([val for val in data.p_id])
                     img_list.extend([val for val in data.img_id])
+                    
+                elif return_pred_df:
+
+                    tumor_grade_list.extend([val for val in data.tumor_grade])
+                    clinical_type_list.extend([val for val in data.clinical_type])
+                    osmonth_list.extend([val.item() for val in data.osmonth])
+                    relapse_list.extend([val.item() for val in data.y])
+                    pid_list.extend([val for val in data.p_id])
+                    img_list.extend([val for val in data.img_id])
+                    
+                    
+                
+                else:
+                    pass
             else:
                 pass
-        
+
+                    
+        # print("pred_list", pred_list)
         if return_pred_df:
             
             # label_list = [str(fold_dict["fold"]) + "-" + label]*len(clinical_type_list)
             label_list = [str(fold) + "-" + label]*len(clinical_type_list) # 
-            df = pd.DataFrame(list(zip(pid_list, img_list, true_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, censorship_list, label_list)),
-                columns =["Patient ID","Image Number", 'True Value', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Censored", "Fold#-Set"])
+            if self.parser_args.loss == "CoxPHLoss":
+                df = pd.DataFrame(list(zip(pid_list, img_list, true_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list, censorship_list, label_list)),
+               columns =["Patient ID","Image Number", 'True Value', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Censored", "Fold#-Set"])
+            else:
+                df = pd.DataFrame(list(zip(pid_list, img_list, true_list, pred_list, tumor_grade_list, clinical_type_list, osmonth_list,  label_list)),
+                columns =["Patient ID","Image Number", 'True Value', 'Predicted', "Tumor Grade", "Clinical Type", "OS Month", "Fold#-Set"])
             
             return total_loss, df
         else:
@@ -317,7 +362,7 @@ class trainer_tester:
         """
         self.results =[] 
         # collect train/val/test predictions of all folds in all_preds_df
-        fold_val_ci = []
+        fold_val_scores = []
 
         # print(self.fold_dicts)
         for fold_dict in self.fold_dicts:
@@ -332,30 +377,42 @@ class trainer_tester:
                 train_loss = self.test(fold_dict["model"], fold_dict["train_loader"],  fold_dict["fold"])
                 validation_loss, df_epoch_val = self.test(fold_dict["model"], fold_dict["validation_loader"],  fold_dict["fold"], "validation", self.setup_args.plot_result)
                 # test_loss, df_epoch_test = self.test(fold_dict["model"], fold_dict["test_loader"],  fold_dict["fold"], "test", self.setup_args.plot_result)
-                
-                epoch_val_ci_score = concordance_index(df_epoch_val['OS Month'], -df_epoch_val['Predicted'], df_epoch_val["Censored"]) if self.parser_args.loss=="NegativeLogLikelihood" else concordance_index(df_epoch_val['OS Month'], -df_epoch_val['Predicted'], df_epoch_val["Censored"])
-                # epoch_test_ci_score = concordance_index(df_epoch_test['OS Month'], -df_epoch_test['Predicted'], df_epoch_test["Censored"]) if self.parser_args.loss=="NegativeLogLikelihood" else concordance_index(df_epoch_test['OS Month'], df_epoch_test['Predicted'], df_epoch_test["Censored"])
+                epoch_val_score = 0.0   
+                if self.parser_args.loss == "CoxPHLoss":
+                    epoch_val_score = concordance_index(df_epoch_val['OS Month'], -df_epoch_val['Predicted'], df_epoch_val["Censored"]) if self.parser_args.loss=="NegativeLogLikelihood" else concordance_index(df_epoch_val['OS Month'], -df_epoch_val['Predicted'], df_epoch_val["Censored"])
+                else:
+                    
+                    correct = (df_epoch_val['True Value'] == df_epoch_val['Predicted']).sum()
+                    # print((df_epoch_val['True Value'][:10] == df_epoch_val['Predicted'][:10]))
+                    # print(df_epoch_val['True Value'][:10], df_epoch_val['Predicted'][:10])
+                    # print("correct, len(df_epoch_val)", correct, len(df_epoch_val))
+                    # print(df_epoch_val['True Value'])
+                    # print(df_epoch_val['Predicted'])
+                    epoch_val_score = correct / len(df_epoch_val)
+                    # print("Accuracy", accuracy)
+
             
                 fold_dict["scheduler"].step(validation_loss)
-                early_stopping(validation_loss, epoch_val_ci_score, fold_dict["model"], vars(self.parser_args), id_file_name=self.setup_args.id, deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None)
+                # print(epoch_val_score)
+                early_stopping(validation_loss, epoch_val_score, fold_dict["model"], vars(self.parser_args), id_file_name=self.setup_args.id, deg=self.fold_dicts[0]["deg"] if self.parser_args.model == "PNAConv" else None)
                 
                 # pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Val c_index: {epoch_val_ci_score} Patience: {early_stopping.counter}")
-                pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Best val. c_index: {early_stopping.best_eval_score} Patience: {early_stopping.counter}")
+                pbar.set_description(f"Train loss: {train_loss:.2f} Val. loss: {validation_loss:.2f} Best val. score: {early_stopping.best_eval_score} Patience: {early_stopping.counter}")
 
                 if early_stopping.early_stop or epoch==self.parser_args.epoch-1:
                     print("Best model lr:", fold_dict["optimizer"].param_groups[0]["lr"])
                     self.parser_args.best_epoch = epoch
-                    fold_val_ci.append(early_stopping.best_eval_score)
+                    fold_val_scores.append(early_stopping.best_eval_score)
                     print("Early stopping the training...")
-                    break
+                    break 
 
-        average_ci_score = sum(fold_val_ci)/len(fold_val_ci)
-        if average_ci_score > 0.65:
-            self.parser_args.ci_score = average_ci_score
-            self.parser_args.fold_ci_scores = fold_val_ci
+        average_val_scores = sum(fold_val_scores)/len(fold_val_scores)
+        if average_val_scores > 0.50:
+            self.parser_args.ci_score = average_val_scores
+            self.parser_args.fold_ci_scores = fold_val_scores
             custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
-            print(f"Average c_index: {sum(fold_val_ci)/len(fold_val_ci)}")
-            box_plt = sns.boxplot(data=fold_val_ci)
+            print(f"Average validation score: {sum(fold_val_scores)/len(fold_val_scores)}")
+            box_plt = sns.boxplot(data=fold_val_scores)
             fig = box_plt.get_figure()
             fig.savefig(os.path.join(self.setup_args.PLOT_PATH, f"{self.setup_args.id}.png"))
     
@@ -411,8 +468,8 @@ class trainer_tester:
         elif self.label_type == "classification":
             self.results.append([fold_dict['fold'], best_train_loss, best_val_loss, best_test_loss, accuracy_Score, precision_Score, f1_Score])
 
-        print("Train ci score", ci_score)
-        print(self.label_type, self.parser_args.loss)
+        # print("Train ci score", ci_score)
+        # print(self.label_type, self.parser_args.loss)
         if  (self.label_type == "regression") and self.parser_args.loss == "CoxPHLoss":
             self.parser_args.ci_score = ci_score
             custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
