@@ -404,10 +404,11 @@ class trainer_tester:
                     self.parser_args.best_epoch = epoch
                     fold_val_scores.append(early_stopping.best_eval_score)
                     print("Early stopping the training...")
-                    break 
+                    break
+            break
 
         average_val_scores = sum(fold_val_scores)/len(fold_val_scores)
-        if average_val_scores > 0.50:
+        if average_val_scores > 0.66:
             self.parser_args.ci_score = average_val_scores
             self.parser_args.fold_ci_scores = fold_val_scores
             custom_tools.save_dict_as_json(vars(self.parser_args), self.setup_args.id, self.setup_args.MODEL_PATH)
