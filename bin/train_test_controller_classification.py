@@ -2,8 +2,7 @@
 import torch
 from data_processing import OUT_DATA_PATH
 import os
-import pytorch_lightning as pl
-import custom_tools as custom_tools
+import custom_tools
 from types import SimpleNamespace
 from loss import CoxPHLoss, NegativeLogLikelihood
 from trainer_tester import trainer_tester
